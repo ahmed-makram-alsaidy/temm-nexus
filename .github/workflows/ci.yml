@@ -126,8 +126,9 @@ jobs:
             [ "$APP" = "1" ] && break
             sleep 5
           done
-          # Uninitialized platform must redirect everything to /setup.
-          CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80/setup)
+          # Uninitialized platform redirects /setup to the wizard step 1;
+          # following the redirect must land on a working page (200).
+          CODE=$(curl -sL -o /dev/null -w '%{http_code}' http://localhost:80/setup)
           [ "$CODE" = "200" ] || {
             docker compose -f docker-compose.prod.yml logs --tail=120 app || true
             echo "== response body (first 2KB) =="
