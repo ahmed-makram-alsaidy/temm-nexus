@@ -22,6 +22,11 @@ tooling and repository fixes surfaced by the first public CI run).
 - Added `storage/framework/{cache,sessions,views}` and `storage/logs`
   structure files so fresh clones can run artisan/PHPUnit (Laravel
   requires these directories; "Please provide a valid cache path")
+- **Installer APP_KEY fix:** `scripts/install.sh` generated a 48-byte
+  key (`rand -hex 24` piped through base64); Laravel requires exactly
+  32 bytes, so every request failed with "Unsupported cipher or
+  incorrect key length" after a fresh install. The installer now uses
+  `openssl rand -base64 32`.
 - Marked the CI test-suite job non-blocking with a documented reason:
   part of the suite requires operator-workstation project fixtures and
   is not yet hermetic (see CONTRIBUTING.md)
