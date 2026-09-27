@@ -1,3 +1,20 @@
+## [0.2.0-rc.3] — 2026-09-27
+
+Publication hardening on top of 0.2.0-rc.2 (same product source; release
+tooling and repository fixes surfaced by the first public CI run).
+
+### Fixed
+
+- Line-ending hygiene: repository text files normalized to LF (CRLF in
+  `VERSION` corrupted artifact filenames, and CRLF in `.env.example`
+  broke scripted `APP_KEY` generation in CI)
+- Restored `apps/owner-console/bootstrap/cache/` structure file — the
+  directory is required by `artisan package:discover` on fresh clones
+- CI: the PHP SDK test invocation passes its test path (PHPUnit exits
+  with its usage screen when neither a config nor a path is given)
+- CI: compose configuration validation now creates `.env` from
+  `.env.example` first (the production compose requires it)
+
 # Changelog
 
 All notable changes to the platform are documented here. The public history
