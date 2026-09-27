@@ -75,8 +75,7 @@ else
     chmod 600 .env 2>/dev/null || true
     gen_secret() { openssl rand -hex 24 2>/dev/null || head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
     sed -i.bak \
-      -e "s|^APP_KEY=$|APP_KEY=base64:$(openssl rand -base64 32 | tr -d '
-')|" \
+      -e "s|^APP_KEY=$|APP_KEY=base64:$(openssl rand -base64 32 | tr -d '\n')|" \
       -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(gen_secret)|" \
       -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$(gen_secret)|" \
       -e "s|^MONITOR_DB_PASSWORD=.*|MONITOR_DB_PASSWORD=$(gen_secret)|" \
