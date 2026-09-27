@@ -101,18 +101,19 @@ jobs:
         run: docker compose -f docker-compose.prod.yml config --quiet
 
   fresh-install:
-    name: Fresh-install smoke (compose up → setup gate)
+    name: Fresh-install smoke (install.sh -> setup gate)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare .env
+      - name: Run the installer (real operator path)
         run: |
-          cp .env.example .env
-          sed -i "s|^APP_KEY=$|APP_KEY=base64:$(openssl rand -base64 32 | tr -d '\n')|" .env
-          sed -i "s|CHANGE_ME_32CHAR_MIN|ci-generated-secret|g" .env
-      - name: Start the production stack
-        run: docker compose -f docker-compose.prod.yml up -d --build
-      - name: Wait for health, verify setup gate
+          if ! ./scripts/install.sh; then
+            echo "== installer failed; service diagnostics =="
+            docker compose -f docker-compose.prod.yml ps -a || true
+            docker compose -f docker-compose.prod.yml logs --tail=200 migrate || true
+            exit 1
+          fi
+      - name: Verify setup gate
         run: |
           for i in $(seq 1 60); do
             APP=$(docker compose -f docker-compose.prod.yml ps --format '{{.Name}} {{.Health}}' | grep ' app ' | grep -c healthy || true)

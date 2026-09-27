@@ -14,6 +14,14 @@ tooling and repository fixes surfaced by the first public CI run).
   with its usage screen when neither a config nor a path is given)
 - CI: compose configuration validation now creates `.env` from
   `.env.example` first (the production compose requires it)
+- CI: the fresh-install smoke now runs the real installer
+  (`scripts/install.sh`) instead of a hand-rolled `.env` + compose
+  sequence — the installer's database provisioning step
+  (`ensure-platform-db`) is required and was being skipped, so
+  migrations failed with a password-authentication error
+- Added `storage/framework/{cache,sessions,views}` and `storage/logs`
+  structure files so fresh clones can run artisan/PHPUnit (Laravel
+  requires these directories; "Please provide a valid cache path")
 
 # Changelog
 
