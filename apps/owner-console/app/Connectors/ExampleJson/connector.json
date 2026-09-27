@@ -1,0 +1,29 @@
+{
+    "schema_version": 1,
+    "key": "example-json",
+    "name": "Example JSON Connector",
+    "version": "1.0.0",
+    "description": "Developer example: analyzes and migrates a local JSON dataset directory (users, orders, order_items) through the full Migration Center pipeline. Proves the Connector SDK is provider-agnostic.",
+    "author": "Backend Control Plane (first-party)",
+    "license": "MIT",
+    "platform_requirement": ">=0.1.0",
+    "entrypoint": "App\\Connectors\\ExampleJson\\ExampleJsonConnector",
+    "capabilities": [
+        "database_metadata",
+        "data_extraction",
+        "read_only_enforcement",
+        "source_fingerprint"
+    ],
+    "permissions": [
+        "filesystem.dataset.read"
+    ],
+    "trust": "first_party",
+    "import_flow": "credentials-form",
+    "category": "source",
+    "ui": {
+        "display_name": "Example JSON Connector",
+        "icon": "heroicon-o-document-text",
+        "docs_url": null,
+        "setup_instructions": "Point dataset_path at a directory of JSON files (one collection per file: <name>.json containing a JSON array of objects). The connector infers fields, primary keys and relationships by convention, then feeds the standard analysis → plan → migrate → validate pipeline."
+    }
+}

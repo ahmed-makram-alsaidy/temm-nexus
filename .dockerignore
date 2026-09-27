@@ -1,0 +1,45 @@
+# ── Root .dockerignore (production image build context) ────────────
+# The prod build context is the repository root. Everything private or
+# non-essential stays out of the image AND out of the build context
+# (see docs/open-source/DISTRIBUTION_ALLOWLIST.md).
+
+# Private content — never in an image
+projects/
+backups/
+docs/
+examples/
+sdk-integration-demo/
+.github/
+*.md
+!apps/owner-console/*.md
+
+# Secrets & local runtime
+.env
+.env.*
+*.key
+*.pem
+secrets/
+docker-compose.override.yaml
+
+# VCS / tooling
+.git/
+.gitignore
+.zcode/
+.claude/
+.ai/
+
+# Dependencies (installed fresh inside the image)
+**/vendor/
+**/node_modules/
+
+# Build output & ephemera
+**/.next/
+**/dist/
+**/build/
+packages/*/.dart_tool/
+**/.phpunit.result.cache
+
+# App sub-trees not needed at runtime
+apps/owner-console/tests/
+apps/owner-console/nul
+apps/owner-console/bootstrap/cache/

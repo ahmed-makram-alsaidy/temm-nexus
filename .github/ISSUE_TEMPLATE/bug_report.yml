@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in TEMM Nexus does not work as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **DO NOT POST SECRETS.** Never include passwords, API keys,
+        tokens, PATs, database credentials, `.env` contents, real
+        customer data or production hostnames. Redact logs before pasting.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Console footer or the VERSION file
+      placeholder: "0.2.0-rc.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: install-type
+    attributes:
+      label: Install type
+      options:
+        - docker-compose.prod.yml (production stack)
+        - dev compose
+        - other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: No secrets, no real domains — use placeholders.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Redact passwords, keys and personal data.
+      render: shell

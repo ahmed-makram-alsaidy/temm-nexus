@@ -1,0 +1,89 @@
+# ── PRODUCTION Caddyfile (VPS) ─────────────────────────────────
+# Differences vs local infrastructure/caddy/Caddyfile:
+#   - auto_https ON (ACME via HTTP-01; DNS-01 block commented for wildcard)
+#   - HTTP -> HTTPS redirect global
+#   - one site block per domain; copy the project stanza per app
+{
+	email {$ACME_EMAIL}
+}
+
+# Global HTTP->HTTPS (any unmatched host).
+http:// {
+	redir https://{host}{uri} permanent
+}
+
+# ── Owner console (internal staff only; add Cloudflare Access / IP allow-list) ──
+backend.example.com {
+	encode gzip
+	root * /srv/owner-console/public
+	php_fastcgi owner-console:9000 {
+		root /var/www/html/public
+	}
+	file_server
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	@websockets {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @websockets owner-console:6001
+
+	request_body {
+		max_size 28MB
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+# ── Project API stanza (copy per project) ──
+api.project-a.com {
+	encode gzip
+	root * /srv/project-a/public
+	php_fastcgi project-a:9000 {
+		root /var/www/html/public
+	}
+	file_server
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# Laravel Reverb (port 6001 in the app container).
+	@websockets {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @websockets project-a:6001
+
+	request_body {
+		max_size 28MB
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+# ── Wildcard + DNS-01 example (Cloudflare). Requires building Caddy with the
+# cloudflare plugin and CLOUDFLARE_API_TOKEN in env. Uncomment to use:
+# *.example.com {
+# 	tls {
+# 		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+# 	}
+# 	...same as above, routed by {host}...
+# }

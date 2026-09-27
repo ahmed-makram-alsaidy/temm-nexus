@@ -1,0 +1,183 @@
+<?php
+
+namespace App\Filament\Resources\Projects\Pages;
+
+use App\Filament\Resources\Projects\Pages\Concerns\HasProjectContext;
+use App\Filament\Resources\Projects\ProjectResource;
+use App\Models\ProjectEnvironment;
+use App\Models\ReadinessSnapshot;
+use App\Services\ControlPlane\CpAccess;
+use App\Services\ControlPlane\EnvironmentContext;
+use App\Services\ControlPlane\ReadinessService;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\Concerns\InteractsWithRecord;
+use Filament\Resources\Pages\Page;
+use Filament\Schemas\Components\EmbeddedSchema;
+use Filament\Schemas\Components\Html;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Illuminate\Contracts\Support\Htmlable;
+
+/**
+ * Phase 24H — Production Readiness Center. Checklist/status only (no score):
+ * GREEN / YELLOW / RED / NOT_APPLICABLE with machine evidence, guarded manual
+ * acknowledgements, explicit blockers, and snapshot history.
+ */
+class ProjectReadiness extends Page
+{
+    use HasProjectContext;
+    use InteractsWithRecord;
+
+    protected static string $resource = ProjectResource::class;
+
+    protected static bool $shouldRegisterNavigation = false;
+
+    public function mount(int|string $record): void
+    {
+        $this->record = $this->resolveRecord($record);
+    }
+
+    public function getTitle(): string|Htmlable
+    {
+        return 'Readiness';
+    }
+
+    public function getBreadcrumbs(): array
+    {
+        return ['Readiness'];
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return CpAccess::allows(auth()->user(), 'projects.view');
+    }
+
+    public function content(Schema $schema): Schema
+    {
+        return $schema->extraAttributes(['class' => 'cp-reference cp-reference--admin'])->components([
+            $this->subnavSection('readiness'),
+            EmbeddedSchema::make('infolist'),
+        ]);
+    }
+
+    public function infolist(Schema $schema): Schema
+    {
+        $project = $this->project();
+        $env = EnvironmentContext::active($project);
+        $summary = ReadinessService::summary($project, $env);
+        $history = ReadinessSnapshot::where('project_id', $project->id)
+            ->when($env, fn ($q) => $q->where(fn ($qq) => $qq->where('environment_id', $env->id)->orWhereNull('environment_id')))
+            ->orderByDesc('id')->limit(10)->get();
+
+        $badge = ['green' => 'is-success', 'yellow' => 'is-warning', 'red' => 'is-danger', 'not_applicable' => ''];
+        $rows = '';
+        foreach ($summary['checks'] as $check) {
+            $ack = $check['acknowledged_at'] ? '<span class="cp-badge" title="'.e((string) $check['acknowledgement_note']).'">ack</span>' : '';
+            $rows .= '<tr><td>'.e($check['category']).'</td>'
+                .'<td><span class="cp-badge '.($badge[$check['status']] ?? '').'">'.e(strtoupper($check['status'])).'</span></td>'
+                .'<td>'.e($check['title']).'</td>'
+                .'<td>'.e($check['origin']).'</td>'
+                .'<td style="font-size:.75rem">'.e((string) $check['detail']).'</td>'
+                .'<td>'.($check['blocks_production'] ? '<span class="cp-badge is-danger">blocks</span>' : '—').'</td>'
+                .'<td>'.$ack.'</td></tr>';
+        }
+        if ($rows === '') {
+            $rows = '<tr><td colspan="7">No checks yet — run evaluation.</td></tr>';
+        }
+
+        $blockers = '';
+        foreach ($summary['blockers'] as $b) {
+            $blockers .= '<tr><td><span class="cp-badge is-danger">BLOCKER</span></td><td>'.e($b['title']).'</td>'
+                .'<td style="font-size:.75rem">'.e((string) $b['detail']).'</td></tr>';
+        }
+        if ($blockers === '') {
+            $blockers = '<tr><td><span class="cp-badge is-success">NONE</span></td><td>No production blockers</td><td></td></tr>';
+        }
+
+        $histRows = '';
+        foreach ($history as $snap) {
+            $counts = $snap->summary['counts'] ?? [];
+            $histRows .= '<tr><td>#'.$snap->id.'</td><td>'.e($snap->created_at->format('M j, H:i')).'</td>'
+                .'<td>'.e((string) ($counts['green'] ?? 0)).' green</td>'
+                .'<td>'.e((string) ($counts['yellow'] ?? 0)).' yellow</td>'
+                .'<td>'.e((string) ($counts['red'] ?? 0)).' red</td>'
+                .'<td>'.count($snap->summary['blockers'] ?? []).' blockers</td></tr>';
+        }
+        if ($histRows === '') {
+            $histRows = '<tr><td colspan="6">No snapshots recorded.</td></tr>';
+        }
+
+        return $schema->components([
+            Section::make('Checklist — environment: '.e($env->slug))->schema([Html::make(
+                '<p style="font-size:.75rem;color:var(--cp-text-dim);margin-bottom:.5rem">Status only (no numeric score). Machine checks carry platform evidence; '
+                .'manual acknowledgements cannot hide a RED machine check.</p>'
+                .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Category</th><th>Status</th><th>Check</th><th>Origin</th><th>Evidence</th><th>Prod</th><th>Ack</th></tr></thead><tbody>'
+                .$rows.'</tbody></table></div>'
+            )])->compact(),
+            Section::make('Production blockers')->schema([Html::make(
+                '<div class="cp-tablewrap"><table class="cp-grid"><tbody>'.$blockers.'</tbody></table></div>'
+            )])->compact(),
+            Section::make('History')->schema([Html::make(
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>ID</th><th>When</th><th colspan="4">Counts</th></tr></thead><tbody>'
+                .$histRows.'</tbody></table></div>'
+            )])->compact(),
+        ]);
+    }
+
+    protected function getHeaderActions(): array
+    {
+        $project = $this->project();
+
+        return [
+            Action::make('evaluate')->label('Evaluate now')->icon('heroicon-o-play')
+                ->action(function () {
+                    $summary = ReadinessService::evaluate($this->project(), EnvironmentContext::active($this->project()));
+                    Notification::make()->title("{$summary['counts']['green']} green, {$summary['counts']['yellow']} yellow, {$summary['counts']['red']} red")
+                        ->warning($summary['counts']['red'] > 0)->success($summary['counts']['red'] === 0)->send();
+                    $this->redirect(static::getUrl(['record' => $this->project()]));
+                }),
+            Action::make('acknowledge')->label('Acknowledge check')->icon('heroicon-o-check-badge')
+                ->visible(fn () => CpAccess::allows(auth()->user(), 'readiness.acknowledge'))
+                ->schema([
+                    Select::make('check_key')->required()->options(
+                        \App\Models\ReadinessCheck::where('project_id', $project->id)
+                            ->where('origin', 'manual')->pluck('title', 'check_key')->all()
+                    )->helperText('Machine checks: only YELLOW can be acknowledged; RED must be resolved.'),
+                    Textarea::make('note')->required()->rows(2)->placeholder('Who verified what, and how'),
+                ])
+                ->action(function (array $data) {
+                    CpAccess::require(auth()->user(), 'readiness.acknowledge');
+                    try {
+                        ReadinessService::acknowledge($this->project(), EnvironmentContext::active($this->project()), $data['check_key'], $data['note']);
+                        Notification::make()->title('Acknowledgement recorded')->success()->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()->title($e->getMessage())->danger()->send();
+                    }
+                    $this->redirect(static::getUrl(['record' => $this->project()]));
+                }),
+            Action::make('add_manual')->label('Add manual check')->icon('heroicon-o-plus')
+                ->visible(fn () => CpAccess::allows(auth()->user(), 'readiness.acknowledge'))
+                ->schema([
+                    Select::make('category')->required()->options(array_combine(ReadinessService::CATEGORIES, ReadinessService::CATEGORIES)),
+                    TextInput::make('title')->required(),
+                    Textarea::make('note')->rows(2),
+                ])
+                ->action(function (array $data) {
+                    CpAccess::require(auth()->user(), 'readiness.acknowledge');
+                    ReadinessService::addManualCheck($this->project(), EnvironmentContext::active($this->project()), $data);
+                    Notification::make()->title('Manual check added')->success()->send();
+                    $this->redirect(static::getUrl(['record' => $this->project()]));
+                }),
+            Action::make('snapshot')->label('Record snapshot')->icon('heroicon-o-clock')
+                ->action(function () {
+                    ReadinessService::snapshot($this->project(), EnvironmentContext::active($this->project()));
+                    Notification::make()->title('Readiness snapshot recorded')->success()->send();
+                    $this->redirect(static::getUrl(['record' => $this->project()]));
+                }),
+        ];
+    }
+}

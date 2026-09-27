@@ -1,0 +1,82 @@
+# ── Secrets & runtime data: NEVER commit ─────────────────────────
+.env
+.env.*.local
+!.env.example
+*.key
+*.pem
+secrets/
+**/storage/*.key
+**/.env
+
+# ── Docker / local runtime ──
+data/
+volumes/
+backups/
+!backups/scripts/
+backups/data/
+backups/*.sql
+backups/*.sql.gz
+backups/*.dump
+*.sqlite
+docker-compose.override.yaml
+
+# ── Private project working trees (never distributed) ──
+projects/*
+!projects/.gitkeep
+
+# ── Private operator history & evidence (kept locally, never published) ──
+/PHASE*.md
+/FINAL_INFRASTRUCTURE_REPORT.md
+/docs/phase18-evidence/
+/docs/phase20*/
+/docs/phase21/
+/docs/phase22/
+/docs/control-plane-screenshots/
+/docs/platform/**/PHASE*_*.md
+
+# ── Private dogfood regression fixtures (kept locally only) ──
+apps/owner-console/tests/Feature/Phase23/
+
+# ── AI / agent workspaces ──
+.ai/
+.zcode/
+.claude/
+**/ai-workspaces/
+
+# ── Laravel ──
+**/vendor/
+**/node_modules/
+**/public/hot
+**/public/storage
+**/storage/*.log
+**/storage/framework/cache/*
+**/storage/framework/sessions/*
+**/storage/framework/views/*
+**/storage/app/public/*
+**/.phpunit.result.cache
+**/coverage/
+apps/owner-console/bootstrap/cache/*.php
+
+# ── Frontend / SDK build output ──
+**/.next/
+**/out/
+packages/*/dist/
+packages/*/.dart_tool/
+packages/*/build/
+packages/*/.packages
+
+# ── OS / editor ──
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+nul
+
+# ── Release / CI build output (belongs in GitHub Releases, not git) ──
+release-artifacts/
+public-release/
+ci-artifacts/
+*.tar.gz
+*.zip

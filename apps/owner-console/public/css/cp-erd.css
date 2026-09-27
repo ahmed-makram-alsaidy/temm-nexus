@@ -1,0 +1,59 @@
+/* Phase 21A — interactive ERD canvas. Scoped under #cp-erd. */
+#cp-erd { display: flex; flex-direction: column; gap: .625rem; }
+.cp-erd__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  background: var(--cp-surface); border: 1px solid var(--cp-border);
+  border-radius: .625rem; padding: .5rem .625rem; }
+.cp-erd__toolbar select, .cp-erd__toolbar input[type="search"], .cp-erd__toolbar input[type="text"] {
+  background: var(--cp-surface-2); color: var(--cp-text); border: 1px solid var(--cp-border);
+  border-radius: .375rem; padding: .375rem .5rem; font-size: .8125rem; }
+.cp-erd__toolbar input[type="search"] { min-width: 11rem; }
+.cp-erd__spacer { flex: 1 1 auto; }
+.cp-erd__meta { font-size: .75rem; color: var(--cp-text-dim); white-space: nowrap; }
+.cp-erd__toggles { display: flex; flex-wrap: wrap; gap: .375rem .75rem; font-size: .75rem;
+  color: var(--cp-text-dim); align-items: center; }
+.cp-erd__toggles label { display: inline-flex; gap: .3rem; align-items: center; cursor: pointer; }
+.cp-erd__body { display: grid; grid-template-columns: 1fr 19rem; gap: .625rem; min-height: 32rem; }
+@media (max-width: 1100px) { .cp-erd__body { grid-template-columns: 1fr; } }
+.cp-erd__canvas { position: relative; background: var(--cp-surface);
+  border: 1px solid var(--cp-border); border-radius: .625rem; overflow: hidden;
+  min-height: 32rem; cursor: grab; touch-action: none; }
+.cp-erd__canvas:active { cursor: grabbing; }
+.cp-erd__canvas svg { display: block; width: 100%; height: 32rem; user-select: none; }
+.cp-erd__detail { background: var(--cp-surface); border: 1px solid var(--cp-border);
+  border-radius: .625rem; padding: .75rem; font-size: .8125rem; overflow: auto; max-height: 40rem; }
+.cp-erd__detail h3 { font-size: .875rem; margin: 0 0 .25rem; }
+.cp-erd__detail h4 { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--cp-text-dim); margin: .75rem 0 .25rem; }
+.cp-erd__detail code { font-family: ui-monospace, monospace; font-size: .75rem; }
+.cp-erd__detail table { width: 100%; border-collapse: collapse; }
+.cp-erd__detail td, .cp-erd__detail th { padding: .2rem .25rem; border-bottom: 1px solid var(--cp-border);
+  text-align: left; vertical-align: top; }
+.cp-erd__btnrow { display: flex; gap: .375rem; margin-top: .625rem; flex-wrap: wrap; }
+.cp-erd__tip { position: absolute; pointer-events: none; z-index: 5; display: none;
+  background: var(--cp-surface-2); border: 1px solid var(--cp-border); border-radius: .375rem;
+  padding: .375rem .5rem; font-size: .75rem; color: var(--cp-text); max-width: 22rem; }
+.cp-erd__banner { font-size: .75rem; color: var(--cp-text-dim);
+  background: var(--cp-surface); border: 1px dashed var(--cp-border);
+  border-radius: .625rem; padding: .375rem .625rem; }
+.cp-erd__empty { position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; color: var(--cp-text-dim); font-size: .875rem; }
+/* SVG node styling is class-based (theme-adaptive via --cp-* tokens).
+   SVG/PNG export inlines an equivalent <style> block (see cp-erd.js
+   ERD_EXPORT_STYLE) so downloads keep their look standalone. */
+.erd-node { cursor: grab; }
+.erd-box { fill: var(--cp-surface-2); stroke: var(--cp-border-strong); }
+.erd-head { fill: var(--cp-surface-3); }
+.erd-title { fill: var(--cp-text); }
+.erd-col { fill: var(--cp-text); }
+.erd-sub { fill: var(--cp-text-faint); }
+.erd-type-pk { fill: #d97706; }
+.erd-type-fk { fill: #6366f1; }
+.erd-type { fill: var(--cp-text-faint); }
+.erd-collapse-btn { fill: var(--cp-text-faint); }
+.erd-node.erd-dim { opacity: .18; }
+.erd-node.erd-match { filter: drop-shadow(0 0 6px #818cf8); }
+.erd-node.erd-selected rect.erd-box { stroke: #6366f1; stroke-width: 2; }
+.erd-edge { fill: none; stroke: #818cf8; stroke-width: 1.4; opacity: .65; cursor: pointer; }
+.erd-edge:hover, .erd-edge.erd-selected { stroke: #4f46e5; stroke-width: 2.2; opacity: 1; }
+.erd-edge.erd-dim { opacity: .06; }
+.erd-edge-hit { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; }

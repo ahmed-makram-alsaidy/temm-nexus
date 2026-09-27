@@ -1,0 +1,53 @@
+# ── SELF-HOSTED Caddyfile ─────────────────────────────────────────
+# Adapts to the operator's configuration via environment:
+#
+#   PRIMARY_DOMAIN set  → site block on that domain: automatic HTTPS via
+#                         Let's Encrypt (ACME HTTP-01). Requires real DNS.
+#   PRIMARY_DOMAIN unset→ the platform is served over plain HTTP on :80
+#                         (IP-address bootstrap; honest limitation, see
+#                         docs/open-source/DOMAIN_TLS.md).
+#
+# Set ACME_EMAIL for Let's Encrypt expiry notices (recommended).
+{
+	# No global admin endpoint; auto_https handles the domain block only.
+	admin off
+}
+
+# The site block: with PRIMARY_DOMAIN unset the address falls back to :80.
+{$PRIMARY_DOMAIN::80} {
+	encode gzip
+
+	@static {
+		file
+		path /assets/* /build/* /favicon.ico
+	}
+	root * /srv/owner-console/public
+	php_fastcgi app:9000 {
+		root /var/www/html/public
+	}
+	file_server
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains" defer
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# WebSocket (Reverb) upgrade passthrough.
+	@websockets {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @websockets reverb:6001
+
+	request_body {
+		max_size 28MB
+	}
+	log {
+		output stdout
+		format json
+	}
+}

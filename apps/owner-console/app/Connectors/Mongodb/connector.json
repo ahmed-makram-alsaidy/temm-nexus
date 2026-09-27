@@ -1,0 +1,34 @@
+{
+    "schema_version": 1,
+    "key": "mongodb",
+    "name": "MongoDB",
+    "version": "1.0.0",
+    "description": "Import an existing MongoDB database (Atlas or self-hosted): read-only database/collection discovery, probabilistic schema inference, relationship candidates with confidence, index and validator analysis, batched extraction, and relational/JSONB/hybrid mapping to PostgreSQL. No source mutation.",
+    "author": "Backend Control Plane (first-party)",
+    "license": "MIT",
+    "platform_requirement": ">=0.2.0",
+    "entrypoint": "App\\Connectors\\Mongodb\\MongodbConnector",
+    "capabilities": [
+        "database_metadata",
+        "data_extraction",
+        "read_only_enforcement",
+        "source_fingerprint",
+        "resume",
+        "client_scan"
+    ],
+    "permissions": [
+        "network.outbound",
+        "network.local_source",
+        "source.db.read",
+        "client.repo.read"
+    ],
+    "trust": "first_party",
+    "import_flow": "credentials-form",
+    "category": "source",
+    "ui": {
+        "display_name": "MongoDB",
+        "icon": "heroicon-o-circle-stack",
+        "docs_url": null,
+        "setup_instructions": "Provide a mongodb:// or mongodb+srv:// connection URI (stored encrypted; the built-in driver requires no PHP extension). Use least-privilege read credentials: the built-in 'read' role is sufficient for the entire flow. Select the database to import, review inferred schema and relationship candidates, then choose per-collection mapping strategies (relational, JSONB or hybrid)."
+    }
+}

@@ -1,0 +1,41 @@
+{
+    "schema_version": 1,
+    "key": "supabase",
+    "name": "Supabase",
+    "version": "1.0.0",
+    "description": "Import an existing Supabase project: read-only PostgreSQL snapshot analysis with auth, storage, functions, RLS policies, realtime and cron metadata. No source mutation.",
+    "author": "Backend Control Plane (first-party)",
+    "license": "MIT",
+    "platform_requirement": ">=0.1.0",
+    "entrypoint": "App\\Connectors\\Supabase\\SupabaseConnector",
+    "capabilities": [
+        "account_discovery",
+        "project_discovery",
+        "database_metadata",
+        "data_extraction",
+        "auth_metadata",
+        "storage_metadata",
+        "function_metadata",
+        "policy_metadata",
+        "realtime_metadata",
+        "schedule_metadata",
+        "client_scan",
+        "read_only_enforcement",
+        "source_fingerprint"
+    ],
+    "permissions": [
+        "network.outbound",
+        "source.db.read",
+        "source.storage.read",
+        "client.repo.read"
+    ],
+    "trust": "first_party",
+    "import_flow": "supabase-account",
+    "category": "source",
+    "ui": {
+        "display_name": "Supabase",
+        "icon": "heroicon-o-cloud",
+        "docs_url": "https://supabase.com/docs",
+        "setup_instructions": "Connect a Supabase account with a Personal Access Token for project discovery, then supply a READ-ONLY database credential for analysis and extraction. Production Supabase is never mutated: the platform enforces session-level read-only."
+    }
+}

@@ -1,0 +1,198 @@
+name: backend-infra
+
+networks:
+  proxy:
+  application:
+  database:
+    internal: true
+  management:
+    name: backend-infra-management
+    internal: true
+
+volumes:
+  pgdata:
+    name: backend-infra-pgdata
+  redisdata:
+    name: backend-infra-redisdata
+  caddy_data:
+    name: backend-infra-caddy-data
+  caddy_config:
+    name: backend-infra-caddy-config
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    mem_limit: 1536m
+    env_file: [.env]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ:-UTC}
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./scripts/postgres:/scripts/postgres:ro
+      - ./backups/scripts:/scripts/backups:ro
+      - ./backups/data:/backups
+    networks:
+      - database
+      - management
+    # NOTE: no `ports:` — DB is never host-published (GATE 2 requirement).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+
+  redis:
+    image: redis:8.2-alpine
+    restart: unless-stopped
+    mem_limit: 512m
+    env_file: [.env]
+    command: ["redis-server", "/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redisdata:/data
+      - ./infrastructure/redis/redis.conf:/etc/redis/redis.conf:ro
+      - ./scripts/redis:/scripts/redis:ro
+    networks:
+      - database
+      - application
+    # NOTE: no `ports:` — Redis is never host-published.
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+  owner-console:
+    build:
+      context: ./infrastructure/docker/php
+    image: backend-infra/owner-console-php:8.4
+    restart: unless-stopped
+    mem_limit: 512m
+    env_file: [.env]
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ./apps/owner-console:/var/www/html
+      # Canonical platform version (root VERSION file) visible to the app.
+      - ./VERSION:/var/www/html/VERSION:ro
+      # Read/write confined by app code: /projects/<slug>/storage/control-plane/
+      # for Storage manager + log viewing; /backups (= backups/data) for UI-triggered pg_dump.
+      - ./projects:/projects
+      - ./backups/data:/backups
+      # Optional read-only client repositories for the migration scanner live in
+      # docker-compose.override.yaml (git-ignored), e.g.:
+      #   services:
+      #     owner-console:
+      #       volumes:
+      #         - /path/to/client-repo:/source/client-repo:ro
+    networks:
+      - application
+      - database
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -v >/dev/null 2>&1 && php-fpm -t 2>&1 | grep -q 'test is successful'"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    env_file: [.env]
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./apps/owner-console/public:/srv/owner-console/public:ro
+    networks:
+      - proxy
+      - application
+    depends_on:
+      - owner-console
+    healthcheck:
+      test: ["CMD", "caddy", "version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+
+  pgadmin:
+    profiles: ["devtools"]
+    image: dpage/pgadmin4:9.8
+    restart: unless-stopped
+    mem_limit: 512m
+    env_file: [.env]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+    ports:
+      # Loopback only — never 0.0.0.0. Production: VPN / Cloudflare Access / allow-list.
+      - "127.0.0.1:${PGADMIN_HTTP_PORT:-5051}:80"
+    volumes:
+      - ./infrastructure/docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    networks:
+      # NOTE: `application` (non-internal) attachment is required for Docker
+      # Desktop to realize the loopback port binding. pgAdmin still enforces
+      # login for every request; see docs/DB_ADMIN.md.
+      - management
+      - database
+      - application
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80/misc/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+
+  mailpit:
+    profiles: ["devtools"]
+    image: axllent/mailpit:v1.21.3
+    restart: unless-stopped
+    mem_limit: 128m
+    ports:
+      - "127.0.0.1:${MAILPIT_HTTP_PORT:-8026}:8025"
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1026}:1025"
+    networks:
+      - application
+      - management
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8025/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging

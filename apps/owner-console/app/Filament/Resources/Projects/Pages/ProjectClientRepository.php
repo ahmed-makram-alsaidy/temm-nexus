@@ -1,0 +1,169 @@
+<?php
+
+namespace App\Filament\Resources\Projects\Pages;
+
+use App\Filament\Resources\Projects\Pages\Concerns\HasProjectContext;
+use App\Filament\Resources\Projects\ProjectResource;
+use App\Models\ClientCallsite;
+use App\Models\ClientRepository;
+use App\Services\ControlPlane\CpAccess;
+use App\Services\ControlPlane\Repository\ClientDependencyScanner;
+use App\Services\ControlPlane\Repository\ClientRepositoryService;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\Concerns\InteractsWithRecord;
+use Filament\Resources\Pages\Page;
+use Filament\Schemas\Components\EmbeddedSchema;
+use Filament\Schemas\Components\Html;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Illuminate\Contracts\Support\Htmlable;
+
+/**
+ * Phase 25D/E — Link Client Repository + dependency scan.
+ * LOCAL PATH roots are operator-approved and every read is guarded;
+ * GIT links are metadata-only in this phase.
+ */
+class ProjectClientRepository extends Page
+{
+    use HasProjectContext;
+    use InteractsWithRecord;
+
+    protected static string $resource = ProjectResource::class;
+
+    protected static bool $shouldRegisterNavigation = false;
+
+    public function mount(int|string $record): void
+    {
+        $this->record = $this->resolveRecord($record);
+    }
+
+    public function getTitle(): string|Htmlable
+    {
+        return 'Client Repository';
+    }
+
+    public function getBreadcrumbs(): array
+    {
+        return ['Client Repository'];
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return CpAccess::allows(auth()->user(), 'repositories.manage') || CpAccess::allows(auth()->user(), 'projects.view');
+    }
+
+    public function content(Schema $schema): Schema
+    {
+        return $schema->extraAttributes(['class' => 'cp-reference cp-reference--tool'])->components([
+            $this->subnavSection('client-repository'),
+            EmbeddedSchema::make('infolist'),
+        ]);
+    }
+
+    public function infolist(Schema $schema): Schema
+    {
+        $project = $this->project();
+        $repos = ClientRepository::where('project_id', $project->id)->orderByDesc('id')->get();
+
+        $repoRows = '';
+        foreach ($repos as $repo) {
+            $badge = $repo->source_type === 'local' ? '<code>'.e($repo->root_path ?? '').'</code>' : '<code>'.e($repo->git_url ?? '').'</code>';
+            $repoRows .= '<tr><td><strong>'.e($repo->display_name).'</strong></td>'
+                .'<td><span class="cp-badge">'.e($repo->source_type).'</span></td>'
+                .'<td>'.$badge.'</td>'
+                .'<td><span class="cp-badge is-info">'.e($repo->framework ?? 'unknown').'</span></td>'
+                .'<td><span class="cp-badge '.($repo->status === 'scanned' ? 'is-success' : '').'">'.e($repo->status).'</span></td>'
+                .'<td>'.e($repo->last_scanned_at?->format('M j, H:i') ?? 'never').'</td></tr>';
+        }
+        if ($repoRows === '') {
+            $repoRows = '<tr><td colspan="6">No client repository linked yet.</td></tr>';
+        }
+
+        $latest = $repos->firstWhere('status', 'scanned');
+        $scanHtml = '<p style="color:var(--cp-text-dim);font-size:.8rem">Scan a repository to build the source callsite manifest (patterns provided by registered connectors).</p>';
+        if ($latest) {
+            $byCategory = ClientCallsite::where('client_repository_id', $latest->id)
+                ->selectRaw('category, COUNT(*) AS n')->groupBy('category')->pluck('n', 'category')->all();
+            $cells = '';
+            foreach (['auth', 'database', 'rpc', 'functions', 'storage', 'realtime', 'url', 'client_init', 'secret'] as $cat) {
+                $cells .= '<div style="min-width:6rem"><span style="font-size:.7rem;color:var(--cp-text-dim);text-transform:uppercase">'.e($cat).'</span><br><strong>'.e((string) ($byCategory[$cat] ?? 0)).'</strong></div>';
+            }
+            $secrets = ClientDependencyScanner::secretFindings($latest);
+            $secretRows = '';
+            foreach (array_slice($secrets, 0, 8) as $s) {
+                $secretRows .= '<tr><td><code>'.e($s['file']).'</code></td><td><span class="cp-badge is-danger">'.e($s['marker']).'</span></td>'
+                    .'<td><code>'.e($s['evidence']).'</code></td><td>'.e($s['status']).'</td></tr>';
+            }
+            if ($secretRows === '') {
+                $secretRows = '<tr><td colspan="4"><span class="cp-badge is-success">No embedded secrets detected</span></td></tr>';
+            }
+            $scanHtml = '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.6rem">'.$cells.'</div>'
+                .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Secret findings are stored as MARKERS + evidence hashes — raw values never enter the database or AI context.</p>'
+                .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>File</th><th>Marker</th><th>Evidence</th><th>Status</th></tr></thead><tbody>'.$secretRows.'</tbody></table></div>';
+        }
+
+        return $schema->components([
+            Section::make('Linked repositories')->schema([Html::make(
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Name</th><th>Type</th><th>Root / URL</th><th>Framework</th><th>Status</th><th>Scanned</th></tr></thead><tbody>'
+                .$repoRows.'</tbody></table></div>'
+                .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">LOCAL PATH roots are operator-approved; every read is traversal-guarded. '
+                .'Git links are metadata-only in this phase (no credential handling).</p>'
+            )])->compact(),
+            Section::make('Latest scan — '.\App\Services\ControlPlane\Repository\ClientDependencyScanner::providers()[0]?->scannerLabel().' dependency manifest')->schema([Html::make($scanHtml)])->compact(),
+        ]);
+    }
+
+    protected function getHeaderActions(): array
+    {
+        $project = $this->project();
+
+        return [
+            Action::make('link_local')->label('Link local repository')->icon('heroicon-o-folder-open')
+                ->visible(fn () => CpAccess::allows(auth()->user(), 'repositories.manage'))
+                ->schema([
+                    TextInput::make('display_name')->required(),
+                    TextInput::make('root_path')->required()->placeholder('E:\path\to\client-repo')
+                        ->helperText('The operator approves this exact root. The scanner/patcher can never read outside it.'),
+                ])
+                ->action(function (array $data) {
+                    CpAccess::require(auth()->user(), 'repositories.manage');
+                    try {
+                        ClientRepositoryService::linkLocal($this->project(), $data['display_name'], $data['root_path']);
+                        Notification::make()->title('Repository linked (approved root persisted)')->success()->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()->title($e->getMessage())->danger()->send();
+                    }
+                    $this->redirect(static::getUrl(['record' => $this->project()]));
+                }),
+            Action::make('link_git')->label('Link git repository (metadata)')->icon('heroicon-o-link')
+                ->visible(fn () => CpAccess::allows(auth()->user(), 'repositories.manage'))
+                ->schema([
+                    TextInput::make('display_name')->required(),
+                    TextInput::make('git_url')->required()->url(),
+                    TextInput::make('git_branch')->default('main'),
+                    TextInput::make('credential_ref')->label('Credential vault ref (optional)'),
+                ])
+                ->action(function (array $data) {
+                    CpAccess::require(auth()->user(), 'repositories.manage');
+                    ClientRepositoryService::linkGit($this->project(), $data['display_name'], $data['git_url'], $data['git_branch'], $data['credential_ref'] ?? null);
+                    Notification::make()->title('Git repository linked (metadata model)')->success()->send();
+                    $this->redirect(static::getUrl(['record' => $this->project()]));
+                }),
+            Action::make('scan')->label('Scan dependencies')->icon('heroicon-o-magnifying-glass')
+                ->visible(fn () => ClientRepository::where('project_id', $project->id)->where('source_type', 'local')->exists())
+                ->schema([Select::make('repository_id')->label('Repository')->required()->options(
+                    ClientRepository::where('project_id', $project->id)->where('source_type', 'local')->pluck('display_name', 'id')->all()
+                )])
+                ->action(function (array $data) {
+                    CpAccess::require(auth()->user(), 'repositories.manage');
+                    $repo = ClientRepository::where('project_id', $this->project()->id)->findOrFail($data['repository_id']);
+                    $result = ClientDependencyScanner::scan($repo);
+                    Notification::make()->title($result['callsites'].' callsites across '.$result['files'].' files')->success()->send();
+                    $this->redirect(static::getUrl(['record' => $this->project()]));
+                }),
+        ];
+    }
+}

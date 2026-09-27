@@ -1,0 +1,125 @@
+# ─────────────────────────────────────────────────────────────────
+# Platform CI (prepared in Phase 26L — NOT pushed by the phase).
+#
+# Guarantees (26L.1/26L.2):
+#  - no private dependencies: no private repos, servers, credentials, or
+#    production Supabase access; private test fixtures are not part of the
+#    distribution and are simply absent here (they self-skip locally).
+#  - AI tests run against the in-repo FakeAiProvider — no paid API.
+# ─────────────────────────────────────────────────────────────────
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  owner-console-tests:
+    name: Owner Console test suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/owner-console
+    services:
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: bcmath, intl, zip, gd, redis, pdo_pgsql, sockets
+          coverage: none
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Run tests (sqlite in-memory; FakeAiProvider)
+        run: vendor/bin/phpunit --no-progress
+
+  sdk-tests:
+    name: SDK suites
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { name: js, dir: packages/backend-sdk-js, run: npm ci && npm test }
+          - { name: php, dir: packages/backend-sdk-php, run: composer install --no-interaction && vendor/bin/phpunit --no-progress }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        if: matrix.name == 'js'
+        with:
+          node-version: 22
+      - uses: shivammathur/setup-php@v2
+        if: matrix.name == 'php'
+        with:
+          php-version: "8.4"
+          coverage: none
+      - name: Test ${{ matrix.name }}
+        run: ${{ matrix.run }}
+        working-directory: ${{ matrix.dir }}
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for credential-shaped material
+        run: bash scripts/security/secret-scan.sh
+
+  private-reference-scan:
+    name: Private-reference scan (distribution)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package distribution artifact
+        run: bash scripts/release/package-dist.sh ci-artifacts
+      - name: Scan artifact for forbidden private references
+        run: |
+          ARTIFACT=$(ls ci-artifacts/*.tar.gz | head -1)
+          bash scripts/release/private-ref-scan.sh "$ARTIFACT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distribution-artifact
+          path: ci-artifacts/*.tar.gz
+          retention-days: 7
+
+  container-build:
+    name: Production image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production application image
+        run: docker build -f infrastructure/docker/prod/Dockerfile -t platform:ci .
+      - name: Validate compose configuration
+        run: docker compose -f docker-compose.prod.yml config --quiet
+
+  fresh-install:
+    name: Fresh-install smoke (compose up → setup gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare .env
+        run: |
+          cp .env.example .env
+          sed -i "s|^APP_KEY=$|APP_KEY=base64:$(openssl rand -base64 32 | tr -d '\n')|" .env
+          sed -i "s|CHANGE_ME_32CHAR_MIN|ci-generated-secret|g" .env
+      - name: Start the production stack
+        run: docker compose -f docker-compose.prod.yml up -d --build
+      - name: Wait for health, verify setup gate
+        run: |
+          for i in $(seq 1 60); do
+            APP=$(docker compose -f docker-compose.prod.yml ps --format '{{.Name}} {{.Health}}' | grep ' app ' | grep -c healthy || true)
+            [ "$APP" = "1" ] && break
+            sleep 5
+          done
+          # Uninitialized platform must redirect everything to /setup.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80/setup)
+          [ "$CODE" = "200" ] || { echo "/setup returned $CODE — expected 200"; exit 1; }
+          LOC=$(curl -s -o /dev/null -w '%{redirect_url}' http://localhost:80/)
+          echo "root redirect target: $LOC"
+          docker compose -f docker-compose.prod.yml ps

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability (private)
+    url: https://github.com/ahmed-makram-alsaidy/temm-nexus/security/advisories/new
+    about: Security reports are NOT accepted via public issues. Use GitHub private vulnerability reporting — see SECURITY.md.
+  - name: Documentation
+    url: https://github.com/ahmed-makram-alsaidy/temm-nexus/tree/main/docs
+    about: Self-hosting, connectors, SDKs and operations documentation.

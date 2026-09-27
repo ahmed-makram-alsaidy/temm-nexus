@@ -1,0 +1,15 @@
+{
+  "name": "sdk-integration-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Disposable Phase 22J integration demo: mock contract server + SDK proofs. Local only, no production contact.",
+  "type": "module",
+  "scripts": {
+    "demo": "node demo.mjs",
+    "react-proof": "node react-proof.mjs"
+  },
+  "dependencies": {
+    "@platform/backend-sdk": "file:../packages/backend-sdk-js",
+    "ws": "8.18.0"
+  }
+}

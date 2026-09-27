@@ -1,0 +1,6 @@
+# UFW rule set (see bootstrap.sh). Only these inbound ports exist on the VPS.
+# 22/tcp   SSH (key-only)
+# 80/tcp   HTTP (Caddy; redirects to HTTPS except ACME challenges)
+# 443/tcp  HTTPS (Caddy)
+# Explicitly CLOSED: 5432 (postgres), 6379 (redis), 5051 (pgAdmin),
+# 8025/8026 (mail — local only, not deployed), 6001 (Reverb — via Caddy only).

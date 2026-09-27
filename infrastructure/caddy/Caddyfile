@@ -1,0 +1,68 @@
+# ── Caddy reverse proxy ──────────────────────────────────────────
+# Local: HTTP only on *.test (no ACME locally). Production: automatic HTTPS.
+# See docs/REVERSE_PROXY.md for DNS + Cloudflare strategy.
+{
+	# Local dev: do not attempt ACME for .test domains.
+	auto_https off
+	admin off
+}
+
+# Owner console — local fake domain. Add to hosts file:
+#   127.0.0.1 console.test
+console.test:80 {
+	encode gzip
+	@static {
+		file
+		path /assets/* /build/* /favicon.ico
+	}
+	root * /srv/owner-console/public
+	# Caddy sees the app at /srv/... (bind mount) while php-fpm sees the same
+	# files at /var/www/html. The `root` sub-option sets SCRIPT_FILENAME for
+	# fastcgi; file_server below keeps using Caddy's own root. Both MUST point
+	# at the same `public/` directory or every route 404s (proven in Phase 8).
+	php_fastcgi owner-console:9000 {
+		root /var/www/html/public
+	}
+	file_server
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains" defer
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# WebSocket (Reverb) upgrade passthrough.
+	@websockets {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @websockets owner-console:6001
+
+	request_body {
+		max_size 28MB
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+# Template for future project APIs (copy per project, see docs/REVERSE_PROXY.md):
+# api.project-a.test:80 {
+# 	encode gzip
+# 	root * /srv/project-a/public
+# 	php_fastcgi project-a:9000 {
+# 		root /var/www/html/public
+# 	}
+# 	file_server
+# 	header { ...same secure headers... }
+# 	@websockets { header Connection *Upgrade*; header Upgrade websocket }
+# 	reverse_proxy @websockets project-a:6001
+# }
+
+
+
+
