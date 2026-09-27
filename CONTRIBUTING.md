@@ -29,6 +29,13 @@ docker compose exec -T owner-console php artisan migrate
 
 Code style: `vendor/bin/pint` (PHP). Tests: `vendor/bin/phpunit`.
 
+> **Note (release candidate):** a subset of the feature suite exercises
+> live project-database fixtures (gate-a/gate-b) that currently exist
+> only on an operator workstation; those tests error rather than skip
+> when the fixtures are absent. CI runs the suite non-blocking until
+> this subset is made hermetic — PRs that make more of the suite
+> hermetic are very welcome.
+
 ## Pull requests
 
 - One topic per PR; keep diffs reviewable.
