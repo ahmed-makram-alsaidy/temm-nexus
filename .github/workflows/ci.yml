@@ -130,8 +130,11 @@ jobs:
           CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80/setup)
           [ "$CODE" = "200" ] || {
             docker compose -f docker-compose.prod.yml logs --tail=120 app || true
-            echo "== laravel.log =="
-            docker compose -f docker-compose.prod.yml exec -T app sh -c 'tail -n 100 storage/logs/laravel.log' || true
+            echo "== response body (first 2KB) =="
+            curl -s http://localhost:80/setup | head -c 2000 || true
+            echo ""
+            echo "== laravel logs =="
+            docker compose -f docker-compose.prod.yml exec -T app sh -c 'for f in storage/logs/*.log; do echo "== $f =="; tail -n 60 "$f"; done' || true
             echo "/setup returned $CODE — expected 200"
             exit 1
           }
