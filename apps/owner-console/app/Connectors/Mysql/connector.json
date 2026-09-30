@@ -1,0 +1,34 @@
+{
+    "schema_version": 1,
+    "key": "mysql",
+    "name": "MySQL / MariaDB",
+    "version": "1.0.0",
+    "description": "Migrate MySQL 8+ / MariaDB databases into PostgreSQL-backed projects: information_schema inspection of tables, columns, indexes, keys, views, triggers, procedures, functions, events, generated columns and charsets; deterministic unsigned-safe type widening; AUTO_INCREMENT sequence-state preservation; read-only sessions; batched keyset extraction. No source mutation.",
+    "author": "TEMM Nexus (first-party)",
+    "license": "AGPL-3.0-only",
+    "platform_requirement": ">=0.2.0",
+    "entrypoint": "App\\Connectors\\Mysql\\MysqlConnector",
+    "capabilities": [
+        "database_metadata",
+        "data_extraction",
+        "function_metadata",
+        "schedule_metadata",
+        "read_only_enforcement",
+        "source_fingerprint",
+        "resume"
+    ],
+    "permissions": [
+        "network.outbound",
+        "network.local_source",
+        "source.db.read"
+    ],
+    "trust": "first_party",
+    "import_flow": "credentials-form",
+    "category": "source",
+    "ui": {
+        "display_name": "MySQL / MariaDB",
+        "icon": "heroicon-o-circle-stack",
+        "docs_url": null,
+        "setup_instructions": "Provide host, port, database, username and password. Use a least-privilege read-only account (SELECT on the schemas to import); the connector additionally opens read-only sessions. UNSIGNED types are widened deterministically so no value can overflow the PostgreSQL target; non-utf8mb4 charsets are flagged for transcoding review."
+    }
+}
