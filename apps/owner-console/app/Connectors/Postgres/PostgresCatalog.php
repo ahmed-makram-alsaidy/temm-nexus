@@ -327,10 +327,13 @@ class PostgresCatalog
     /** Large object metadata inventory (30B — counts + sizes, not contents). */
     public function largeObjects(): array
     {
+        // pg_largeobject_metadata's OID column is `oid` (35.5: verified live
+        // on PostgreSQL 17 — `loid` only ever existed in ancient releases;
+        // aliased back to loid so the subquery correlation stays readable).
         $row = $this->db->rows(
             'SELECT COUNT(*)::bigint AS count, COALESCE(SUM(size), 0)::bigint AS bytes
-             FROM (SELECT lom.loid, (SELECT COALESCE(SUM(pg_column_size(lo.data)), 0)
-                                    FROM pg_largeobject lo WHERE lo.loid = lom.loid) AS size
+             FROM (SELECT lom.oid AS loid, (SELECT COALESCE(SUM(pg_column_size(lo.data)), 0)
+                                    FROM pg_largeobject lo WHERE lo.loid = lom.oid) AS size
                    FROM pg_largeobject_metadata lom) t'
         );
 
