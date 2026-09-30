@@ -15,6 +15,11 @@ use App\Services\ControlPlane\Migration\Contracts\SourceAdapter;
  * to be: sources with real streams implement ChangeCaptureConnector with
  * true positions; this capture records 'watermark' checkpoints.
  *
+ * Marker collisions (35.5 live finding): rows sharing the boundary marker
+ * are RE-EXPORTED on every cycle and applied as idempotent upserts, so
+ * same-timestamp mutations can never be silently lost. The position
+ * advances only past strictly smaller markers.
+ *
  * Memory is bounded (batched keyset reads, 29E/30D/31D adapters) and the
  * watermark checkpoint is resumable (32F/32G).
  */
@@ -48,8 +53,18 @@ class IncrementalExportCapture implements ChangeCaptureConnector
                 if ($marker === null) {
                     return; // rows without a marker cannot be ordered — skipped honestly
                 }
-                if ($lastMarker !== null && (string) $marker <= (string) $lastMarker) {
-                    return; // only changes ADVANCE the watermark
+                // 35.5 live finding: the filter used to skip rows whose
+                // marker EQUALLED the watermark (strict advance). Markers
+                // with second precision collide constantly (bulk statements
+                // share one timestamp), so every colliding change was
+                // silently LOST. Rows at the boundary watermark are now
+                // re-exported: applying them again is an idempotent upsert,
+                // and rows mutated after the previous cycle still carry
+                // marker == watermark and are therefore picked up. The
+                // position advances only when a strictly greater marker
+                // appears, so idle cycles re-export just the boundary set.
+                if ($lastMarker !== null && (string) $marker < (string) $lastMarker) {
+                    return; // rows below the watermark are already applied
                 }
                 $batch[] = CdcEvent::upsert($this->table, $row, (string) $marker);
                 $lastMarker = $marker;

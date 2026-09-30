@@ -207,13 +207,77 @@ class CdcTest extends TestCase
         $this->assertSame('2026-03-01T00:00:00Z', $position['marker_value']);
         $this->assertSame('watermark', $capture->checkpointKind());
 
-        // Resume from the checkpoint: nothing new → empty capture.
+        // Resume from the checkpoint: the boundary row is re-exported
+        // (35.5 — markers collide at second precision; re-exporting the
+        // boundary as an idempotent upsert is what keeps same-marker
+        // mutations from being silently lost). The watermark itself holds.
         $batches2 = [];
         $position2 = $capture->captureChanges($position, function ($batch) use (&$batches2) {
             $batches2[] = $batch;
         });
-        $this->assertSame([], $batches2, 'no advancing rows → no events');
+        $all2 = $batches2 === [] ? [] : array_merge(...$batches2);
+        $this->assertCount(1, $all2, 'boundary row re-exported, nothing below the watermark');
+        $this->assertSame(3, $all2[0]->row['id']);
         $this->assertSame($position['marker_value'], $position2['marker_value'], 'watermark holds');
+    }
+
+    /** 35.5 live regression: rows at the boundary marker are always
+     * re-exported, so a mutation arriving within the SAME second as the
+     * watermark (second-precision timestamps collide constantly) is picked
+     * up by the next cycle instead of being silently dropped. */
+    public function test_incremental_export_reexports_boundary_marker_rows(): void
+    {
+        $rows = [
+            ['id' => 1, 'note' => 'old', 'updated_at' => '2026-03-01T10:00:00'],
+        ];
+        $source = new class(null, $rows) implements SourceAdapter {
+            public function __construct(protected ?\App\Models\MigrationSource $migrationSource = null, protected array $rows = []) {}
+            public static function id(): string
+            {
+                return 'fixture';
+            }
+            public function connect(): void {}
+            public function inventory(): array
+            {
+                return [];
+            }
+            public function countRows(string $schema, string $table): int
+            {
+                return count($this->rows);
+            }
+            public function streamRows(string $schema, string $table, array $columns, callable $callback, int $batchSize = 500): int
+            {
+                foreach ($this->rows as $row) {
+                    $callback($row);
+                }
+
+                return count($this->rows);
+            }
+            public function fingerprint(): string
+            {
+                return 'fixture';
+            }
+            public function streamAuthUsers(callable $callback, int $batchSize = 500): int
+            {
+                return 0;
+            }
+            public function close(): void {}
+        };
+
+        $capture = new IncrementalExportCapture($source, 'updated_at', 'events');
+        $position = $capture->captureChanges(null, fn ($batch) => null);
+
+        // The next cycle re-exports the boundary set — any row mutated at
+        // this marker between cycles is therefore captured (idempotent
+        // upsert on the target), never lost.
+        $newRows = null;
+        $position2 = $capture->captureChanges($position, function ($batch) use (&$newRows) {
+            $newRows = $batch;
+        });
+
+        $this->assertNotNull($newRows, 'a cycle must always re-export the boundary set');
+        $this->assertSame(1, count($newRows), 'the boundary row itself is re-exported (idempotent)');
+        $this->assertSame('2026-03-01T10:00:00', $position2['marker_value'], 'watermark holds at the boundary');
     }
 
     // ── 32B/32C/32D/32E — connector probes are honest ────────────────────
