@@ -217,18 +217,27 @@ class ValidatorSuite
 
     protected function authLinkage(array $planItems): array
     {
-        // users ↔ profiles 1:1 linkage when the target has both.
-        if (! $this->target->tableExists('users')) {
+        // users ↔ profiles 1:1 linkage when the target has both. The identity
+        // table name is collision-aware (PlanGenerator::authTargetTable): when
+        // a source data table claims 'users', identities land in 'auth_users'
+        // and the profiles-orphan probe (which references the data table)
+        // no longer applies.
+        $usersTaken = collect($planItems)
+            ->filter(fn ($item) => $item->source_kind === 'table')
+            ->pluck('target_name')
+            ->contains('users');
+        $authTable = PlanGenerator::authTargetTable($usersTaken);
+        if (! $this->target->tableExists($authTable)) {
             return ['status' => 'skipped', 'details' => 'no users table on target'];
         }
-        $users = $this->target->count('users');
+        $users = $this->target->count($authTable);
         $profiles = $this->target->tableExists('profiles') ? $this->target->count('profiles') : $users;
-        $orphans = $this->target->tableExists('profiles')
+        $orphans = ($this->target->tableExists('profiles') && ! $usersTaken)
             ? $this->target->orphanCount('profiles', 'user_id', 'users', 'id')
             : 0;
 
         return ['status' => ($orphans === 0 && $profiles === $users) ? 'pass' : 'fail', 'details' => [
-            'users' => $users, 'profiles' => $profiles, 'orphan_identities' => $orphans,
+            'users' => $users, 'profiles' => $profiles, 'orphan_identities' => $orphans, 'identity_table' => $authTable,
         ]];
     }
 
