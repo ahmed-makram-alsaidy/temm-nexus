@@ -70,7 +70,6 @@ class PdoMysqlExecutor implements MysqlExecutor
         ]);
         // 31 — HARD read-only session (MySQL 8+ and MariaDB), then verify.
         $this->pdo->exec('SET SESSION TRANSACTION READ ONLY');
-        $this->pdo->exec("SET SESSION application_name = 'temm-nexus-connector'");
         $effective = $this->pdo->query('SELECT @@SESSION.transaction_read_only')->fetchColumn();
         if (! in_array((string) $effective, ['1', 'on', 'true'], true)) {
             throw new \RuntimeException('mysql source session could not be pinned read-only — refusing to continue (31).');
