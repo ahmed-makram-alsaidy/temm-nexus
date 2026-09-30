@@ -38,6 +38,11 @@ Schedule::call(function () {
 // Phase 26.1D: scheduler heartbeat for platform:doctor. Written by whichever
 // process executes the schedule (scheduler:work / cron); staleness is the
 // doctor's honest signal that the scheduler container/service is down.
+// The value MUST be a plain datetime string: cross-process cache stores
+// (database/redis) run unserialize with allowed_classes hardening
+// (config/cache.php serializable_classes => false), so a stored Carbon
+// object can never be read back — the doctor would only ever see an
+// __PHP_Incomplete_Class.
 Schedule::call(function () {
-    \Illuminate\Support\Facades\Cache::put('platform.scheduler.heartbeat', now(), now()->addMinutes(6));
+    \Illuminate\Support\Facades\Cache::put('platform.scheduler.heartbeat', now()->toIso8601String(), now()->addMinutes(6));
 })->everyFiveMinutes()->name('cp-scheduler-heartbeat');

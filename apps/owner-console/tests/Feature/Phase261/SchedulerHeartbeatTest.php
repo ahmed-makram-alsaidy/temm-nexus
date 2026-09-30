@@ -74,9 +74,14 @@ class SchedulerHeartbeatTest extends TestCase
 
         Artisan::call('schedule:test', ['--name' => 'cp-scheduler-heartbeat']);
 
+        $heartbeat = Cache::get('platform.scheduler.heartbeat');
         $this->assertNotNull(
-            Cache::get('platform.scheduler.heartbeat'),
+            $heartbeat,
             'running the heartbeat task must write the cache key the doctor reads'
+        );
+        $this->assertIsString(
+            $heartbeat,
+            'the heartbeat must be a plain datetime string: cross-process cache stores (database/redis) never hydrate stored objects (serializable_classes => false)'
         );
     }
 
@@ -91,9 +96,29 @@ class SchedulerHeartbeatTest extends TestCase
             'a missing heartbeat must WARN (honest signal), never FAIL and never be suppressed'
         );
 
-        Cache::put('platform.scheduler.heartbeat', now(), now()->addMinutes(6));
+        Cache::put('platform.scheduler.heartbeat', now()->toIso8601String(), now()->addMinutes(6));
         $fresh = $scheduler->invoke(null);
         $this->assertSame('PASS', $fresh['status']);
         $this->assertStringContainsString('last tick', $fresh['detail']);
+    }
+
+    public function test_doctor_scheduler_check_survives_unreadable_heartbeat(): void
+    {
+        $scheduler = new \ReflectionMethod(Doctor::class, 'scheduler');
+
+        // What the database cache actually returns for an object-valued
+        // heartbeat (serializable_classes => false): an incomplete class.
+        $ghostClass = 'Ghost\Never\Loaded';
+        $ghost = unserialize('O:'.strlen($ghostClass).':"'.$ghostClass.'":0:{}');
+        $this->assertInstanceOf(\__PHP_Incomplete_Class::class, $ghost);
+
+        Cache::put('platform.scheduler.heartbeat', $ghost, now()->addMinutes(6));
+        $unreadable = $scheduler->invoke(null);
+
+        $this->assertSame(
+            'WARNING',
+            $unreadable['status'],
+            'an unreadable heartbeat must degrade to WARNING — the doctor must report, never fatal'
+        );
     }
 }
