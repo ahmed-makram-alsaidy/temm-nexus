@@ -1,3 +1,52 @@
+## [0.3.0-dev] — in development
+
+Development line opened on `develop/0.3.0` from `v0.2.0-rc.3`. NOT a
+release — features below land per phase and are documented as
+SUPPORTED / PARTIAL / DEFERRED in `docs/connectors/PHASE_29_TO_32_CONNECTORS.md`.
+
+### Added
+
+- **Phase 29 — Firebase connector** (`firebase`, first_party): read-only
+  Firestore analysis with inferred schema, relationship candidates with
+  confidence classes, deterministic batched extraction, Firebase Auth
+  inventory (no password material; password portability always
+  NEEDS_REVIEW), Storage inventory with copy strategies, Cloud Functions
+  inventory/classification, client repository scanning
+- **Phase 30 — generic PostgreSQL connector** (`postgres`, first_party):
+  import any standard PostgreSQL database; pg_catalog-native inspection
+  with exact type preservation; read-only sessions enforced and verified;
+  keyset extraction; unknown extension types flagged NEEDS_REVIEW
+- **Phase 31 — MySQL/MariaDB connector** (`mysql`, first_party):
+  unsigned-safe deterministic type widening, AUTO_INCREMENT state
+  preservation, charset analysis with transcoding review, scheduled-event
+  inventory
+- **Phase 32 — change capture foundation**: generic CDC contract,
+  HMAC-signed tamper-safe checkpoints, idempotent upsert/delete event
+  application on the migration targets, read-only provider readiness
+  probes (PostgreSQL logical replication, MongoDB change streams, MySQL
+  binlog; Firebase delta DEFERRED), watermark-based incremental export
+- **Phase 33 — AI client code migration**: deterministic conversion
+  planning (supabase-js/dart, firebase-js/dart), approval-gated patch
+  workspace integration, SECRET_PRESENT redaction in AI prompts,
+  allowlisted test-command loop, diff-quality metrics
+- **Phase 34 — Cutover Center**: project-scoped control room with honest
+  gate states (PASS/WARN/BLOCK/NOT_APPLICABLE/UNVERIFIED), ordered cutover
+  plans, explicit per-gate approvals, rollback plan with expiry, full
+  audit; the platform never executes DNS/endpoint/production changes
+- **Phase 35 — connector marketplace foundation**: package install
+  lifecycle (inspect → verify checksums → install → enable → remove),
+  extended trust vocabulary (first_party/trusted/community/private/
+  unverified), publisher metadata, malicious-package rejection tests,
+  Connector Catalog screen (local/catalog-backed; no billing)
+
+### Fixed
+
+- `security-check.sh` self-match: `docs/SECURITY_HARDENING.md` quoted the
+  scanner's own patterns, tripping the repo hygiene gate
+- Migration engine: auth identity target table is collision-aware — a
+  source with BOTH an auth domain and a `users` data table no longer
+  breaks rehearsals (reserved `auth_users` target table)
+
 ## [0.2.0-rc.3] — 2026-09-27
 
 Publication hardening on top of 0.2.0-rc.2 (same product source; release
