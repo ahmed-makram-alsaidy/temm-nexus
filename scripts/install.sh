@@ -30,7 +30,11 @@ warn() { printf '  \033[33mWARN\033[0m %s\n' "$1"; }
 fail() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAILED=1; }
 FAILED=0
 
-echo "== Platform installer ${CHECK_ONLY:+"(dry run)"} =="
+if [ "$CHECK_ONLY" = "1" ]; then
+  echo "== Platform installer (dry run) =="
+else
+  echo "== Platform installer =="
+fi
 
 # ── prerequisites ────────────────────────────────────────────────
 if ! command -v docker >/dev/null 2>&1; then

@@ -94,6 +94,16 @@ jobs:
           path: ci-artifacts/*.tar.gz
           retention-days: 7
 
+  script-tests:
+    name: Infrastructure scripts (healthcheck, installer banner)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fpm-healthcheck decision logic (stubbed FastCGI responses)
+        run: bash scripts/tests/fpm-healthcheck.test.sh
+      - name: install.sh dry-run banner
+        run: bash scripts/tests/installer-banner.test.sh
+
   container-build:
     name: Production image build
     runs-on: ubuntu-latest

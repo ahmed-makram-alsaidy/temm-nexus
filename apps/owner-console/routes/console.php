@@ -6,7 +6,12 @@ use Illuminate\Support\Facades\Schedule;
 // Template scheduler examples (enable per project needs):
 // - framework housekeeping
 Schedule::command('horizon:snapshot')->everyFiveMinutes();
-Schedule::command('pulse:check')->everyMinute();
+// `pulse:check` without --once is a supervised daemon: it loops forever, so
+// schedule:run — which executes events sequentially — blocks on it and every
+// task registered after it never runs (18J lesson, docs/SCHEDULER.md). The
+// --once form is a bounded snapshot that exits immediately, keeping the
+// schedule loop free.
+Schedule::command('pulse:check --once')->everyMinute();
 // - product jobs live here, e.g.:
 // Schedule::job(new \App\Jobs\NightlyReportJob)->dailyAt('02:00')->onOneServer();
 
