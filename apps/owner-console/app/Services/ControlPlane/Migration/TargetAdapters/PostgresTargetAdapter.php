@@ -67,8 +67,11 @@ class PostgresTargetAdapter implements TargetAdapter
     public function applyForeignKeys(array $foreignKeys): void
     {
         foreach ($foreignKeys as $fk) {
+            // Idempotent (35.5 live finding): re-runs/resumes hit an existing
+            // constraint on the target — duplicate_object is swallowed.
             $this->pdo->exec(sprintf(
-                'ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)',
+                "DO \$\$ BEGIN ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s);"
+                ." EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;",
                 $this->qi($fk['table']),
                 $this->qi('fk_'.$fk['table'].'_'.$fk['column']),
                 $this->qi($fk['column']),
