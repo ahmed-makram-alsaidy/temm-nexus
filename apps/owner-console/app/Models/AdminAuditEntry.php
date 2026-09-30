@@ -63,6 +63,9 @@ class AdminAuditEntry extends Model
         // Phase 27 connector/plugin surfaces.
         'CONNECTOR_PACKAGE_REJECTED', 'CONNECTOR_INSTANCE_DISABLED', 'CONNECTOR_INSTANCE_REMOVED',
         'CONNECTOR_CONNECTION_TESTED', 'CONNECTOR_CAPABILITY_PROBED', 'CONNECTOR_LIFECYCLE_EVENT',
+        // Phase 32/33 — CDC + AI client conversion surfaces.
+        'CUTOVER_EVENT', 'CDC_CHECKPOINT_STORED', 'CDC_CHECKPOINT_REFUSED',
+        'CLIENT_CONVERSION_GENERATED', 'CLIENT_CONVERSION_TEST_REFUSED',
     ];
 
     protected $fillable = [

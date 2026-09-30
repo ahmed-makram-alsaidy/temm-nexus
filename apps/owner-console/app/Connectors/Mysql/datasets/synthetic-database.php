@@ -11,6 +11,12 @@
 return [
     'database' => 'synthetic_mysql',
     'server_version' => '8.0.36',
+    'server_variables' => [
+        'log_bin' => 'OFF',
+        'binlog_format' => 'MIXED',
+        'binlog_row_image' => 'FULL',
+        'gtid_mode' => 'OFF',
+    ],
 
     'tables' => [
         'customers' => [

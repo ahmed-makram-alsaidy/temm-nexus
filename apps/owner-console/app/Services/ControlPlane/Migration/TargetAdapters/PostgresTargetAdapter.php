@@ -120,6 +120,63 @@ class PostgresTargetAdapter implements TargetAdapter
         return $stmt->rowCount();
     }
 
+    /**
+     * Phase 32G — idempotent CDC apply: true upsert on PK. Duplicate or
+     * out-of-order replays converge; no event can corrupt target state.
+     */
+    public function upsertBatch(string $table, array $rows, array $primaryKey): int
+    {
+        if ($rows === []) {
+            return 0;
+        }
+        $count = 0;
+        $this->pdo->beginTransaction();
+        try {
+            foreach ($rows as $row) {
+                $columns = array_keys($row);
+                $colSql = implode(', ', array_map([$this, 'qi'], $columns));
+                $ph = implode(', ', array_fill(0, count($columns), '?'));
+                $nonPk = array_values(array_diff($columns, $primaryKey));
+                $conflict = $primaryKey !== []
+                    ? sprintf(' ON CONFLICT (%s) DO UPDATE SET %s',
+                        implode(', ', array_map([$this, 'qi'], $primaryKey)),
+                        implode(', ', array_map(fn ($c) => $this->qi($c).' = EXCLUDED.'.$this->qi($c), $nonPk)))
+                    : ' ON CONFLICT DO NOTHING';
+                $sql = sprintf('INSERT INTO %s (%s) VALUES (%s)%s', $this->qi($table), $colSql, $ph, $conflict);
+                $bindings = [];
+                foreach ($columns as $c) {
+                    $value = $row[$c] ?? null;
+                    if (is_bool($value)) {
+                        $value = $value ? '1' : '0';
+                    }
+                    $bindings[] = $value;
+                }
+                $this->pdo->prepare($sql)->execute($bindings);
+                $count++;
+            }
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+
+            throw $e;
+        }
+
+        return $count;
+    }
+
+    /** Phase 32G — idempotent delete by PK (absent row → false, no error). */
+    public function deleteByPk(string $table, array $pkRow): bool
+    {
+        $stmt = $this->pdo->prepare(sprintf(
+            'DELETE FROM %s WHERE %s',
+            $this->qi($table),
+            implode(' AND ', array_map(fn ($p) => $this->qi($p).' = ?', array_keys($pkRow)))
+        ));
+        $stmt->execute(array_values($pkRow));
+
+        return $stmt->rowCount() > 0;
+    }
+
     public function truncateTable(string $table): void
     {
         $this->pdo->exec('TRUNCATE TABLE '.$this->qi($table).' CASCADE');

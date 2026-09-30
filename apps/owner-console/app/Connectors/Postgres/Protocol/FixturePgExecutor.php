@@ -55,6 +55,8 @@ class FixturePgExecutor implements PgExecutor
                 ['name' => 'server_encoding', 'setting' => $this->data['server']['server_encoding']],
                 ['name' => 'lc_ctype', 'setting' => $this->data['server']['lc_ctype']],
                 ['name' => 'max_identifier_length', 'setting' => '63'],
+                ['name' => 'wal_level', 'setting' => $this->data['server']['wal_level'] ?? 'replica'],
+                ['name' => 'max_replication_slots', 'setting' => (string) ($this->data['server']['max_replication_slots'] ?? 0)],
             ];
 
             return isset($bindings[0]) ? array_filter($rows, fn ($r) => str_contains($sql, $r['name'])) : $rows;

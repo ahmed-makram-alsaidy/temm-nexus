@@ -12,13 +12,16 @@ use App\Services\ControlPlane\Connectors\ConnectorHealth;
 use App\Services\ControlPlane\Connectors\ConnectorManifest;
 use App\Services\ControlPlane\Connectors\ConnectorTestResult;
 use App\Services\ControlPlane\Connectors\Contracts\AnalyzableSourceConnector;
+use App\Services\ControlPlane\Connectors\Contracts\CdcProbeProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ClientScannerProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ExtractableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\SourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\ValidatableSourceConnector;
 use App\Services\ControlPlane\Connectors\Support\ConnectorNetworkGuard;
 use App\Services\ControlPlane\Migration\Contracts\SourceAdapter;
+use App\Services\ControlPlane\Migration\Cdc\CdcProbeResult;
 use App\Services\ControlPlane\Migration\SchemaFingerprint;
+use App\Connectors\Mongodb\Protocol\BsonCodec;
 use App\Connectors\Mongodb\Protocol\MongoWireClient;
 
 /**
@@ -30,7 +33,7 @@ use App\Connectors\Mongodb\Protocol\MongoWireClient;
  * deterministic strategy mapping (28I), GridFS metadata (28N) and honest
  * auth semantics (28O). The core platform learns nothing MongoDB-specific.
  */
-class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, ClientScannerProvider
+class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, ClientScannerProvider, CdcProbeProvider
 {
     public const KEY = 'mongodb';
 
@@ -385,5 +388,37 @@ class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, Ex
     protected function scannerProvider(): MongodbClientScanner
     {
         return $this->scanner ??= new MongodbClientScanner;
+    }
+
+    /**
+     * Phase 32C — change-stream readiness probe (READ-only hello check).
+     * Standalone deployments cannot provide change streams; the probe says
+     * so honestly instead of faking parity (28/32).
+     */
+    public function cdcProbe(MigrationSource $source): array
+    {
+        try {
+            $adapter = $this->sourceAdapter($source);
+            $adapter->connect();
+            $hello = $adapter->client()->connect();
+            $setName = (string) (BsonCodec::untag($hello['setName'] ?? null) ?? '');
+            $msg = (string) (BsonCodec::untag($hello['msg'] ?? null) ?? '');
+            $supported = $setName !== '' || $msg === 'isdbgrid';
+
+            return CdcProbeResult::make(
+                'change_streams',
+                'resume_token',
+                $supported ? 'SUPPORTED' : 'NOT_SUPPORTED',
+                ['replica_set' => $setName !== '', 'sharded' => $msg === 'isdbgrid'],
+                $supported ? [] : [
+                    'Change streams require a replica set or sharded cluster — standalone deployments cannot provide them (28/32 honesty).',
+                    'Resume tokens are stored SIGNED and project-scoped (32C) — no operator action needed.',
+                ],
+            );
+        } catch (\Throwable) {
+            return CdcProbeResult::make('change_streams', 'resume_token', 'NOT_SUPPORTED', [], [
+                'The deployment could not be reached for a topology check; change capture is not reported as available without proof.',
+            ]);
+        }
     }
 }

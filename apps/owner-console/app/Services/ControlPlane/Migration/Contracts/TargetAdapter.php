@@ -29,6 +29,20 @@ interface TargetAdapter
     /** Insert rows, idempotent on PK (upsert) so resume/clean-rerun is safe. */
     public function insertBatch(string $table, array $rows): int;
 
+    /**
+     * Phase 32G — apply CDC/incremental events idempotently: each row is
+     * upserted by primary key, so duplicate or out-of-order application can
+     * never corrupt target state. Implementations must converge to the same
+     * state regardless of event replay order.
+     */
+    public function upsertBatch(string $table, array $rows, array $primaryKey): int;
+
+    /**
+     * Phase 32G — delete one row by primary key. Idempotent: deleting an
+     * absent row is a no-op (returns false), never an error.
+     */
+    public function deleteByPk(string $table, array $pkRow): bool;
+
     /** Reset ONLY a disposable target (guarded upstream). */
     public function truncateTable(string $table): void;
 

@@ -15,8 +15,10 @@ use App\Services\ControlPlane\Connectors\ConnectorTestResult;
 use App\Services\ControlPlane\Connectors\Contracts\AnalyzableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\ExtractableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\SourceConnector;
+use App\Services\ControlPlane\Connectors\Contracts\CdcProbeProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ValidatableSourceConnector;
 use App\Services\ControlPlane\Migration\Contracts\SourceAdapter;
+use App\Services\ControlPlane\Migration\Cdc\CdcProbeResult;
 use App\Services\ControlPlane\Migration\SchemaFingerprint;
 
 /**
@@ -28,7 +30,7 @@ use App\Services\ControlPlane\Migration\SchemaFingerprint;
  * NEEDS_REVIEW handling of unknown extension types (30C). The core platform
  * learns nothing PostgreSQL-specific beyond what it already knew.
  */
-class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector
+class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, CdcProbeProvider
 {
     public const KEY = 'postgres';
 
@@ -247,6 +249,7 @@ class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, E
                 'schemas' => $configuration['schemas'] ?? null,
                 'batch_size' => $configuration['batch_size'] ?? null,
                 'transport' => $configuration['transport'] ?? null,
+                'fixture_server' => $configuration['fixture_server'] ?? null,
             ]),
             'secret_refs' => [],
             'read_only' => true,
@@ -304,5 +307,36 @@ class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, E
     public function fingerprint(MigrationSource $source): string
     {
         return $this->sourceAdapter($source)->fingerprint();
+    }
+
+    /**
+     * Phase 32B — read-only probe of logical-replication readiness. The
+     * platform NEVER changes server configuration; the operator follows the
+     * returned instructions on a disposable source first.
+     */
+    public function cdcProbe(MigrationSource $source): array
+    {
+        $adapter = $this->sourceAdapter($source);
+        $executor = $adapter->catalog()->executor();
+        $rows = $executor->rows("SELECT name, setting FROM pg_settings WHERE name IN ('wal_level', 'max_replication_slots')");
+        $byName = [];
+        foreach ($rows as $row) {
+            $byName[$row['name']] = $row['setting'];
+        }
+        $walLevel = strtolower((string) ($byName['wal_level'] ?? 'unknown'));
+        $maxSlots = (int) ($byName['max_replication_slots'] ?? 0);
+        $ready = $walLevel === 'logical' && $maxSlots >= 1;
+
+        return CdcProbeResult::make(
+            'logical_replication',
+            'lsn',
+            $ready ? 'SUPPORTED' : 'SUPPORTED_WITH_CONFIGURATION',
+            ['wal_level' => $walLevel, 'max_replication_slots' => $maxSlots],
+            $ready ? [] : [
+                'Set wal_level=logical and max_replication_slots>=1, then restart PostgreSQL — a SERVER CONFIGURATION CHANGE the platform never performs itself (32B).',
+                'Create a dedicated logical replication slot for the migration; drop it after cutover to avoid WAL retention growth.',
+                'Use a replication-capable role. Rehearse on a disposable source first — this probe only READS settings.',
+            ],
+        );
     }
 }

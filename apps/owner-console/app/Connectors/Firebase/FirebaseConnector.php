@@ -17,11 +17,13 @@ use App\Services\ControlPlane\Connectors\ConnectorManifest;
 use App\Services\ControlPlane\Connectors\Support\ConnectorNetworkGuard;
 use App\Services\ControlPlane\Connectors\ConnectorTestResult;
 use App\Services\ControlPlane\Connectors\Contracts\AnalyzableSourceConnector;
+use App\Services\ControlPlane\Connectors\Contracts\CdcProbeProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ClientScannerProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ExtractableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\SourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\ValidatableSourceConnector;
 use App\Services\ControlPlane\Migration\Contracts\SourceAdapter;
+use App\Services\ControlPlane\Migration\Cdc\CdcProbeResult;
 
 /**
  * Phase 29 — the Firebase connector, built ONLY on the Phase 27 Connector
@@ -33,7 +35,7 @@ use App\Services\ControlPlane\Migration\Contracts\SourceAdapter;
  * inventory (29H) and client repository scanning (29I). The core platform
  * learns nothing Firebase-specific.
  */
-class FirebaseConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, ClientScannerProvider
+class FirebaseConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, ClientScannerProvider, CdcProbeProvider
 {
     public const KEY = 'firebase';
 
@@ -343,6 +345,25 @@ class FirebaseConnector implements SourceConnector, AnalyzableSourceConnector, E
     public function fingerprint(MigrationSource $source): string
     {
         return $this->sourceAdapter($source)->fingerprint();
+    }
+
+    /**
+     * Phase 32E — honest refusal: no robust generic CDC semantics could be
+     * proven for Firebase, so no partial capture is offered. The final
+     * delta step is a fresh snapshot export before cutover.
+     */
+    public function cdcProbe(MigrationSource $source): array
+    {
+        return CdcProbeResult::make(
+            null,
+            null,
+            'NOT_SUPPORTED',
+            [],
+            [
+                'Firebase delta capture is DEFERRED (32E): no robust generic CDC semantics could be proven.',
+                'Re-run the Firebase export (snapshot) as the final delta step before cutover instead.',
+            ],
+        );
     }
 
     // ── 29I — client scanner contribution (delegated) ────────────────────

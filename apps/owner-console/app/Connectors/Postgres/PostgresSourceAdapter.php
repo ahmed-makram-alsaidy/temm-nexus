@@ -58,13 +58,26 @@ class PostgresSourceAdapter extends BaseSourceAdapter
     protected function buildExecutor(array $config): PgExecutor
     {
         if ((string) ($config['transport'] ?? '') === 'fixture') {
-            return new FixturePgExecutor;
+            return new FixturePgExecutor($this->fixtureDataset());
         }
         $refs = (array) ($this->source->secret_refs ?? []);
         $username = $this->secretValue($refs['username'] ?? null, (string) ($config['username'] ?? ''));
         $password = $this->secretValue($refs['password'] ?? null, '');
 
         return PdoPgExecutor::forSource($config, $username, $password, $this->localSourceAllowed());
+    }
+
+    /** Optional sandbox server-setting overrides (fixture transport only). */
+    protected function fixtureDataset(): ?array
+    {
+        $overrides = (array) ($this->source->connection['fixture_server'] ?? []);
+        if ($overrides === []) {
+            return null;
+        }
+        $dataset = require __DIR__.'/datasets/synthetic-database.php';
+        $dataset['server'] = array_merge($dataset['server'], $overrides);
+
+        return $dataset;
     }
 
     protected function secretValue(?string $name, string $fallback): string
