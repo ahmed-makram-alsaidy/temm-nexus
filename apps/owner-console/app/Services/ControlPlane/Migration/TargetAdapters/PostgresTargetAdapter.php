@@ -15,6 +15,9 @@ class PostgresTargetAdapter implements TargetAdapter
     protected ?PDO $pdo = null;
     protected array $config;
 
+    /** Column types per table (from ensureTable) — used to bind bytea values. */
+    protected array $columnTypes = [];
+
     public function __construct(array $config)
     {
         $this->config = $config;
@@ -47,7 +50,9 @@ class PostgresTargetAdapter implements TargetAdapter
     {
         $defs = [];
         foreach ($columns as $col) {
-            $line = $this->qi($col['name']).' '.$this->mapType($col['type'] ?? 'text');
+            $type = $this->mapType($col['type'] ?? 'text');
+            $this->columnTypes[$table][$col['name']] = $type;
+            $line = $this->qi($col['name']).' '.$type;
             if (! ($col['nullable'] ?? true)) {
                 $line .= ' NOT NULL';
             }
@@ -106,7 +111,7 @@ class PostgresTargetAdapter implements TargetAdapter
                 if (is_bool($value)) {
                     $value = $value ? '1' : '0';
                 }
-                $bindings[] = $value;
+                $bindings[] = $this->bindValue($table, $c, $value);
             }
             $placeholders[] = '('.implode(', ', $ph).')';
         }
@@ -149,7 +154,7 @@ class PostgresTargetAdapter implements TargetAdapter
                     if (is_bool($value)) {
                         $value = $value ? '1' : '0';
                     }
-                    $bindings[] = $value;
+                    $bindings[] = $this->bindValue($table, $c, $value);
                 }
                 $this->pdo->prepare($sql)->execute($bindings);
                 $count++;
@@ -283,6 +288,26 @@ class PostgresTargetAdapter implements TargetAdapter
         }
 
         return $t; // enums and domain types pass through (created via ensureEnum)
+    }
+
+    /**
+     * Bind a value for its target column type. bytea columns receive raw
+     * binary from the extractors (MySQL BLOB/BINARY, PG bytea); PDO pgsql
+     * sends bound strings as text in the connection encoding, so raw bytes
+     * that are not valid UTF-8 crash the insert (22021). Encoding to the
+     * canonical bytea hex literal makes the bound text a well-formed bytea
+     * input — byte-exact on the server (35.5 live finding).
+     */
+    protected function bindValue(string $table, string $column, mixed $value): mixed
+    {
+        if ($value === null || ! is_string($value)) {
+            return $value;
+        }
+        if (($this->columnTypes[$table][$column] ?? '') === 'bytea') {
+            return '\x'.bin2hex($value);
+        }
+
+        return $value;
     }
 
     protected function qi(string $identifier): string
