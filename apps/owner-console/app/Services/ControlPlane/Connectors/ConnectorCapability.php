@@ -28,6 +28,12 @@ final class ConnectorCapability
     public const INCREMENTAL_EXPORT = 'incremental_export';
     public const RESUME = 'resume';
 
+    // Phase 32A — generic CDC vocabulary. Support is never faked: a source
+    // without a reliable change stream reports NOT_SUPPORTED (32E).
+    public const CHANGE_CAPTURE = 'change_capture';
+    public const CONSISTENT_SNAPSHOT = 'consistent_snapshot';
+    public const CHECKPOINT = 'checkpoint';
+
     /** The full Phase 27C vocabulary (order is display order). */
     public const ALL = [
         self::ACCOUNT_DISCOVERY,
@@ -46,6 +52,9 @@ final class ConnectorCapability
         self::SOURCE_FINGERPRINT,
         self::INCREMENTAL_EXPORT,
         self::RESUME,
+        self::CHANGE_CAPTURE,
+        self::CONSISTENT_SNAPSHOT,
+        self::CHECKPOINT,
     ];
 
     public const LABELS = [
@@ -65,6 +74,9 @@ final class ConnectorCapability
         self::SOURCE_FINGERPRINT => 'Source fingerprint',
         self::INCREMENTAL_EXPORT => 'Incremental export',
         self::RESUME => 'Resume support',
+        self::CHANGE_CAPTURE => 'Change capture (CDC)',
+        self::CONSISTENT_SNAPSHOT => 'Consistent snapshot',
+        self::CHECKPOINT => 'Checkpoint support',
     ];
 
     /**

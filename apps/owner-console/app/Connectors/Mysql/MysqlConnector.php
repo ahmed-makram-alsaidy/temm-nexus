@@ -15,8 +15,10 @@ use App\Services\ControlPlane\Connectors\ConnectorTestResult;
 use App\Services\ControlPlane\Connectors\Contracts\AnalyzableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\ExtractableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\SourceConnector;
+use App\Services\ControlPlane\Connectors\Contracts\CdcProbeProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ValidatableSourceConnector;
 use App\Services\ControlPlane\Migration\Contracts\SourceAdapter;
+use App\Services\ControlPlane\Migration\Cdc\CdcProbeResult;
 use App\Services\ControlPlane\Migration\SchemaFingerprint;
 
 /**
@@ -28,7 +30,7 @@ use App\Services\ControlPlane\Migration\SchemaFingerprint;
  * (31D) and scheduled-event inventory (31A). The core platform learns
  * nothing MySQL-specific.
  */
-class MysqlConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector
+class MysqlConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, CdcProbeProvider
 {
     public const KEY = 'mysql';
 
@@ -257,5 +259,40 @@ class MysqlConnector implements SourceConnector, AnalyzableSourceConnector, Extr
     public function fingerprint(MigrationSource $source): string
     {
         return $this->sourceAdapter($source)->fingerprint();
+    }
+
+    /**
+     * Phase 32D — read-only probe of binlog readiness. The platform NEVER
+     * mutates server configuration (32D); instructions are operator-owned.
+     */
+    public function cdcProbe(MigrationSource $source): array
+    {
+        $adapter = $this->sourceAdapter($source);
+        $executor = $adapter->catalog()->executor();
+        $rows = $executor->rows("SHOW VARIABLES WHERE Variable_name IN ('log_bin', 'binlog_format', 'binlog_row_image', 'gtid_mode')");
+        $byName = [];
+        foreach ($rows as $row) {
+            $byName[strtolower((string) $row['variable_name'])] = strtolower((string) $row['value']);
+        }
+        $logBin = $byName['log_bin'] ?? 'off';
+        $format = $byName['binlog_format'] ?? 'unknown';
+        $ready = in_array($logBin, ['on', '1', 'true'], true) && $format === 'row';
+
+        return CdcProbeResult::make(
+            'binlog',
+            'binlog_gtid',
+            $ready ? 'SUPPORTED' : 'SUPPORTED_WITH_CONFIGURATION',
+            [
+                'log_bin' => $logBin,
+                'binlog_format' => $format,
+                'binlog_row_image' => $byName['binlog_row_image'] ?? 'unknown',
+                'gtid_mode' => $byName['gtid_mode'] ?? 'unknown',
+            ],
+            $ready ? [] : [
+                'Enable binlog with binlog_format=ROW and binlog_row_image=FULL — a SERVER CONFIGURATION CHANGE the platform never performs itself (32D).',
+                'Grant the migration account REPLICATION SLAVE + REPLICATION CLIENT (SELECT alone cannot read the binlog).',
+                'Prefer GTID mode ON for crash-safe positioning. Rehearse on a disposable source first.',
+            ],
+        );
     }
 }

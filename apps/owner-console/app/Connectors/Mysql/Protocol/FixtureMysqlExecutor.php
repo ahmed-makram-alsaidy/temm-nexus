@@ -45,6 +45,15 @@ class FixtureMysqlExecutor implements MysqlExecutor
         if (str_contains($sql, 'SELECT VERSION()')) {
             return [['VERSION()' => $this->data['server_version']]];
         }
+        if (str_contains($sql, 'SHOW VARIABLES')) {
+            $vars = $this->data['server_variables'] ?? [];
+            $out = [];
+            foreach ($vars as $name => $value) {
+                $out[] = ['variable_name' => $name, 'value' => $value];
+            }
+
+            return $out;
+        }
         if (str_contains($sql, '@@SESSION.transaction_read_only')) {
             return [['@@SESSION.transaction_read_only' => '1']];
         }
