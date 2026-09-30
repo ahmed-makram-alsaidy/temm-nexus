@@ -44,11 +44,16 @@ class FirebaseRestClient
 
     public function firestoreBase(): string
     {
+        // 35.5 live finding (real Firestore emulator): the database ID's
+        // parentheses are legal path characters — percent-encoding them
+        // (%28default%29) makes the API return HTTP 500. Database IDs are
+        // restricted to [a-z0-9()-_], so only '%' needs escaping.
+        $dbId = str_replace('%', '%25', $this->databaseId);
         if ($this->emulator) {
-            return 'http://'.rtrim($this->emulatorHost, '/').'/v1/projects/'.$this->projectId.'/databases/'.rawurlencode($this->databaseId);
+            return 'http://'.rtrim($this->emulatorHost, '/').'/v1/projects/'.rawurlencode($this->projectId).'/databases/'.$dbId;
         }
 
-        return 'https://firestore.googleapis.com/v1/projects/'.$this->projectId.'/databases/'.rawurlencode($this->databaseId);
+        return 'https://firestore.googleapis.com/v1/projects/'.rawurlencode($this->projectId).'/databases/'.$dbId;
     }
 
     public function authBase(): string
