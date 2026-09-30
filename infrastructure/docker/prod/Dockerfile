@@ -68,5 +68,12 @@ RUN mkdir -p \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod +x artisan
 
+# Frontend assets: Filament's compiled CSS/JS/fonts are generated artifacts
+# (gitignored in the source tree, so the COPY above ships without them).
+# Publish them here so the image is self-contained; the one-shot compose
+# `assets` service re-publishes the same output into the host public/ docroot
+# that Caddy serves at the edge.
+RUN php artisan filament:assets
+
 EXPOSE 9000
 CMD ["php-fpm", "-F"]

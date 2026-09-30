@@ -123,11 +123,28 @@ services:
     healthcheck:
       disable: true
 
+  # One-shot frontend asset publish. Filament's compiled CSS/JS/fonts are
+  # generated artifacts (gitignored: public/{css,js,fonts}/filament), and
+  # Caddy serves the edge docroot from the host public/ bind mount — so the
+  # generated assets must be written into that docroot on every deploy. The
+  # same assets are baked into the image at build time (Dockerfile), keeping
+  # the image self-contained for deployments that do not use this bind mount.
+  assets:
+    <<: *app
+    restart: "no"
+    command: ["php", "artisan", "filament:assets"]
+    volumes:
+      - ./apps/owner-console/public:/var/www/html/public
+    healthcheck:
+      disable: true
+
   app:
     <<: *app
     mem_limit: 768m
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      assets:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "sh", "/usr/local/bin/fpm-healthcheck.sh"]

@@ -77,10 +77,12 @@ Details: [docs/open-source/FIRST_RUN.md](FIRST_RUN.md).
 
 | Service | Image | Role |
 |---|---|---|
+| `assets` | built application image | one-shot: publishes Filament CSS/JS/fonts into the edge docroot |
+| `migrate` | built application image | one-shot: database schema migration |
 | `app` | built application image | PHP-FPM web application |
-| `horizon` | same image | queue worker |
-| `scheduler` | same image | cron-like scheduler |
-| `reverb` | same image | websocket server |
+| `horizon` | built application image | queue worker |
+| `scheduler` | built application image | cron-like scheduler |
+| `reverb` | built application image | websocket server |
 | `postgres` | postgres:17-alpine | database (internal-only) |
 | `redis` | redis:8-alpine | cache/queues (internal-only) |
 | `caddy` | caddy:2-alpine | TLS termination / reverse proxy |
