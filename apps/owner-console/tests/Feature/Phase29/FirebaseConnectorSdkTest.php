@@ -81,7 +81,7 @@ class FirebaseConnectorSdkTest extends TestCase
 
     public function test_connection_test_never_leaks_the_service_account(): void
     {
-        $canary = '{"project_id":"canary-project","client_email":"canary@canary.iam.gserviceaccount.com","private_key":"-----BEGIN PRIVATE KEY---CANARY-'.bin2hex(random_bytes(6)).'---"}';
+        $canary = '{"project_id":"canary-project","client_email":"canary@canary.iam.gserviceaccount.com","private_key":"-----BEGIN FAKE-CANARY-KEY---CANARY-'.bin2hex(random_bytes(6)).'---"}';
         $credentials = ConnectorCredentials::fromArray(
             ['service_account' => $canary, 'project_id' => 'canary-project'],
             ['service_account']

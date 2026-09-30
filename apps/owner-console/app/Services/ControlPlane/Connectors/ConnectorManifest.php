@@ -14,7 +14,7 @@ final class ConnectorManifest
 {
     public const SCHEMA_VERSION = 1;
     public const SUPPORTED_SCHEMA_VERSIONS = [1];
-    public const TRUST_LEVELS = ['first_party', 'trusted', 'unverified'];
+    public const TRUST_LEVELS = ['first_party', 'trusted', 'community', 'private', 'unverified'];
     public const MAX_BYTES = 65536; // 27T — oversized metadata guard
 
     /** Import flow the generic onboarding wizard should drive. */
@@ -69,7 +69,7 @@ final class ConnectorManifest
 
         // Root-level shape: no unexpected keys (typo / injection surface).
         $allowed = ['schema_version', 'key', 'name', 'version', 'description', 'author',
-            'license', 'platform_requirement', 'entrypoint', 'capabilities', 'permissions',
+            'license', 'platform_requirement', 'entrypoint', 'capabilities', 'permissions', 'publisher',
             'trust', 'import_flow', 'category', 'ui'];
         foreach (array_keys($data) as $key) {
             if (! in_array($key, $allowed, true)) {
