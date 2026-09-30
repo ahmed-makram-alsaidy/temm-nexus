@@ -39,35 +39,43 @@ class IncrementalExportCapture implements ChangeCaptureConnector
 
     public function captureChanges(?array $checkpoint, callable $onBatch, int $maxEvents = 1000): array
     {
+        // The checkpoint watermark: only rows AT or ABOVE it are re-exported
+        // (inclusive — see the collision note below).
         $since = $checkpoint['marker_value'] ?? null;
         $batch = [];
-        $lastMarker = $since;
         $consumed = 0;
+        $maxSeen = $since;
 
         $this->adapter->streamRows(
             $this->schemaName(),
             $this->table,
             [],
-            function (array $row) use (&$batch, &$lastMarker, &$consumed, $onBatch, $maxEvents): void {
+            function (array $row) use (&$batch, &$consumed, &$maxSeen, $since, $onBatch, $maxEvents): void {
                 $marker = $row[$this->markerColumn] ?? null;
                 if ($marker === null) {
                     return; // rows without a marker cannot be ordered — skipped honestly
                 }
-                // 35.5 live finding: the filter used to skip rows whose
-                // marker EQUALLED the watermark (strict advance). Markers
-                // with second precision collide constantly (bulk statements
-                // share one timestamp), so every colliding change was
-                // silently LOST. Rows at the boundary watermark are now
-                // re-exported: applying them again is an idempotent upsert,
-                // and rows mutated after the previous cycle still carry
-                // marker == watermark and are therefore picked up. The
-                // position advances only when a strictly greater marker
-                // appears, so idle cycles re-export just the boundary set.
-                if ($lastMarker !== null && (string) $marker < (string) $lastMarker) {
-                    return; // rows below the watermark are already applied
+                // 35.5 live findings (two, both fixed here):
+                //  1. The old filter skipped rows whose marker EQUALLED the
+                //     running watermark. Markers with second precision collide
+                //     constantly (bulk statements share one timestamp), so
+                //     colliding changes were silently LOST.
+                //  2. The old filter compared against the last row's marker in
+                //     STREAM order — adapters stream by primary key, so any
+                //     row whose marker was below a previously streamed row's
+                //     marker was also lost.
+                // The filter is now order-independent: a row is re-exported
+                // when its marker is at or above the STORED watermark from
+                // the previous cycle. Applying those rows again is an
+                // idempotent upsert, so the inclusive re-export is safe; the
+                // new watermark is the maximum marker seen in this pass.
+                if ($since !== null && (string) $marker < (string) $since) {
+                    return; // strictly below the previous watermark — already applied
                 }
                 $batch[] = CdcEvent::upsert($this->table, $row, (string) $marker);
-                $lastMarker = $marker;
+                if ($maxSeen === null || (string) $marker > (string) $maxSeen) {
+                    $maxSeen = (string) $marker;
+                }
                 $consumed++;
                 if (count($batch) >= 100) {
                     $onBatch($batch);
@@ -82,7 +90,7 @@ class IncrementalExportCapture implements ChangeCaptureConnector
 
         return [
             'marker_column' => $this->markerColumn,
-            'marker_value' => $lastMarker,
+            'marker_value' => $maxSeen,
             'table' => $this->table,
             'events' => $consumed,
             'captured_at' => now()->toIso8601String(),
