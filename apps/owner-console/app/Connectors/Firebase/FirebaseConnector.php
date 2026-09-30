@@ -221,6 +221,11 @@ class FirebaseConnector implements SourceConnector, AnalyzableSourceConnector, E
         if ($emulator) {
             [$host, $port] = $this->splitHostPort($emulatorHost, 8080);
             ConnectorNetworkGuard::assertSafeHost($host, $port, (bool) config('connectors.allow_private_networks', false));
+            // 35.5 live finding: a host without an explicit port kept the
+            // client on port 80 (the guard parsed the default 8080 but the
+            // result was discarded). Normalize so the client dials the
+            // same host:port the guard validated.
+            $emulatorHost = $host.':'.$port;
         }
         // 35.5 live finding (emulator mode): this method referenced
         // $serviceAccountJson without ever defining it — any emulator-mode
