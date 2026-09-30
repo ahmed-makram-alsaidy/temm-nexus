@@ -50,6 +50,14 @@ class PostgresCatalogLiveTest extends TestCase
         );
         $catalog = new PostgresCatalog($executor);
 
+        // System schemas must never leak into the schema list (35.5: the
+        // broken pg_ LIKE pattern let pg_catalog through, whose aggregates
+        // then crashed pg_get_functiondef).
+        foreach ($catalog->schemas() as $schema) {
+            $this->assertStringNotStartsWith('pg_', $schema);
+            $this->assertNotSame('information_schema', $schema);
+        }
+
         // The exact query that failed live (pg_largeobject_metadata column).
         $largeObjects = $catalog->largeObjects();
         $this->assertArrayHasKey('count', $largeObjects);
@@ -69,6 +77,10 @@ class PostgresCatalogLiveTest extends TestCase
             }
             $catalog->views($schema);
             $catalog->sequences($schema);
+            $catalog->functions($schema);
+            $catalog->triggers($schema);
+            $catalog->enums($schema);
+            $catalog->domains($schema);
         }
 
         $this->assertTrue($this->configured);

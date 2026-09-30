@@ -51,11 +51,16 @@ class PostgresCatalog
     /** @return list<string> importable schema names (system schemas excluded). */
     public function schemas(): array
     {
+        // 35.5 live finding: `NOT LIKE 'pg\\\\_%'` breaks under
+        // standard_conforming_strings=on (the double backslash becomes two
+        // literal characters, so the pattern never matches and pg_catalog/
+        // pg_toast leaked into the schema list — pg_get_functiondef then
+        // failed on array_agg). position() is escaping-proof.
         return array_map(
             fn ($row) => (string) $row['nspname'],
             $this->db->rows(
                 "SELECT n.nspname FROM pg_namespace n
-                 WHERE n.nspname NOT LIKE 'pg\\\\_%' AND n.nspname <> 'information_schema'
+                 WHERE position('pg_' in n.nspname) <> 1 AND n.nspname <> 'information_schema'
                  ORDER BY n.nspname"
             )
         );
