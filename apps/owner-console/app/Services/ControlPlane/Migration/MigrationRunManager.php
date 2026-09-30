@@ -394,9 +394,13 @@ class MigrationRunManager
 
         foreach ($plan->items()->where('source_kind', 'table')->orderBy('stage')->get() as $item) {
             $analysisItem = $plan->analysis->items()->where('kind', 'table')->where('name', $item->source_name)->first();
-            if (! $analysisItem || $target->tableExists($item->target_name)) {
+            if (! $analysisItem) {
                 continue;
             }
+            // ensureTable is CREATE TABLE IF NOT EXISTS — always call it: the
+            // adapter also records the mapped column types there, which the
+            // insert path needs for bytea binding even when the table already
+            // existed (35.5 live finding).
             $attrs = $analysisItem->attributes;
             $columns = $attrs['columns'] ?? [];
             $pk = $attrs['primary_key'] ?? [];
