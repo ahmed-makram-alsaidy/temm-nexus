@@ -222,6 +222,11 @@ class FirebaseConnector implements SourceConnector, AnalyzableSourceConnector, E
             [$host, $port] = $this->splitHostPort($emulatorHost, 8080);
             ConnectorNetworkGuard::assertSafeHost($host, $port, (bool) config('connectors.allow_private_networks', false));
         }
+        // 35.5 live finding (emulator mode): this method referenced
+        // $serviceAccountJson without ever defining it — any emulator-mode
+        // connect crashed with "Undefined variable". Resolve it from the
+        // credentials here, mirroring testConnection.
+        $serviceAccountJson = (string) ($credentials->get('service_account') ?? '');
         $account = $serviceAccountJson !== '' ? ServiceAccount::parse($serviceAccountJson) : null;
 
         return new FirebaseRestClient(
