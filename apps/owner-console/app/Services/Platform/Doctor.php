@@ -208,7 +208,9 @@ class Doctor
             return self::check('scheduler', 'Scheduler heartbeat', 'WARNING', 'heartbeat present but unreadable — the scheduler is storing an incompatible value (expected a datetime string)');
         }
         try {
-            $age = now()->diffInMinutes($heartbeat);
+            // Carbon 3 returns a signed diff (negative when the heartbeat is
+            // in the past) — the doctor reports elapsed time, so normalise.
+            $age = abs(now()->diffInMinutes($heartbeat));
         } catch (Throwable) {
             return self::check('scheduler', 'Scheduler heartbeat', 'WARNING', 'heartbeat present but unparseable — verify the scheduler heartbeat value format');
         }

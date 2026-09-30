@@ -100,6 +100,11 @@ class SchedulerHeartbeatTest extends TestCase
         $fresh = $scheduler->invoke(null);
         $this->assertSame('PASS', $fresh['status']);
         $this->assertStringContainsString('last tick', $fresh['detail']);
+        $this->assertStringNotContainsString(
+            '-',
+            $fresh['detail'],
+            'elapsed time is reported unsigned — Carbon 3 diffInMinutes is signed'
+        );
     }
 
     public function test_doctor_scheduler_check_survives_unreadable_heartbeat(): void
