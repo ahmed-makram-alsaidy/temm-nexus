@@ -155,11 +155,13 @@ class MysqlConnector implements SourceConnector, AnalyzableSourceConnector, Extr
                 ['flavor' => $server['flavor'], 'version' => $server['version']]
             );
         } catch (\InvalidArgumentException $e) {
-            return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $e->getMessage());
+            return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $credentials->redactFrom($e->getMessage()));
         } catch (\RuntimeException $e) {
-            return ConnectorTestResult::make(ConnectorTestResult::PROVIDER_ERROR, mb_substr($e->getMessage(), 0, 200));
+            return ConnectorTestResult::make(ConnectorTestResult::PROVIDER_ERROR, $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200)));
         } catch (\PDOException $e) {
-            $message = mb_substr($e->getMessage(), 0, 200);
+            // 35.5 — no credential value (host/database/user included) may
+            // reach an error surface; provider exceptions echo parameters.
+            $message = $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200));
             $kind = str_contains($message, 'access denied') || str_contains($message, 'password')
                 ? ConnectorTestResult::INVALID_CREDENTIAL
                 : ConnectorTestResult::NETWORK_ERROR;

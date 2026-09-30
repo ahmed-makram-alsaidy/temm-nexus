@@ -202,12 +202,13 @@ class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, Ex
 
             return ConnectorTestResult::pass('wire protocol handshake OK (server '.$version.')', ['server_version' => $version]);
         } catch (\InvalidArgumentException $e) {
-            return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $e->getMessage());
+            return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $credentials->redactFrom($e->getMessage()));
         } catch (\Throwable $e) {
-            // 28T — URI (and its credentials) NEVER appear in error surfaces.
+            // 28T — URI (and its credentials) NEVER appear in error surfaces;
+            // 35.5 — no credential value (host/user included) does either.
             return ConnectorTestResult::make(
                 str_contains($e->getMessage(), 'authentication') ? ConnectorTestResult::INVALID_CREDENTIAL : ConnectorTestResult::NETWORK_ERROR,
-                mb_substr($e->getMessage(), 0, 200)
+                $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200))
             );
         }
     }

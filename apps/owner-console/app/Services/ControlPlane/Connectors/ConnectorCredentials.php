@@ -82,6 +82,31 @@ final class ConnectorCredentials
         return $out;
     }
 
+    /**
+     * Strip every credential VALUE out of a message before the message
+     * reaches an output surface. Provider exceptions routinely echo back
+     * connection parameters (host names, database names, usernames, DSN
+     * fragments) — all of them are credential values here, secret or not
+     * (35.5: live `connector:test` proved the host canary leaked through
+     * PDO/guard error text). Values shorter than 4 characters are left
+     * alone to avoid mangling unrelated words.
+     */
+    public function redactFrom(string $message): string
+    {
+        foreach ($this->values as $value) {
+            if (! is_string($value) && ! is_numeric($value)) {
+                continue;
+            }
+            $value = (string) $value;
+            if (mb_strlen($value) < 4) {
+                continue;
+            }
+            $message = str_replace([$value, rawurlencode($value)], '[redacted]', $message);
+        }
+
+        return $message;
+    }
+
     /** Prevent accidental secret leakage through var_dump/echo. */
     public function __debugInfo(): array
     {

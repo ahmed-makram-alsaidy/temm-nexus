@@ -187,7 +187,7 @@ class FirebaseConnector implements SourceConnector, AnalyzableSourceConnector, E
             try {
                 ServiceAccount::parse($serviceAccountJson);
             } catch (\InvalidArgumentException $e) {
-                return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $e->getMessage());
+                return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $credentials->redactFrom($e->getMessage()));
             }
         }
         try {
@@ -207,9 +207,9 @@ class FirebaseConnector implements SourceConnector, AnalyzableSourceConnector, E
                 return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, 'Firebase project or database not found (HTTP 404).');
             }
 
-            return ConnectorTestResult::make(ConnectorTestResult::NETWORK_ERROR, mb_substr($e->getMessage(), 0, 200));
+            return ConnectorTestResult::make(ConnectorTestResult::NETWORK_ERROR, $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200)));
         } catch (\Throwable $e) {
-            return ConnectorTestResult::make(ConnectorTestResult::NETWORK_ERROR, mb_substr($e->getMessage(), 0, 200));
+            return ConnectorTestResult::make(ConnectorTestResult::NETWORK_ERROR, $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200)));
         }
     }
 

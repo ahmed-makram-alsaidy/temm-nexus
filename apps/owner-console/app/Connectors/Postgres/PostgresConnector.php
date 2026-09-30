@@ -193,13 +193,14 @@ class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, E
                 ['server_version_num' => $server['version_num'], 'read_only' => $server['transaction_read_only']]
             );
         } catch (\InvalidArgumentException $e) {
-            return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $e->getMessage());
+            return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $credentials->redactFrom($e->getMessage()));
         } catch (\RuntimeException $e) {
             // Read-only pin failure — a HARD stop, never softened (30A).
-            return ConnectorTestResult::make(ConnectorTestResult::PROVIDER_ERROR, mb_substr($e->getMessage(), 0, 200));
+            return ConnectorTestResult::make(ConnectorTestResult::PROVIDER_ERROR, $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200)));
         } catch (\PDOException $e) {
-            // 30A — passwords NEVER appear in error surfaces.
-            $message = mb_substr($e->getMessage(), 0, 200);
+            // 30A — passwords NEVER appear in error surfaces; 35.5 — no
+            // credential value (host/database/user included) does either.
+            $message = $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200));
             $kind = str_contains($message, 'authentication') || str_contains($message, 'password')
                 ? ConnectorTestResult::INVALID_CREDENTIAL
                 : ConnectorTestResult::NETWORK_ERROR;
