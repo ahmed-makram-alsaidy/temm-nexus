@@ -179,6 +179,13 @@ class PostgresTargetAdapter implements TargetAdapter
 
     public function truncateTable(string $table): void
     {
+        // Reset semantics: a table that does not exist (real-mode run
+        // against an operator-managed schema before ensureTable, or a
+        // partial previous run) is already clean — 35.5 live finding: the
+        // hard 42P01 here masked the actual run state.
+        if (! $this->tableExists($table)) {
+            return;
+        }
         $this->pdo->exec('TRUNCATE TABLE '.$this->qi($table).' CASCADE');
     }
 

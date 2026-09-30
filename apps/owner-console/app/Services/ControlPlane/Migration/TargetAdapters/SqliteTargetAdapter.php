@@ -173,6 +173,11 @@ class SqliteTargetAdapter implements TargetAdapter
 
     public function truncateTable(string $table): void
     {
+        // Reset semantics: a table that does not exist is already clean
+        // (35.5 live finding — see PostgresTargetAdapter::truncateTable).
+        if (! $this->tableExists($table)) {
+            return;
+        }
         $this->pdo->exec('DELETE FROM '.$this->qi($table));
         // sqlite_sequence only exists once an AUTOINCREMENT column was
         // created; resets on targets without one must not fail (28.1G).
