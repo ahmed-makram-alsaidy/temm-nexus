@@ -44,8 +44,8 @@ class ConnectorRegistrySecurityTest extends TestCase
     public function test_unknown_connector_fails_gracefully(): void
     {
         $this->expectException(ConnectorNotSupported::class);
-        $this->expectExceptionMessage('firebase');
-        ConnectorRegistry::resolve(new \App\Models\MigrationSource(['type' => 'firebase']));
+        $this->expectExceptionMessage('not-a-real-connector');
+        ConnectorRegistry::resolve(new \App\Models\MigrationSource(['type' => 'not-a-real-connector']));
     }
 
     public function test_disabled_connector_cannot_be_invoked(): void

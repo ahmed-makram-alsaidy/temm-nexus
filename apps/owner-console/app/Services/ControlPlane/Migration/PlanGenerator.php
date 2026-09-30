@@ -229,4 +229,16 @@ class PlanGenerator
 
         return 'needs_review';
     }
+
+    /**
+     * The auth identity table name on the target. Reserved to 'users' unless
+     * a source DATA table targets the same name (a provider can have a
+     * 'users' data domain AND an auth domain) — then the identity table is
+     * disambiguated to the reserved 'auth_users' name. Generic engine
+     * behavior: providers never know about it.
+     */
+    public static function authTargetTable(bool $usersTableNameTaken): string
+    {
+        return $usersTableNameTaken ? 'auth_users' : 'users';
+    }
 }

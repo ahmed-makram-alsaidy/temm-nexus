@@ -336,15 +336,16 @@ class MigrationRunManager
 
     protected function migrateAuthUsers($item, SourceAdapter $source, TargetAdapter $target, bool $reset = false): int
     {
-        if (! $target->tableExists('users')) {
+        $authTable = $this->authTableName($item->plan);
+        if (! $target->tableExists($authTable)) {
             return 0;
         }
         if ($reset) {
-            $target->truncateTable('users');
+            $target->truncateTable($authTable);
         }
         $written = 0;
         $batch = [];
-        $source->streamAuthUsers(function ($authRow) use (&$batch, &$written, $target) {
+        $source->streamAuthUsers(function ($authRow) use (&$batch, &$written, $target, $authTable) {
             $row = TransformPipeline::apply('auth_identity_transform', [
                 'id' => $authRow['id'],
                 'email' => $authRow['email'],
@@ -356,13 +357,24 @@ class MigrationRunManager
             ]);
             $batch[] = $row;
             if (count($batch) >= 500) {
-                $written += $target->insertBatch('users', $batch);
+                $written += $target->insertBatch($authTable, $batch);
                 $batch = [];
             }
         });
-        $written += $target->insertBatch('users', $batch);
+        $written += $target->insertBatch($authTable, $batch);
 
         return $written;
+    }
+
+    /** Collision-aware auth identity table name (see PlanGenerator::authTargetTable). */
+    protected function authTableName(MigrationPlan $plan): string
+    {
+        $usersTaken = $plan->items()
+            ->where('source_kind', 'table')
+            ->pluck('target_name')
+            ->contains('users');
+
+        return PlanGenerator::authTargetTable($usersTaken);
     }
 
     /** Build target schema from plan (tables first, then FKs). */
@@ -401,8 +413,8 @@ class MigrationRunManager
 
         // Auth identity target table (auth template output).
         $authItem = $plan->items()->where('source_kind', 'auth_users')->first();
-        if ($authItem && ! $target->tableExists('users')) {
-            $target->ensureTable('users', [
+        if ($authItem && ! $target->tableExists($this->authTableName($plan))) {
+            $target->ensureTable($this->authTableName($plan), [
                 ['name' => 'id', 'type' => 'text', 'nullable' => false],
                 ['name' => 'email', 'type' => 'text', 'nullable' => true],
                 ['name' => 'password', 'type' => 'text', 'nullable' => true],
