@@ -306,11 +306,32 @@ class PostgresTargetAdapter implements TargetAdapter
         if ($value === null || ! is_string($value)) {
             return $value;
         }
+        if (! array_key_exists($table, $this->columnTypes)) {
+            // Lazy load: CDC appliers and re-runs insert without having
+            // called ensureTable in this process — the real schema is the
+            // source of truth, not per-instance bookkeeping.
+            $this->loadColumnTypes($table);
+        }
         if (($this->columnTypes[$table][$column] ?? '') === 'bytea') {
             return '\x'.bin2hex($value);
         }
 
         return $value;
+    }
+
+    /** Actual column types from the target schema (bytea binding needs them). */
+    protected function loadColumnTypes(string $table): void
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT column_name, data_type FROM information_schema.columns
+             WHERE table_schema = current_schema() AND table_name = ?"
+        );
+        $stmt->execute([$table]);
+        $map = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $col) {
+            $map[$col['column_name']] = $col['data_type'];
+        }
+        $this->columnTypes[$table] = $map;
     }
 
     protected function qi(string $identifier): string
