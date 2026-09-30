@@ -63,7 +63,11 @@ class FixturePgExecutor implements PgExecutor
         }
 
         // ── schemas ──────────────────────────────────────────────────────
-        if (str_contains($sql, 'FROM pg_namespace n') && str_contains($sql, 'NOT LIKE')) {
+        // (35.5: the live query now excludes pg_* via position() instead of
+        // a NOT LIKE pattern that broke under standard_conforming_strings —
+        // this matcher accepts both spellings.)
+        if (str_contains($sql, 'FROM pg_namespace n')
+            && (str_contains($sql, 'NOT LIKE') || str_contains($sql, "position('pg_' in n.nspname)"))) {
             return array_map(fn ($s) => ['nspname' => $s], $this->data['schemas']);
         }
 
