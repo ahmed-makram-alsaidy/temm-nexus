@@ -287,7 +287,12 @@ class MysqlBinlogCapture implements ChangeCaptureConnector, CdcPositionSource
             }
         } elseif ($event instanceof DeleteRowsDTO) {
             foreach ($event->values as $row) {
-                $out[] = new CdcEvent($table, CdcEvent::DELETE, $this->rowImage($row), $position, $schema);
+                // With binlog_row_image=FULL the delete carries the whole
+                // old image; NULL columns can never match in a WHERE, so
+                // the delete image keeps the non-null columns (the PK is
+                // never null) — the matched row is identical (35.6).
+                $image = array_filter($this->rowImage($row), fn ($v) => $v !== null);
+                $out[] = new CdcEvent($table, CdcEvent::DELETE, $image, $position, $schema);
             }
         }
 
