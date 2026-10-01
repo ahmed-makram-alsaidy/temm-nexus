@@ -221,9 +221,12 @@ jobs:
           grep -q 'X-Phase37' infrastructure/caddy/Caddyfile.selfhost
           ./scripts/upgrade.sh > /tmp/upgrade.log 2>&1 || { cat /tmp/upgrade.log; exit 1; }
           grep -q "caddy configuration CHANGED" /tmp/upgrade.log || { echo "upgrader did not detect the configuration change"; exit 1; }
-          CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80/)
-          HDR=$(curl -sI http://localhost:80/ | grep -ci 'x-phase37: regression' || true)
-          [ "$CODE" = "200" ] || { echo "post-upgrade / returned $CODE"; exit 1; }
+          # The stack is UNINITIALIZED at this point (no setup wizard run):
+          # /setup must serve 200 and the static asset (served by caddy's
+          # file_server inside the site block) must carry the new header.
+          CODE=$(curl -sL -o /dev/null -w '%{http_code}' http://localhost:80/setup)
+          HDR=$(curl -sI http://localhost:80/css/cp.css | grep -ci 'x-phase37: regression' || true)
+          [ "$CODE" = "200" ] || { echo "post-upgrade /setup returned $CODE"; exit 1; }
           [ "$HDR" -ge 1 ] || { echo "new Caddyfile is NOT active after upgrade — caddy not recreated"; exit 1; }
           # A second upgrade with an UNCHANGED config must NOT recreate caddy.
           BEFORE=$(docker inspect --format '{{.Created}}' "$(docker compose -f docker-compose.prod.yml ps -q caddy)")
