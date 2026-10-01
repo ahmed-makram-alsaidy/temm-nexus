@@ -192,7 +192,7 @@ class PgOutputDecoderTest extends TestCase
     {
         $body = pack('N', $relid).$schema."\0".$name."\0".$identity.pack('n', count($columns));
         foreach ($columns as [$colName, $oid, $key]) {
-            $body .= chr($key ? 1 : 0).pack('N', $oid).pack('N', 0xFFFFFFFF).$colName."\0";
+            $body .= chr($key ? 1 : 0).$colName."\0".pack('N', $oid).pack('N', 0xFFFFFFFF);
         }
 
         return $this->frame('R', $body);

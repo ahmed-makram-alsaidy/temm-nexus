@@ -88,13 +88,15 @@ final class PgOutputDecoder
         $ncols = $c->int16();
         $columns = [];
         for ($i = 0; $i < $ncols; $i++) {
-            // Wire order (pg docs): flags byte, int32 type OID, int32
-            // typmod, then the column NAME cstring.
+            // Wire order VERIFIED against a live PostgreSQL 17 Relation
+            // frame: flags byte, column NAME cstring, int32 type OID,
+            // int32 typmod.
             $flags = ord($c->byte());
+            $colName = $c->cstring();
             $type = $c->int32();
             $typmod = $c->int32();
             $columns[] = [
-                'name' => $c->cstring(),
+                'name' => $colName,
                 'type' => $type,
                 'typmod' => $typmod,
                 'key' => ($flags & 1) !== 0, // part of the replica identity
