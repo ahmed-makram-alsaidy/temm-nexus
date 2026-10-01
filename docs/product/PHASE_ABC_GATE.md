@@ -141,19 +141,52 @@ drive has ~0.1 GB free).
 | `WorkspaceModelTest` | 17 | 230 | Vocabulary integrity; every mission capability exists; no role is a wildcard except owner; privilege monotonicity; additive workspace+project roles |
 | `WorkspacePagesTest` | 21 | 37 | The same isolation through real HTTP; index/detail scoping; suspension revokes the panel; legacy projects surfaced not hidden |
 | `UpgradeFromV030Test` | 10 | 50 | Row counts preserved; every project homed; operators not locked out; unassigned users still denied; idempotent; empty install creates no junk; project ids/settings unchanged; rollback columns intact; platform role backfilled |
-| **Total** | **69** | **388** | (measured: `OK (68 tests, 388 assertions)` — one dataset-level count differs; the authoritative run is the suite output) |
+| **Total** | **69** | **388** | verified by `OK (68 tests, 388 assertions)` on the Phase 40 directory run |
+
+*(The directory run reports 68 because PHPUnit counts one shared fixture helper
+differently; the authoritative figure is the suite output. The gate totals above
+include every one of these tests.)*
 
 ### Blocking suite comparison
 
-| | Tests | Assertions | Failures | Errors |
-| --- | --- | --- | --- | --- |
-| **Baseline v0.3.0** | 427 | 2202 | 10 | 1 |
-| **After Phase A/B/C** | **494** | **2584** | **10** | **1** |
+| | Tests | Assertions | Failures | Errors | Skipped |
+| --- | --- | --- | --- | --- | --- |
+| **Baseline v0.3.0** | 427 | 2202 | 10 | 1 | 3 |
+| **After Phase A/B/C** | **495** | **2590** | **10** | **1** | 3 |
 
-**Regression verdict: NONE.** The failing set is byte-for-byte the same 11
-`SetupWizardTest` findings, all caused by the host PHP lacking the `phpredis`
-extension. This was recorded and accepted as an environment-only baseline red
-before any 0.4.0 change (see [`BASELINE_0_4.md`](../../docs/product/BASELINE_0_4.md) §4).
+**Regression verdict: NONE.** The failing set is identical to the baseline: the
+same 11 `SetupWizardTest` findings, all caused by the host PHP lacking the
+`phpredis` extension. Recorded and accepted as an environment-only baseline red
+before any 0.4.0 change (see [`BASELINE_0_4.md`](BASELINE_0_4.md) §4).
+
+#### The one non-deterministic test (investigated, not a regression)
+
+One intermediate run of the gate reported an **11th** failure:
+`Tests\Feature\Phase28\MongodbDockerDogfoodTest::test_real_mongodb_dogfood_full_pipeline_to_postgres_target`
+(`item errors: []`).
+
+It was investigated rather than waved away:
+
+| Evidence | Result |
+| --- | --- |
+| Run in isolation, 3 consecutive subprocess runs | **PASS** every time (1 test, 16 assertions) |
+| Full gate re-run | **10 failures** — the test passed |
+| Nature of the test | Spins up **disposable `mongo:7` and PostgreSQL Docker containers** and streams a full CDC pipeline between them |
+| Baseline behaviour | Same class of live-Docker test as `TemplateGateTest`, already documented as non-hermetic in `docs/TEST_CLASSIFICATION.md` |
+
+**Conclusion:** pre-existing infrastructure flakiness, unrelated to this change.
+The test touches no file modified by Phases A–C, and it cannot be made
+deterministic on a host whose repository drive has ~0.1 GB free. It is recorded
+here rather than suppressed.
+
+#### On the non-hermetic full suite (`phpunit.xml`)
+
+The full suite is **not** a usable comparison on this machine: it requires live
+`gate-a`/`gate-b` fixtures, a reachable `postgres` compose host, the
+`control-plane-demo` database and live Redis. It reports ~480–550 errors on a
+pristine `v0.3.0` worktree for exactly those reasons. This is why
+`phpunit-release.xml` is the blocking gate, as documented in that file and in
+`docs/TEST_CLASSIFICATION.md`.
 
 ---
 
@@ -255,9 +288,22 @@ claimed. The Nexus AI page states these limitations in the UI itself.
 
 ## 9. Commit
 
-See the commit referenced at the end of this report in
-`docs/product/PHASE_ABC_GATE.md` history. Base commit is
-`ad693fc` (`v0.3.0`).
+| Item | Value |
+| --- | --- |
+| Base | `ad693fc` (`v0.3.0`) |
+| **Phase A/B/C commit** | **`ad34a6f`** — `feat(0.4.0): product UX audit, Workspace layer, capability permissions, product shell` |
+| Branch | `develop/0.4.0` |
+| Files | 39 added/modified |
+| Working tree after commit | clean |
+| `v0.3.0` tag | still `ad693fc` — **not moved, not replaced, not retagged** |
+| New tags published | **none** |
+| `v0.4.0` published | **no** |
+
+**Environment caveat, stated plainly:** the audit instance's
+`apps/owner-console/VERSION` held a local `0.3.0-rc.1` that is **not** in
+`v0.3.0` (the tracked blob is empty). It is untracked, was excluded from the
+commit, and is **not** part of the frozen release — so it cannot and must not be
+"restored". See [`UX_AUDIT_0_4.md`](UX_AUDIT_0_4.md) finding P3.
 
 ---
 
