@@ -311,6 +311,7 @@ class MysqlConnector implements SourceConnector, AnalyzableSourceConnector, Extr
         $options['host'] ??= (string) ($source->connection['host'] ?? '');
         $options['port'] ??= (int) ($source->connection['port'] ?? 3306);
         $options['database'] ??= (string) ($source->connection['database'] ?? '');
+        $options['username'] ??= (string) ($source->connection['username'] ?? '');
 
         return new MysqlBinlogCapture($source, $options);
     }
