@@ -197,6 +197,15 @@ jobs:
             [ "${size}" -gt 512 ] || { echo "asset body suspiciously small: ${path}"; exit 1; }
           }
           check "/css/filament/filament/app.css" "text/css"
-          check "/js/filament/filament/app.js" "application/javascript"
+          # JS MIME: current caddy serves text/javascript (RFC 9239 name);
+          # older stacks may serve application/javascript — both are correct.
+          out=$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "http://localhost:80/js/filament/filament/app.js")
+          size=$(curl -s "http://localhost:80/js/filament/filament/app.js" | wc -c)
+          echo "/js/filament/filament/app.js -> ${out} (${size}B)"
+          case "${out}" in
+            "200 text/javascript"*|"200 application/javascript"*) ;;
+            *) echo "asset check failed for /js/filament/filament/app.js (expected 200 text|application/javascript); got: ${out}"; exit 1 ;;
+          esac
+          [ "${size}" -gt 512 ] || { echo "asset body suspiciously small: /js/filament/filament/app.js"; exit 1; }
           check "/fonts/filament/filament/inter/index.css" "text/css"
           check "/css/cp.css" "text/css"
