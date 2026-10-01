@@ -1,3 +1,18 @@
+## [0.3.0-rc.3] — 2026-10-01
+
+**PRE-RELEASE — release candidate.** Release-closure fix found during the
+rc.2 stability soak (Phase 36.5). No product features.
+
+### Fixed
+
+- **Connector Catalog page rendered HTTP 500 for every admin.** Two
+  defects, found live through the real browser on the Azure rc.2 soak:
+  `Table::columns()` received a Closure (this Filament version requires
+  an array), and the page's `render()` override bypassed the Filament
+  panel page lifecycle so Livewire fell back to the missing default
+  `layouts.app`. The page now declares its view like every other page;
+  a feature regression asserts the page renders (fails against rc.2).
+
 ## [0.3.0-rc.2] — 2026-10-01
 
 **PRE-RELEASE — release candidate.** Release-closure fix on top of the
