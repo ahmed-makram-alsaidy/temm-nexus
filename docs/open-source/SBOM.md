@@ -4,12 +4,12 @@ A pragmatic software bill of materials. This is an inventory, not a
 vulnerability audit — do not assume it is vulnerability-free; run your own
 scanner (e.g. `composer audit`, `npm audit`, Trivy/Grype on the images).
 
-Generated for `0.3.0-rc.2` · Regenerate on every release.
+Generated for `0.3.0` · Regenerate on every release.
 
 ## Application (owner-console) — PHP
 
 Authoritative source: `apps/owner-console/composer.lock` (exact resolved
-versions ship with the repository; 133 packages at 0.3.0-rc.2).
+versions ship with the repository; 133 packages at 0.3.0).
 `composer audit` at release time: 0 security advisories.
 
 Direct requirements:
