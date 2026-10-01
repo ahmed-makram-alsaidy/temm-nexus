@@ -125,7 +125,7 @@ class ProjectClientRepository extends Page
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'repositories.manage'))
                 ->schema([
                     TextInput::make('display_name')->required(),
-                    TextInput::make('root_path')->required()->placeholder('E:\path\to\client-repo')
+                    TextInput::make('root_path')->required()->placeholder('/srv/client-repos/example')
                         ->helperText('The operator approves this exact root. The scanner/patcher can never read outside it.'),
                 ])
                 ->action(function (array $data) {
