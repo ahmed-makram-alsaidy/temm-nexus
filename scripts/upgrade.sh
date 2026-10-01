@@ -88,6 +88,7 @@ fi
 
 # ── build new image, run migrations (normal migrations only) ─────
 echo "==> building the upgraded application image"
+APP_BEFORE="$($COMPOSE ps -q app 2>/dev/null)"
 $COMPOSE build app
 
 echo "==> applying database migrations (Laravel migrate --force; never fresh)"
@@ -96,18 +97,24 @@ $COMPOSE run --rm migrate
 echo "==> restarting application services"
 $COMPOSE up -d
 
-# ── Phase 37: Caddy edge configuration refresh ───────────────────
-# `docker compose up -d` recreates a container only when its SERVICE
-# DEFINITION changes (image, env, ports, bind-mount PATHS). The CONTENT
-# of a bind-mounted file is invisible to compose, and Caddy reads its
-# Caddyfile exactly once at container start — so a changed
-# Caddyfile.selfhost silently stays inactive after an upgrade while the
-# upgrader reports success (found on the 0.3.0-rc.1 live upgrade).
+# ── Phase 37: Caddy edge refresh ─────────────────────────────────
+# Two independent reasons an old Caddy must be recreated after an upgrade
+# (both found live):
 #
-# Fingerprint the Caddy-relevant inputs (Caddyfile + the env values the
-# Caddyfile interpolates). Recreate ONLY caddy when the fingerprint
-# differs from the last-applied one — no destructive recreation without
-# reason; caddy_data/caddy_config volumes (TLS state) are untouched.
+# 1. rc.1 — a changed Caddyfile.selfhost is invisible to compose: the
+#    content of a bind-mounted file is not part of the service definition,
+#    and Caddy reads the file once at container start. Fingerprint the
+#    Caddy-relevant inputs and recreate caddy when it changes.
+#
+# 2. rc.3 — an APP CONTAINER RECREATION breaks the running old Caddy's
+#    HTTPS routing for the site (HTTP:80 keeps redirecting, HTTPS:443
+#    serves caddy 404s with empty bodies) until caddy itself is recreated.
+#    Every code upgrade recreates the app image, so this fires on every
+#    real code upgrade.
+#
+# Unchanged configuration + unchanged app container → caddy is left
+# running (no destructive recreation without reason); caddy_data /
+# caddy_config volumes (TLS state) are never touched.
 caddy_inputs() {
   cat infrastructure/caddy/Caddyfile.selfhost 2>/dev/null
   grep -E '^(PRIMARY_DOMAIN|ACME_EMAIL|HTTP_PORT|HTTPS_PORT)=' .env 2>/dev/null
@@ -115,16 +122,21 @@ caddy_inputs() {
 CADDY_FP="$(caddy_inputs | sha256sum | cut -d' ' -f1)"
 CADDY_STATE="backups/data/.caddy-config-sha256"
 APPLIED_FP="$(cat "$CADDY_STATE" 2>/dev/null || echo '')"
-if [ -f "$CADDY_STATE" ] && [ "$CADDY_FP" = "$APPLIED_FP" ]; then
-  echo "  caddy configuration unchanged — leaving the running edge as-is"
-else
-  if [ -n "$APPLIED_FP" ]; then
-    echo "  caddy configuration CHANGED since the last upgrade — recreating caddy"
-  else
-    echo "  no previous caddy configuration fingerprint — recreating caddy once to guarantee the shipped Caddyfile is active"
-  fi
+APP_AFTER="$($COMPOSE ps -q app 2>/dev/null)"
+CADDY_RECREATE_REASON=''
+if [ ! -f "$CADDY_STATE" ]; then
+  CADDY_RECREATE_REASON='no previous caddy configuration fingerprint — recreating caddy once to guarantee the shipped Caddyfile is active'
+elif [ "$CADDY_FP" != "$APPLIED_FP" ]; then
+  CADDY_RECREATE_REASON='caddy configuration CHANGED since the last upgrade — recreating caddy'
+elif [ -n "$APP_BEFORE" ] && [ "$APP_BEFORE" != "$APP_AFTER" ]; then
+  CADDY_RECREATE_REASON='the app container was recreated by this upgrade — recreating caddy to refresh the edge routing'
+fi
+if [ -n "$CADDY_RECREATE_REASON" ]; then
+  echo "  $CADDY_RECREATE_REASON"
   $COMPOSE up -d --force-recreate caddy
   printf '%s\n' "$CADDY_FP" > "$CADDY_STATE"
+else
+  echo "  caddy configuration unchanged and app container unchanged — leaving the running edge as-is"
 fi
 
 # ── post-upgrade health verify (26H.1 spirit: never upgrade blindly) ──
