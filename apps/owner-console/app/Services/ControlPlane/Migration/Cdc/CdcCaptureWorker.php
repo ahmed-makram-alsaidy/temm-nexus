@@ -2,7 +2,6 @@
 
 namespace App\Services\ControlPlane\Migration\Cdc;
 
-use App\Models\CdcCheckpoint;
 use Illuminate\Support\Facades\Log;
 
 /**
