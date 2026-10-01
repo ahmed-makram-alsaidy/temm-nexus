@@ -234,4 +234,12 @@ jobs:
           grep -q "caddy configuration unchanged" /tmp/upgrade2.log
           AFTER=$(docker inspect --format '{{.Created}}' "$(docker compose -f docker-compose.prod.yml ps -q caddy)")
           [ "$BEFORE" = "$AFTER" ] || { echo "unchanged configuration triggered an unnecessary caddy recreation"; exit 1; }
-          echo "Caddy upgrade-refresh regression: PASS"
+          # rc.3 regression: an APP container recreation (every real code
+          # upgrade rebuilds the image) must also refresh caddy — the old
+          # edge serves empty 404s on HTTPS after its upstream changed.
+          echo "// phase 36.5 app-recreation regression touch" >> apps/owner-console/routes/web.php
+          ./scripts/upgrade.sh > /tmp/upgrade3.log 2>&1 || { cat /tmp/upgrade3.log; exit 1; }
+          grep -q "app container was recreated" /tmp/upgrade3.log || { echo "upgrader did not detect the app recreation"; exit 1; }
+          CODE=$(curl -sL -o /dev/null -w '%{http_code}' http://localhost:80/setup)
+          [ "$CODE" = "200" ] || { echo "post-app-recreation /setup returned $CODE"; exit 1; }
+          echo "Caddy upgrade-refresh regressions: PASS"
