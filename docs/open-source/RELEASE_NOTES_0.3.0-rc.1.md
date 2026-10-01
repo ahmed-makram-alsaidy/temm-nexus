@@ -99,7 +99,7 @@
 ## Verification
 
 This release passed the following gates before publication:
-- Hermetic blocking release suite: __TESTS__ tests / __ASSERTS__
+- Hermetic blocking release suite: 426 tests / 2207
   assertions / 0 failures / 0 errors (see docs/TEST_CLASSIFICATION.md for
   the classification; operator-fixture suites are documented debt, not
   hidden).

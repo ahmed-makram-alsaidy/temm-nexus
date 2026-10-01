@@ -4,12 +4,13 @@ A pragmatic software bill of materials. This is an inventory, not a
 vulnerability audit — do not assume it is vulnerability-free; run your own
 scanner (e.g. `composer audit`, `npm audit`, Trivy/Grype on the images).
 
-Generated for `0.2.0-rc.1` · Regenerate on every release.
+Generated for `0.3.0-rc.1` · Regenerate on every release.
 
 ## Application (owner-console) — PHP
 
 Authoritative source: `apps/owner-console/composer.lock` (exact resolved
-versions ship with the repository).
+versions ship with the repository; 133 packages at 0.3.0-rc.1).
+`composer audit` at release time: 0 security advisories.
 
 Direct requirements:
 
@@ -17,6 +18,7 @@ Direct requirements:
 |---|---|
 | php | ^8.3 |
 | filament/filament | ^5.8 |
+| krowinski/php-mysql-replication | ^11.1 |
 | laravel/framework | ^13.17 |
 | laravel/horizon | ^5.49 |
 | laravel/pulse | ^1.8 |
@@ -24,14 +26,19 @@ Direct requirements:
 | laravel/sanctum | ^4.3 |
 | laravel/tinker | ^3.0 |
 
-## Phase 27/28 connector additions (0.2.0)
+## Phase 29-32/35.6 connector additions (0.3.0)
 
-- The Connector SDK and the Supabase/MongoDB/Example-JSON connectors added
-  **zero new PHP or npm runtime dependencies**: the MongoDB connector uses a
-  pure-PHP wire-protocol client (no ext-mongodb), and the Supabase connector
-  builds on the framework's HTTP client. No new container base images.
-- `phpseclib`-style crypto was NOT introduced; secret encryption remains the
-  framework's APP_KEY-based encryption.
+- **`krowinski/php-mysql-replication` ^11.1** — the ONE new PHP runtime
+  dependency: MySQL/MariaDB row-based binlog decoding for real CDC
+  (Phase 35.6). Pure PHP, no ext-* requirement. The GTID-dump packet of
+  this library receives only heartbeats on MySQL 8.0 (verified live), so
+  the platform uses file+position resume with the GTID set recorded as
+  evidence.
+- `league/commonmark` upgraded to 2.10.3 (security advisories), locked.
+- The Firebase (Phase 29), generic PostgreSQL (Phase 30) and CDC core
+  (Phase 32) additions added **no other new PHP or npm runtime
+  dependencies**: PostgreSQL logical decoding and the MongoDB change
+  stream are pure-PHP wire implementations. No new container base images.
 
 ## Client SDKs — JavaScript / Dart / PHP
 
