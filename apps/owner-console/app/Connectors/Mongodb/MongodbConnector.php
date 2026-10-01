@@ -12,13 +12,18 @@ use App\Services\ControlPlane\Connectors\ConnectorHealth;
 use App\Services\ControlPlane\Connectors\ConnectorManifest;
 use App\Services\ControlPlane\Connectors\ConnectorTestResult;
 use App\Services\ControlPlane\Connectors\Contracts\AnalyzableSourceConnector;
+use App\Services\ControlPlane\Connectors\Contracts\CdcCaptureProvider;
+use App\Services\ControlPlane\Connectors\Contracts\CdcProbeProvider;
+use App\Connectors\Mongodb\ChangeStreams\MongoChangeStreamCapture;
 use App\Services\ControlPlane\Connectors\Contracts\ClientScannerProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ExtractableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\SourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\ValidatableSourceConnector;
 use App\Services\ControlPlane\Connectors\Support\ConnectorNetworkGuard;
 use App\Services\ControlPlane\Migration\Contracts\SourceAdapter;
+use App\Services\ControlPlane\Migration\Cdc\CdcProbeResult;
 use App\Services\ControlPlane\Migration\SchemaFingerprint;
+use App\Connectors\Mongodb\Protocol\BsonCodec;
 use App\Connectors\Mongodb\Protocol\MongoWireClient;
 
 /**
@@ -30,7 +35,7 @@ use App\Connectors\Mongodb\Protocol\MongoWireClient;
  * deterministic strategy mapping (28I), GridFS metadata (28N) and honest
  * auth semantics (28O). The core platform learns nothing MongoDB-specific.
  */
-class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, ClientScannerProvider
+class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, ClientScannerProvider, CdcProbeProvider, CdcCaptureProvider
 {
     public const KEY = 'mongodb';
 
@@ -199,12 +204,13 @@ class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, Ex
 
             return ConnectorTestResult::pass('wire protocol handshake OK (server '.$version.')', ['server_version' => $version]);
         } catch (\InvalidArgumentException $e) {
-            return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $e->getMessage());
+            return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $credentials->redactFrom($e->getMessage()));
         } catch (\Throwable $e) {
-            // 28T — URI (and its credentials) NEVER appear in error surfaces.
+            // 28T — URI (and its credentials) NEVER appear in error surfaces;
+            // 35.5 — no credential value (host/user included) does either.
             return ConnectorTestResult::make(
                 str_contains($e->getMessage(), 'authentication') ? ConnectorTestResult::INVALID_CREDENTIAL : ConnectorTestResult::NETWORK_ERROR,
-                mb_substr($e->getMessage(), 0, 200)
+                $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200))
             );
         }
     }
@@ -385,5 +391,74 @@ class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, Ex
     protected function scannerProvider(): MongodbClientScanner
     {
         return $this->scanner ??= new MongodbClientScanner;
+    }
+
+    /**
+     * Phase 32C — change-stream readiness probe (READ-only hello check).
+     * Standalone deployments cannot provide change streams; the probe says
+     * so honestly instead of faking parity (28/32).
+     */
+    public function cdcProbe(MigrationSource $source): array
+    {
+        try {
+            $adapter = $this->sourceAdapter($source);
+            $adapter->connect();
+            $hello = $adapter->client()->connect();
+            $setName = (string) (BsonCodec::untag($hello['setName'] ?? null) ?? '');
+            $msg = (string) (BsonCodec::untag($hello['msg'] ?? null) ?? '');
+            $supported = $setName !== '' || $msg === 'isdbgrid';
+
+            return CdcProbeResult::make(
+                'change_streams',
+                'resume_token',
+                $supported ? 'SUPPORTED' : 'NOT_SUPPORTED',
+                ['replica_set' => $setName !== '', 'sharded' => $msg === 'isdbgrid'],
+                $supported ? [] : [
+                    'Change streams require a replica set or sharded cluster — standalone deployments cannot provide them (28/32 honesty).',
+                    'Resume tokens are stored SIGNED and project-scoped (32C) — no operator action needed.',
+                ],
+            );
+        } catch (\Throwable) {
+            return CdcProbeResult::make('change_streams', 'resume_token', 'NOT_SUPPORTED', [], [
+                'The deployment could not be reached for a topology check; change capture is not reported as available without proof.',
+            ]);
+        }
+    }
+
+    /**
+     * Phase 35.6 — REAL change stream capture (§9). Requires a replica set
+     * (cdcProbe reports the honest topology status).
+     *
+     * $options: database scope override, await_ms, get_batch_size, projector,
+     * and (Phase 36) `table_field_maps`: collection => {field_map, strategy,
+     * table_def} from the PLAN's analysis — the capture projects CDC rows
+     * through the same field map the snapshot used, so flattened/nested
+     * columns stay consistent between snapshot and stream.
+     */
+    public function cdcCapture(MigrationSource $source, array $options = []): MongoChangeStreamCapture
+    {
+        $options['database'] ??= (string) ($source->connection['database'] ?? $source->source_ref ?? '');
+
+        $fieldMaps = (array) ($options['table_field_maps'] ?? []);
+        unset($options['table_field_maps']);
+        if ($fieldMaps !== [] && ! isset($options['projectors'])) {
+            $adapter = $this->sourceAdapter($source);
+            $projectors = [];
+            foreach ($fieldMaps as $collection => $map) {
+                if (! is_array($map) || ! isset($map['field_map'])) {
+                    continue;
+                }
+                $projectors[(string) $collection] = $adapter->cdcRowProjector(
+                    (array) ($map['table_def'] ?? []),
+                    (array) $map['field_map'],
+                    (string) ($map['strategy'] ?? 'document'),
+                );
+            }
+            if ($projectors !== []) {
+                $options['projectors'] = $projectors;
+            }
+        }
+
+        return new MongoChangeStreamCapture($source, $options);
     }
 }

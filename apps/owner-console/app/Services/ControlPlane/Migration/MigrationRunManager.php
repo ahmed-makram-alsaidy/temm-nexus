@@ -336,15 +336,16 @@ class MigrationRunManager
 
     protected function migrateAuthUsers($item, SourceAdapter $source, TargetAdapter $target, bool $reset = false): int
     {
-        if (! $target->tableExists('users')) {
+        $authTable = $this->authTableName($item->plan);
+        if (! $target->tableExists($authTable)) {
             return 0;
         }
         if ($reset) {
-            $target->truncateTable('users');
+            $target->truncateTable($authTable);
         }
         $written = 0;
         $batch = [];
-        $source->streamAuthUsers(function ($authRow) use (&$batch, &$written, $target) {
+        $source->streamAuthUsers(function ($authRow) use (&$batch, &$written, $target, $authTable) {
             $row = TransformPipeline::apply('auth_identity_transform', [
                 'id' => $authRow['id'],
                 'email' => $authRow['email'],
@@ -356,13 +357,24 @@ class MigrationRunManager
             ]);
             $batch[] = $row;
             if (count($batch) >= 500) {
-                $written += $target->insertBatch('users', $batch);
+                $written += $target->insertBatch($authTable, $batch);
                 $batch = [];
             }
         });
-        $written += $target->insertBatch('users', $batch);
+        $written += $target->insertBatch($authTable, $batch);
 
         return $written;
+    }
+
+    /** Collision-aware auth identity table name (see PlanGenerator::authTargetTable). */
+    protected function authTableName(MigrationPlan $plan): string
+    {
+        $usersTaken = $plan->items()
+            ->where('source_kind', 'table')
+            ->pluck('target_name')
+            ->contains('users');
+
+        return PlanGenerator::authTargetTable($usersTaken);
     }
 
     /** Build target schema from plan (tables first, then FKs). */
@@ -382,9 +394,13 @@ class MigrationRunManager
 
         foreach ($plan->items()->where('source_kind', 'table')->orderBy('stage')->get() as $item) {
             $analysisItem = $plan->analysis->items()->where('kind', 'table')->where('name', $item->source_name)->first();
-            if (! $analysisItem || $target->tableExists($item->target_name)) {
+            if (! $analysisItem) {
                 continue;
             }
+            // ensureTable is CREATE TABLE IF NOT EXISTS — always call it: the
+            // adapter also records the mapped column types there, which the
+            // insert path needs for bytea binding even when the table already
+            // existed (35.5 live finding).
             $attrs = $analysisItem->attributes;
             $columns = $attrs['columns'] ?? [];
             $pk = $attrs['primary_key'] ?? [];
@@ -401,8 +417,8 @@ class MigrationRunManager
 
         // Auth identity target table (auth template output).
         $authItem = $plan->items()->where('source_kind', 'auth_users')->first();
-        if ($authItem && ! $target->tableExists('users')) {
-            $target->ensureTable('users', [
+        if ($authItem && ! $target->tableExists($this->authTableName($plan))) {
+            $target->ensureTable($this->authTableName($plan), [
                 ['name' => 'id', 'type' => 'text', 'nullable' => false],
                 ['name' => 'email', 'type' => 'text', 'nullable' => true],
                 ['name' => 'password', 'type' => 'text', 'nullable' => true],
@@ -419,6 +435,12 @@ class MigrationRunManager
         // registry (the SQLite rehearsal fixture is resolved from the engine
         // map by MigrationCenterService::makeAdapter).
         return app(MigrationCenterService::class)->makeAdapter($source);
+    }
+
+    /** Phase 35.6 — public target resolution for the CDC capture worker. */
+    public function targetFor(MigrationRun $run, MigrationPlan $plan): TargetAdapter
+    {
+        return $this->makeTarget($run, $plan, false);
     }
 
     protected function makeTarget(MigrationRun $run, MigrationPlan $plan, bool $recreate = true): TargetAdapter

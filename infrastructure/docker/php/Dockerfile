@@ -18,7 +18,7 @@ RUN apk add --no-cache \
       curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
-      pdo pdo_pgsql pgsql \
+      pdo pdo_pgsql pgsql pdo_mysql \
       opcache intl zip bcmath exif pcntl sockets gd \
     && rm -rf /tmp/* /var/cache/apk/*
 

@@ -199,7 +199,21 @@ class Doctor
         if (! $heartbeat) {
             return self::check('scheduler', 'Scheduler heartbeat', 'WARNING', 'no heartbeat yet — the scheduler container may be down or has not run a scheduled tick in the last 5 minutes');
         }
-        $age = now()->diffInMinutes($heartbeat);
+        // Cross-process cache stores (database/redis) refuse to hydrate stored
+        // objects (serializable_classes => false), so an object-valued
+        // heartbeat arrives as __PHP_Incomplete_Class. The doctor must report,
+        // never fatal: anything that is not a datetime string or date is a
+        // degraded signal.
+        if (! is_string($heartbeat) && ! $heartbeat instanceof \DateTimeInterface) {
+            return self::check('scheduler', 'Scheduler heartbeat', 'WARNING', 'heartbeat present but unreadable — the scheduler is storing an incompatible value (expected a datetime string)');
+        }
+        try {
+            // Carbon 3 returns a signed diff (negative when the heartbeat is
+            // in the past) — the doctor reports elapsed time, so normalise.
+            $age = abs(now()->diffInMinutes($heartbeat));
+        } catch (Throwable) {
+            return self::check('scheduler', 'Scheduler heartbeat', 'WARNING', 'heartbeat present but unparseable — verify the scheduler heartbeat value format');
+        }
 
         return self::check('scheduler', 'Scheduler heartbeat', $age <= 15 ? 'PASS' : 'WARNING', $age <= 15 ? "last tick {$age} min ago" : "stale ({$age} min ago) — scheduler may be down");
     }

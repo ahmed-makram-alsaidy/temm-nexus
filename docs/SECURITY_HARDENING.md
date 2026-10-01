@@ -34,7 +34,8 @@ Execution order on a fresh Ubuntu 24.04 VPS (see `deploy/production/bootstrap.sh
 
 ## 8. Secrets
 - `.env` files 0600, never in git (`scripts/security-check.sh` in CI/pre-commit):
-  scans tracked files for `BEGIN PRIVATE KEY`, `AKIA`, `password\s*=\s*['\"][^'\"]{4,}`
+  scans tracked files for private-key blocks, cloud access-key ids and hardcoded
+  password assignments (patterns live in `scripts/security-check.sh`)
   outside `.example` files, and fails on any `.env` (non-example) being tracked.
 - Laravel `APP_DEBUG=false`, `APP_KEY` from `key:generate --show` into secrets file.
 

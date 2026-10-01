@@ -1,3 +1,86 @@
+## [0.3.0-rc.1] — 2026-10-01
+
+**PRE-RELEASE — release candidate.** This is release-candidate software;
+breaking changes may still land before stable 0.3.0. The 0.3.0 line opened
+on `develop/0.3.0` from `v0.2.0-rc.3`; features below are documented as
+SUPPORTED / PARTIAL / DEFERRED in `docs/connectors/PHASE_29_TO_32_CONNECTORS.md`.
+
+Migration capability in this release is **low-downtime**, not a guaranteed
+zero-downtime migration: CDC capture shortens the window, but the final
+cutover is operator-controlled with documented prerequisites and
+limitations (`docs/connectors/REAL_CDC_RUNBOOK.md`). Known scope limits:
+Firebase CDC is **DEFERRED**; MariaDB is **PARTIAL** unless separately
+proven; CDC sources require specific server configuration/permissions
+(logical replication, row binlog, replica set).
+
+### Added
+
+- **Phase 35.6 — real log-based CDC** (PostgreSQL WAL logical decoding,
+  MySQL row-based binlog, MongoDB change streams): provider-native captures
+  behind the generic 32A contract with normalized events (before/after
+  images, source timestamps, transaction identity), signed provider-native
+  positions (LSN / binlog file+pos with GTID evidence / server resume
+  tokens), at-least-once delivery with idempotent convergence, transaction
+  boundaries preserved, DELETE support on all three providers, project+run
+  scoped slot lifecycle with cleanup, normalized lag telemetry and the REAL
+  cutover gates (PASS/WARN/BLOCK/UNVERIFIED — watermark checkpoints never
+  pass), the final-delta freeze-boundary workflow (DATA_READY_FOR_CUTOVER),
+  and `migration:cdc-capture` as the operator entry point.
+  Proven live on disposable PostgreSQL 17 / MySQL 8.0 / MongoDB 7 replica
+  set: I/U/D + transaction batches, reader kill + resume, source restarts
+  (binlog rotation included), tamper refusal, schema-drift pause with
+  operator remediation, 155k-event storm with zero loss and bounded memory
+  (~840 events/s capture+apply on 2 vCPU). See
+  `docs/connectors/REAL_CDC_RUNBOOK.md` for the operator contract.
+- **Phase 29 — Firebase connector** (`firebase`, first_party): read-only
+  Firestore analysis with inferred schema, relationship candidates with
+  confidence classes, deterministic batched extraction, Firebase Auth
+  inventory (no password material; password portability always
+  NEEDS_REVIEW), Storage inventory with copy strategies, Cloud Functions
+  inventory/classification, client repository scanning
+- **Phase 30 — generic PostgreSQL connector** (`postgres`, first_party):
+  import any standard PostgreSQL database; pg_catalog-native inspection
+  with exact type preservation; read-only sessions enforced and verified;
+  keyset extraction; unknown extension types flagged NEEDS_REVIEW
+- **Phase 31 — MySQL/MariaDB connector** (`mysql`, first_party):
+  unsigned-safe deterministic type widening, AUTO_INCREMENT state
+  preservation, charset analysis with transcoding review, scheduled-event
+  inventory
+- **Phase 32 — change capture foundation**: generic CDC contract,
+  HMAC-signed tamper-safe checkpoints, idempotent upsert/delete event
+  application on the migration targets, read-only provider readiness
+  probes (PostgreSQL logical replication, MongoDB change streams, MySQL
+  binlog; Firebase delta DEFERRED), watermark-based incremental export
+- **Phase 33 — AI client code migration**: deterministic conversion
+  planning (supabase-js/dart, firebase-js/dart), approval-gated patch
+  workspace integration, SECRET_PRESENT redaction in AI prompts,
+  allowlisted test-command loop, diff-quality metrics
+- **Phase 34 — Cutover Center**: project-scoped control room with honest
+  gate states (PASS/WARN/BLOCK/NOT_APPLICABLE/UNVERIFIED), ordered cutover
+  plans, explicit per-gate approvals, rollback plan with expiry, full
+  audit; the platform never executes DNS/endpoint/production changes
+- **Phase 35 — connector marketplace foundation**: package install
+  lifecycle (inspect → verify checksums → install → enable → remove),
+  extended trust vocabulary (first_party/trusted/community/private/
+  unverified), publisher metadata, malicious-package rejection tests,
+  Connector Catalog screen (local/catalog-backed; no billing)
+
+### Fixed
+
+- **Production asset pipeline:** frontend assets (Filament CSS/JS/fonts,
+  Livewire) are generated during production builds — a fresh production
+  install no longer serves an unstyled console (found on the live Azure VPS
+  deployment)
+- **Docker/runtime:** production image ships `pdo_mysql`; scheduler
+  heartbeat age is reported unsigned in Deployment Doctor; the Pulse
+  check daemon no longer starves the schedule loop, healthcheck 200
+  detection and installer dry-run banner fixed
+- `security-check.sh` self-match: `docs/SECURITY_HARDENING.md` quoted the
+  scanner's own patterns, tripping the repo hygiene gate
+- Migration engine: auth identity target table is collision-aware — a
+  source with BOTH an auth domain and a `users` data table no longer
+  breaks rehearsals (reserved `auth_users` target table)
+
 ## [0.2.0-rc.3] — 2026-09-27
 
 Publication hardening on top of 0.2.0-rc.2 (same product source; release

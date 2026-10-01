@@ -6,7 +6,12 @@ use Illuminate\Support\Facades\Schedule;
 // Template scheduler examples (enable per project needs):
 // - framework housekeeping
 Schedule::command('horizon:snapshot')->everyFiveMinutes();
-Schedule::command('pulse:check')->everyMinute();
+// `pulse:check` without --once is a supervised daemon: it loops forever, so
+// schedule:run — which executes events sequentially — blocks on it and every
+// task registered after it never runs (18J lesson, docs/SCHEDULER.md). The
+// --once form is a bounded snapshot that exits immediately, keeping the
+// schedule loop free.
+Schedule::command('pulse:check --once')->everyMinute();
 // - product jobs live here, e.g.:
 // Schedule::job(new \App\Jobs\NightlyReportJob)->dailyAt('02:00')->onOneServer();
 
@@ -33,6 +38,11 @@ Schedule::call(function () {
 // Phase 26.1D: scheduler heartbeat for platform:doctor. Written by whichever
 // process executes the schedule (scheduler:work / cron); staleness is the
 // doctor's honest signal that the scheduler container/service is down.
+// The value MUST be a plain datetime string: cross-process cache stores
+// (database/redis) run unserialize with allowed_classes hardening
+// (config/cache.php serializable_classes => false), so a stored Carbon
+// object can never be read back — the doctor would only ever see an
+// __PHP_Incomplete_Class.
 Schedule::call(function () {
-    \Illuminate\Support\Facades\Cache::put('platform.scheduler.heartbeat', now(), now()->addMinutes(6));
+    \Illuminate\Support\Facades\Cache::put('platform.scheduler.heartbeat', now()->toIso8601String(), now()->addMinutes(6));
 })->everyFiveMinutes()->name('cp-scheduler-heartbeat');

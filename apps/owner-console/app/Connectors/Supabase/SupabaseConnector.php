@@ -213,9 +213,9 @@ class SupabaseConnector implements SourceConnector, AccountDiscoveryConnector, A
 
                 return ConnectorTestResult::make($result, $result === ConnectorTestResult::PASS ? 'management API reachable' : 'HTTP '.$response->status());
             } catch (\Illuminate\Http\Client\ConnectionException $e) {
-                return ConnectorTestResult::make(ConnectorTestResult::NETWORK_ERROR, Str::limit($e->getMessage(), 160));
+                return ConnectorTestResult::make(ConnectorTestResult::NETWORK_ERROR, $credentials->redactFrom(Str::limit($e->getMessage(), 160)));
             } catch (\Throwable $e) {
-                return ConnectorTestResult::make(ConnectorTestResult::UNKNOWN_ERROR, Str::limit($e->getMessage(), 160));
+                return ConnectorTestResult::make(ConnectorTestResult::UNKNOWN_ERROR, $credentials->redactFrom(Str::limit($e->getMessage(), 160)));
             }
         }
 
@@ -247,7 +247,7 @@ class SupabaseConnector implements SourceConnector, AccountDiscoveryConnector, A
                 ? ConnectorTestResult::pass('read-only PostgreSQL session established')
                 : ConnectorTestResult::make(ConnectorTestResult::UNKNOWN_ERROR, 'session did not enforce read-only');
         } catch (\PDOException $e) {
-            $message = Str::limit($e->getMessage(), 160);
+            $message = $credentials->redactFrom(Str::limit($e->getMessage(), 160));
             $class = match (true) {
                 str_contains($message, 'password authentication failed') || str_contains($message, 'authentication failed') => ConnectorTestResult::INVALID_CREDENTIAL,
                 str_contains($message, 'could not find driver') => ConnectorTestResult::INVALID_CONFIGURATION,
@@ -256,7 +256,7 @@ class SupabaseConnector implements SourceConnector, AccountDiscoveryConnector, A
 
             return ConnectorTestResult::make($class, $message);
         } catch (\Throwable $e) {
-            return ConnectorTestResult::make(ConnectorTestResult::UNKNOWN_ERROR, Str::limit($e->getMessage(), 160));
+            return ConnectorTestResult::make(ConnectorTestResult::UNKNOWN_ERROR, $credentials->redactFrom(Str::limit($e->getMessage(), 160)));
         }
     }
 

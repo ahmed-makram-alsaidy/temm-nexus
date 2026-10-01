@@ -1,0 +1,38 @@
+{
+    "schema_version": 1,
+    "key": "firebase",
+    "name": "Firebase",
+    "version": "1.0.0",
+    "description": "Import an existing Firebase project: read-only Firestore analysis with inferred schema and relationship candidates, Firebase Authentication inventory (never password material), Storage object inventory, Cloud Functions inventory where discoverable, batched document extraction with deterministic ordering, and client repository scanning. No source mutation.",
+    "author": "TEMM Nexus (first-party)",
+    "license": "AGPL-3.0-only",
+    "platform_requirement": ">=0.2.0",
+    "entrypoint": "App\\Connectors\\Firebase\\FirebaseConnector",
+    "capabilities": [
+        "database_metadata",
+        "data_extraction",
+        "auth_metadata",
+        "storage_metadata",
+        "function_metadata",
+        "client_scan",
+        "read_only_enforcement",
+        "source_fingerprint",
+        "resume"
+    ],
+    "permissions": [
+        "network.outbound",
+        "network.local_source",
+        "source.db.read",
+        "source.storage.read",
+        "client.repo.read"
+    ],
+    "trust": "first_party",
+    "import_flow": "credentials-form",
+    "category": "source",
+    "ui": {
+        "display_name": "Firebase",
+        "icon": "heroicon-o-fire",
+        "docs_url": null,
+        "setup_instructions": "Provide a service account JSON (stored encrypted in the vault) and the Firebase project ID. Use a least-privilege service account (viewer-class roles); the connector only issues read/list/query calls. Firestore schema is INFERRED — Firestore has no authoritative relational schema. Auth inventory never reads password hashes; password portability is always NEEDS_REVIEW."
+    }
+}

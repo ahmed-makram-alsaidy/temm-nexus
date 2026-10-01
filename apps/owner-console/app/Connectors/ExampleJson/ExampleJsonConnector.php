@@ -111,7 +111,7 @@ class ExampleJsonConnector implements SourceConnector, AnalyzableSourceConnector
         try {
             $files = ProjectScopedFileReader::datasetFiles($path, 'json', (int) config('connectors.limits.max_dataset_files', 50));
         } catch (\Throwable $e) {
-            $message = mb_substr($e->getMessage(), 0, 200);
+            $message = $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200));
 
             return ConnectorTestResult::make(
                 str_contains($message, 'not exist') ? ConnectorTestResult::NOT_FOUND : ConnectorTestResult::INVALID_CONFIGURATION,

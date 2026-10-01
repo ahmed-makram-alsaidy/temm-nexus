@@ -1,0 +1,38 @@
+{
+    "schema_version": 1,
+    "key": "postgres",
+    "name": "PostgreSQL",
+    "version": "1.0.0",
+    "description": "Import any standard PostgreSQL database: pg_catalog-native inspection with exact type preservation, read-only session enforced, batched keyset extraction with deterministic resume. Real log-based CDC via WAL logical decoding (pgoutput): INSERT/UPDATE/DELETE capture with durable LSN checkpoints (35.6). No silent source mutation.",
+    "author": "TEMM Nexus (first-party)",
+    "license": "AGPL-3.0-only",
+    "platform_requirement": ">=0.2.0",
+    "entrypoint": "App\\Connectors\\Postgres\\PostgresConnector",
+    "capabilities": [
+        "database_metadata",
+        "data_extraction",
+        "function_metadata",
+        "policy_metadata",
+        "read_only_enforcement",
+        "source_fingerprint",
+        "resume",
+        "change_capture",
+        "consistent_snapshot",
+        "checkpoint"
+    ],
+    "permissions": [
+        "network.outbound",
+        "network.local_source",
+        "source.db.read",
+        "source.replication"
+    ],
+    "trust": "first_party",
+    "import_flow": "credentials-form",
+    "category": "source",
+    "ui": {
+        "display_name": "PostgreSQL",
+        "icon": "heroicon-o-circle-stack",
+        "docs_url": null,
+        "setup_instructions": "Provide host, port, database, username and password. Use a least-privilege READ-ONLY role (CONNECT + SELECT on the schemas to import); the connector additionally enforces read-only sessions. Unknown extension types are flagged NEEDS_REVIEW rather than silently approximated."
+    }
+}

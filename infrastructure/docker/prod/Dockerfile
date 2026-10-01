@@ -28,7 +28,7 @@ RUN apk add --no-cache \
       curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
-      pdo pdo_pgsql pgsql \
+      pdo pdo_pgsql pgsql pdo_mysql \
       opcache intl zip bcmath exif pcntl sockets gd \
     && rm -rf /tmp/* /var/cache/apk/*
 
@@ -67,6 +67,13 @@ RUN mkdir -p \
       storage/logs \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod +x artisan
+
+# Frontend assets: Filament's compiled CSS/JS/fonts are generated artifacts
+# (gitignored in the source tree, so the COPY above ships without them).
+# Publish them here so the image is self-contained; the one-shot compose
+# `assets` service re-publishes the same output into the host public/ docroot
+# that Caddy serves at the edge.
+RUN php artisan filament:assets
 
 EXPOSE 9000
 CMD ["php-fpm", "-F"]

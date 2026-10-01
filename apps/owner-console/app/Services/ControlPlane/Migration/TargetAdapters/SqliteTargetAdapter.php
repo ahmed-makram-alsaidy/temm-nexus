@@ -107,8 +107,77 @@ class SqliteTargetAdapter implements TargetAdapter
         return $stmt->rowCount();
     }
 
+    /**
+     * Phase 32G — idempotent CDC apply. Each row is upserted by PK:
+     * INSERT OR IGNORE first, then UPDATE by PK — the same sequence for
+     * every event, so duplicates and out-of-order replays converge to the
+     * same state instead of corrupting it.
+     */
+    public function upsertBatch(string $table, array $rows, array $primaryKey): int
+    {
+        if ($rows === []) {
+            return 0;
+        }
+        $count = 0;
+        $this->pdo->exec('BEGIN');
+        try {
+            foreach ($rows as $row) {
+                $columns = array_keys($row);
+                $colSql = implode(', ', array_map([$this, 'qi'], $columns));
+                $ph = implode(', ', array_fill(0, count($columns), '?'));
+                $insert = $this->pdo->prepare(sprintf('INSERT OR IGNORE INTO %s (%s) VALUES (%s)', $this->qi($table), $colSql, $ph));
+                $insert->execute(array_values($row));
+                if ($insert->rowCount() === 0) {
+                    $assignments = implode(', ', array_map(
+                        fn ($c) => $this->qi($c).' = ?',
+                        array_diff($columns, $primaryKey)
+                    ));
+                    if ($assignments !== '') {
+                        $update = $this->pdo->prepare(sprintf(
+                            'UPDATE %s SET %s WHERE %s',
+                            $this->qi($table),
+                            $assignments,
+                            implode(' AND ', array_map(fn ($p) => $this->qi($p).' = ?', $primaryKey))
+                        ));
+                        $updateBindings = array_merge(
+                            array_values(array_diff_key($row, array_flip($primaryKey))),
+                            array_map(fn ($p) => $row[$p] ?? null, $primaryKey)
+                        );
+                        $update->execute($updateBindings);
+                    }
+                }
+                $count++;
+            }
+            $this->pdo->exec('COMMIT');
+        } catch (\Throwable $e) {
+            $this->pdo->exec('ROLLBACK');
+
+            throw $e;
+        }
+
+        return $count;
+    }
+
+    /** Phase 32G — idempotent delete by PK (absent row → false, no error). */
+    public function deleteByPk(string $table, array $pkRow): bool
+    {
+        $stmt = $this->pdo->prepare(sprintf(
+            'DELETE FROM %s WHERE %s',
+            $this->qi($table),
+            implode(' AND ', array_map(fn ($p) => $this->qi($p).' = ?', array_keys($pkRow)))
+        ));
+        $stmt->execute(array_values($pkRow));
+
+        return $stmt->rowCount() > 0;
+    }
+
     public function truncateTable(string $table): void
     {
+        // Reset semantics: a table that does not exist is already clean
+        // (35.5 live finding — see PostgresTargetAdapter::truncateTable).
+        if (! $this->tableExists($table)) {
+            return;
+        }
         $this->pdo->exec('DELETE FROM '.$this->qi($table));
         // sqlite_sequence only exists once an AUTOINCREMENT column was
         // created; resets on targets without one must not fail (28.1G).

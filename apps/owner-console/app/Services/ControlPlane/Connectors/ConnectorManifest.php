@@ -14,7 +14,7 @@ final class ConnectorManifest
 {
     public const SCHEMA_VERSION = 1;
     public const SUPPORTED_SCHEMA_VERSIONS = [1];
-    public const TRUST_LEVELS = ['first_party', 'trusted', 'unverified'];
+    public const TRUST_LEVELS = ['first_party', 'trusted', 'community', 'private', 'unverified'];
     public const MAX_BYTES = 65536; // 27T — oversized metadata guard
 
     /** Import flow the generic onboarding wizard should drive. */
@@ -23,12 +23,19 @@ final class ConnectorManifest
     public const FLOW_NONE = 'none';
     public const FLOWS = [self::FLOW_SUPABASE_ACCOUNT, self::FLOW_CREDENTIALS_FORM, self::FLOW_NONE];
 
-    /** Phase 27K.2 — connector permission vocabulary. */
+    /**
+     * Phase 27K.2 — connector permission vocabulary. 'source.replication'
+     * (35.6) declares that a connector opens a REPLICATION/log stream on the
+     * source (logical decoding slot, binlog dump, change streams) — a
+     * materially stronger read surface than source.db.read, so it is
+     * disclosed separately.
+     */
     public const PERMISSIONS = [
         'network.outbound',
         'network.local_source',
         'source.db.read',
         'source.storage.read',
+        'source.replication',
         'client.repo.read',
         'filesystem.dataset.read',
     ];
@@ -69,7 +76,7 @@ final class ConnectorManifest
 
         // Root-level shape: no unexpected keys (typo / injection surface).
         $allowed = ['schema_version', 'key', 'name', 'version', 'description', 'author',
-            'license', 'platform_requirement', 'entrypoint', 'capabilities', 'permissions',
+            'license', 'platform_requirement', 'entrypoint', 'capabilities', 'permissions', 'publisher',
             'trust', 'import_flow', 'category', 'ui'];
         foreach (array_keys($data) as $key) {
             if (! in_array($key, $allowed, true)) {

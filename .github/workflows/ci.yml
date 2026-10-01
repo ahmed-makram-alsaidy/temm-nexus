@@ -15,14 +15,41 @@ on:
   pull_request:
 
 jobs:
-  owner-console-tests:
-    name: Owner Console test suite (local fixtures required)
+  owner-console-release-suite:
+    name: Owner Console hermetic release suite (BLOCKING)
     runs-on: ubuntu-latest
-    # A subset of the suite exercises live project-database fixtures
-    # (gate-a/gate-b) that only exist on an operator workstation today.
-    # Until those tests are made hermetic they error here, which would
-    # mask real regressions in the rest of the pipeline — so this job is
-    # non-blocking while remaining fully visible in the run logs.
+    defaults:
+      run:
+        working-directory: apps/owner-console
+    services:
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: bcmath, intl, zip, gd, redis, pdo_pgsql, sockets
+          coverage: none
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Run the hermetic release suite (phpunit-release.xml)
+        run: vendor/bin/phpunit -c phpunit-release.xml --no-progress
+
+  owner-console-tests:
+    name: Owner Console full test suite (local fixtures required)
+    runs-on: ubuntu-latest
+    # The FULL suite (phpunit.xml) includes operator/gate-fixture tests
+    # (gate-a/gate-b, control-plane demo database, live Redis) that only
+    # pass on an operator workstation; without the fixtures they error and
+    # cascade through the shared SQLite connection. The hermetic BLOCKING
+    # gate is the release-suite job above. Classification and the exact
+    # exclusion table: docs/TEST_CLASSIFICATION.md. This job stays visible
+    # and non-blocking — not silently green.
     continue-on-error: true
     defaults:
       run:
@@ -94,6 +121,16 @@ jobs:
           path: ci-artifacts/*.tar.gz
           retention-days: 7
 
+  script-tests:
+    name: Infrastructure scripts (healthcheck, installer banner)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fpm-healthcheck decision logic (stubbed FastCGI responses)
+        run: bash scripts/tests/fpm-healthcheck.test.sh
+      - name: install.sh dry-run banner
+        run: bash scripts/tests/installer-banner.test.sh
+
   container-build:
     name: Production image build
     runs-on: ubuntu-latest
@@ -101,6 +138,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the production application image
         run: docker build -f infrastructure/docker/prod/Dockerfile -t platform:ci .
+      - name: Assert generated frontend assets ship in the image
+        run: bash scripts/tests/prod-image-assets.test.sh platform:ci
       - name: Prepare .env for compose validation
         run: cp .env.example .env
       - name: Validate compose configuration
@@ -142,3 +181,31 @@ jobs:
           LOC=$(curl -s -o /dev/null -w '%{redirect_url}' http://localhost:80/)
           echo "root redirect target: $LOC"
           docker compose -f docker-compose.prod.yml ps
+      - name: Verify edge asset delivery (Filament CSS/JS, Livewire)
+        run: |
+          set -e
+          check() {
+            local path="$1" mime="$2"
+            local out size
+            out=$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "http://localhost:80${path}")
+            size=$(curl -s "http://localhost:80${path}" | wc -c)
+            echo "${path} -> ${out} (${size}B)"
+            case "${out}" in
+              "200 ${mime}"*) ;;
+              *) echo "asset check failed for ${path} (expected 200 ${mime}); got: ${out}"; exit 1 ;;
+            esac
+            [ "${size}" -gt 512 ] || { echo "asset body suspiciously small: ${path}"; exit 1; }
+          }
+          check "/css/filament/filament/app.css" "text/css"
+          # JS MIME: current caddy serves text/javascript (RFC 9239 name);
+          # older stacks may serve application/javascript — both are correct.
+          out=$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "http://localhost:80/js/filament/filament/app.js")
+          size=$(curl -s "http://localhost:80/js/filament/filament/app.js" | wc -c)
+          echo "/js/filament/filament/app.js -> ${out} (${size}B)"
+          case "${out}" in
+            "200 text/javascript"*|"200 application/javascript"*) ;;
+            *) echo "asset check failed for /js/filament/filament/app.js (expected 200 text|application/javascript); got: ${out}"; exit 1 ;;
+          esac
+          [ "${size}" -gt 512 ] || { echo "asset body suspiciously small: /js/filament/filament/app.js"; exit 1; }
+          check "/fonts/filament/filament/inter/index.css" "text/css"
+          check "/css/cp.css" "text/css"

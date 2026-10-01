@@ -398,6 +398,31 @@ class MongoWireClient
         yield from $this->drainCursor($reply, $database, $batchConsumer, $batchSize);
     }
 
+    /**
+     * Phase 35.6 — awaitData getMore for change streams: the server holds
+     * the reply up to $maxTimeMs when the cursor is empty, so a quiet
+     * stream returns an empty batch instead of the client busy-polling.
+     * The socket read timeout covers maxTimeMs plus margin.
+     */
+    public function getMoreAwait(string $database, string $collection, int $cursorId, int $batchSize, int $maxTimeMs): array
+    {
+        if ($this->socket === null) {
+            $this->connect();
+        }
+        $sec = intdiv($maxTimeMs, 1000) + 2;
+        stream_set_timeout($this->socket, $sec, 0);
+        try {
+            return $this->run('getMore', [
+                'getMore' => BsonCodec::tag($cursorId, 'int64'),
+                'batchSize' => BsonCodec::tag(max(1, $batchSize), 'int32'),
+                'maxTimeMS' => BsonCodec::tag($maxTimeMs, 'int32'),
+                'collection' => BsonCodec::tag($collection, 'string'),
+            ], $database);
+        } finally {
+            stream_set_timeout($this->socket, max(1, (int) round($this->serverSelectionTimeoutMs / 1000)), 0);
+        }
+    }
+
     /** @return \Generator<int, array> */
     protected function drainCursor(array $reply, string $database, ?callable $batchConsumer = null, int $batchSize = 1000): \Generator
     {

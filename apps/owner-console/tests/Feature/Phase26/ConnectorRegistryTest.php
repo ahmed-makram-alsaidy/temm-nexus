@@ -50,19 +50,24 @@ class ConnectorRegistryTest extends TestCase
 
     public function test_unknown_connector_fails_gracefully_with_supported_list(): void
     {
+        // Phase 36: 'firebase' became a real registered connector in Phase 29;
+        // the graceful-unknown contract now uses a key that ships no connector.
         $this->expectException(ConnectorNotSupported::class);
-        $this->expectExceptionMessage('firebase');
+        $this->expectExceptionMessage('never-a-connector');
 
-        ConnectorRegistry::resolve($this->source('firebase'));
+        ConnectorRegistry::resolve($this->source('never-a-connector'));
     }
 
     public function test_registry_reports_supported_connectors_and_labels(): void
     {
         $all = ConnectorRegistry::all();
 
-        $this->assertArrayHasKey('supabase', $all);
-        $this->assertTrue(ConnectorRegistry::has('supabase'));
-        $this->assertFalse(ConnectorRegistry::has('firebase'), 'Phase 28: mongodb is now registered; firebase is the never-registered example');
+        // Phase 36: the six shipped connectors (Phases 26-31) are all registered.
+        foreach (['supabase', 'mongodb', 'firebase', 'postgres', 'mysql', 'example-json'] as $key) {
+            $this->assertTrue(ConnectorRegistry::has($key), "connector [{$key}] must be registered");
+            $this->assertArrayHasKey($key, $all);
+        }
+        $this->assertFalse(ConnectorRegistry::has('never-a-connector'));
         $this->assertSame('Supabase', ConnectorRegistry::label('supabase'));
         $this->assertSame('Firebase', ConnectorRegistry::label('firebase'));
     }

@@ -15,6 +15,9 @@ class PostgresTargetAdapter implements TargetAdapter
     protected ?PDO $pdo = null;
     protected array $config;
 
+    /** Column types per table (from ensureTable) — used to bind bytea values. */
+    protected array $columnTypes = [];
+
     public function __construct(array $config)
     {
         $this->config = $config;
@@ -47,7 +50,9 @@ class PostgresTargetAdapter implements TargetAdapter
     {
         $defs = [];
         foreach ($columns as $col) {
-            $line = $this->qi($col['name']).' '.$this->mapType($col['type'] ?? 'text');
+            $type = $this->mapType($col['type'] ?? 'text');
+            $this->columnTypes[$table][$col['name']] = $type;
+            $line = $this->qi($col['name']).' '.$type;
             if (! ($col['nullable'] ?? true)) {
                 $line .= ' NOT NULL';
             }
@@ -62,8 +67,11 @@ class PostgresTargetAdapter implements TargetAdapter
     public function applyForeignKeys(array $foreignKeys): void
     {
         foreach ($foreignKeys as $fk) {
+            // Idempotent (35.5 live finding): re-runs/resumes hit an existing
+            // constraint on the target — duplicate_object is swallowed.
             $this->pdo->exec(sprintf(
-                'ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)',
+                "DO \$\$ BEGIN ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s);"
+                ." EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;",
                 $this->qi($fk['table']),
                 $this->qi('fk_'.$fk['table'].'_'.$fk['column']),
                 $this->qi($fk['column']),
@@ -106,7 +114,7 @@ class PostgresTargetAdapter implements TargetAdapter
                 if (is_bool($value)) {
                     $value = $value ? '1' : '0';
                 }
-                $bindings[] = $value;
+                $bindings[] = $this->bindValue($table, $c, $value);
             }
             $placeholders[] = '('.implode(', ', $ph).')';
         }
@@ -120,8 +128,72 @@ class PostgresTargetAdapter implements TargetAdapter
         return $stmt->rowCount();
     }
 
+    /**
+     * Phase 32G — idempotent CDC apply: true upsert on PK. Duplicate or
+     * out-of-order replays converge; no event can corrupt target state.
+     */
+    public function upsertBatch(string $table, array $rows, array $primaryKey): int
+    {
+        if ($rows === []) {
+            return 0;
+        }
+        $count = 0;
+        $this->pdo->beginTransaction();
+        try {
+            foreach ($rows as $row) {
+                $columns = array_keys($row);
+                $colSql = implode(', ', array_map([$this, 'qi'], $columns));
+                $ph = implode(', ', array_fill(0, count($columns), '?'));
+                $nonPk = array_values(array_diff($columns, $primaryKey));
+                $conflict = $primaryKey !== []
+                    ? sprintf(' ON CONFLICT (%s) DO UPDATE SET %s',
+                        implode(', ', array_map([$this, 'qi'], $primaryKey)),
+                        implode(', ', array_map(fn ($c) => $this->qi($c).' = EXCLUDED.'.$this->qi($c), $nonPk)))
+                    : ' ON CONFLICT DO NOTHING';
+                $sql = sprintf('INSERT INTO %s (%s) VALUES (%s)%s', $this->qi($table), $colSql, $ph, $conflict);
+                $bindings = [];
+                foreach ($columns as $c) {
+                    $value = $row[$c] ?? null;
+                    if (is_bool($value)) {
+                        $value = $value ? '1' : '0';
+                    }
+                    $bindings[] = $this->bindValue($table, $c, $value);
+                }
+                $this->pdo->prepare($sql)->execute($bindings);
+                $count++;
+            }
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+
+            throw $e;
+        }
+
+        return $count;
+    }
+
+    /** Phase 32G — idempotent delete by PK (absent row → false, no error). */
+    public function deleteByPk(string $table, array $pkRow): bool
+    {
+        $stmt = $this->pdo->prepare(sprintf(
+            'DELETE FROM %s WHERE %s',
+            $this->qi($table),
+            implode(' AND ', array_map(fn ($p) => $this->qi($p).' = ?', array_keys($pkRow)))
+        ));
+        $stmt->execute(array_values($pkRow));
+
+        return $stmt->rowCount() > 0;
+    }
+
     public function truncateTable(string $table): void
     {
+        // Reset semantics: a table that does not exist (real-mode run
+        // against an operator-managed schema before ensureTable, or a
+        // partial previous run) is already clean — 35.5 live finding: the
+        // hard 42P01 here masked the actual run state.
+        if (! $this->tableExists($table)) {
+            return;
+        }
         $this->pdo->exec('TRUNCATE TABLE '.$this->qi($table).' CASCADE');
     }
 
@@ -219,6 +291,47 @@ class PostgresTargetAdapter implements TargetAdapter
         }
 
         return $t; // enums and domain types pass through (created via ensureEnum)
+    }
+
+    /**
+     * Bind a value for its target column type. bytea columns receive raw
+     * binary from the extractors (MySQL BLOB/BINARY, PG bytea); PDO pgsql
+     * sends bound strings as text in the connection encoding, so raw bytes
+     * that are not valid UTF-8 crash the insert (22021). Encoding to the
+     * canonical bytea hex literal makes the bound text a well-formed bytea
+     * input — byte-exact on the server (35.5 live finding).
+     */
+    protected function bindValue(string $table, string $column, mixed $value): mixed
+    {
+        if ($value === null || ! is_string($value)) {
+            return $value;
+        }
+        if (! array_key_exists($table, $this->columnTypes)) {
+            // Lazy load: CDC appliers and re-runs insert without having
+            // called ensureTable in this process — the real schema is the
+            // source of truth, not per-instance bookkeeping.
+            $this->loadColumnTypes($table);
+        }
+        if (($this->columnTypes[$table][$column] ?? '') === 'bytea') {
+            return '\x'.bin2hex($value);
+        }
+
+        return $value;
+    }
+
+    /** Actual column types from the target schema (bytea binding needs them). */
+    protected function loadColumnTypes(string $table): void
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT column_name, data_type FROM information_schema.columns
+             WHERE table_schema = current_schema() AND table_name = ?"
+        );
+        $stmt->execute([$table]);
+        $map = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $col) {
+            $map[$col['column_name']] = $col['data_type'];
+        }
+        $this->columnTypes[$table] = $map;
     }
 
     protected function qi(string $identifier): string
