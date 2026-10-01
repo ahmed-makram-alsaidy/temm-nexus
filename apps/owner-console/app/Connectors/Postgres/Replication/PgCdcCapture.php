@@ -285,12 +285,25 @@ class PgCdcCapture implements ChangeCaptureConnector, CdcPositionSource
         $client = $this->newClient();
         $client->connect();
         try {
-            $rows = $client->query('SELECT pg_current_wal_lsn()::text AS lsn');
-            $lsn = (string) ($rows[0]['lsn'] ?? '0/0');
+            // The LSN alone is only a SUFFICIENT marker: instance-internal
+            // WAL (autovacuum, hint bits, checkpoints) keeps advancing it
+            // without any new committed change (35.6 live finding), so the
+            // committed-transaction counter rides along as the NECESSARY
+            // half of the final-sync check.
+            $rows = $client->query(
+                'SELECT pg_current_wal_lsn()::text AS lsn, '
+                ."(SELECT xact_commit FROM pg_stat_database WHERE datname = current_database()) AS xact_commit, "
+                .'current_database()::text AS db'
+            );
+            $lsn = PgLsn::normalize((string) ($rows[0]['lsn'] ?? '0/0'));
 
             return [
-                'position' => ['lsn' => PgLsn::normalize($lsn)],
-                'label' => 'WAL LSN '.PgLsn::normalize($lsn),
+                'position' => [
+                    'lsn' => $lsn,
+                    'xact_commit' => (int) ($rows[0]['xact_commit'] ?? 0),
+                    'database' => (string) ($rows[0]['db'] ?? ''),
+                ],
+                'label' => 'WAL LSN '.$lsn,
                 'captured_at' => now()->toIso8601String(),
             ];
         } finally {
@@ -303,8 +316,31 @@ class PgCdcCapture implements ChangeCaptureConnector, CdcPositionSource
         if ($checkpoint === null || ! isset($checkpoint['lsn']) || ! isset($sourcePosition['lsn'])) {
             return false;
         }
+        // Sufficient: the applied LSN passed the frozen one.
+        if (PgLsn::atOrAfter(PgLsn::toInt((string) $checkpoint['lsn']), PgLsn::toInt((string) $sourcePosition['lsn']))) {
+            return true;
+        }
+        // Necessary fallback: the reader is drained AND the source has
+        // committed NOTHING new since the freeze (the LSN gap is then
+        // instance-internal WAL, not user changes).
+        if (! ($checkpoint['drained'] ?? false)) {
+            return false;
+        }
+        $frozenCommits = $sourcePosition['xact_commit'] ?? null;
+        if ($frozenCommits === null) {
+            return false;
+        }
+        $client = $this->newClient();
+        $client->connect();
+        try {
+            $rows = $client->query(
+                'SELECT xact_commit FROM pg_stat_database WHERE datname = '.PgReplicationClient::quoteLiteral((string) ($sourcePosition['database'] ?? ''))
+            );
 
-        return PgLsn::atOrAfter(PgLsn::toInt((string) $checkpoint['lsn']), PgLsn::toInt((string) $sourcePosition['lsn']));
+            return (int) ($rows[0]['xact_commit'] ?? -1) === (int) $frozenCommits;
+        } finally {
+            $client->close();
+        }
     }
 
     public function lagSnapshot(?array $checkpoint): array
