@@ -27,14 +27,20 @@ docker compose exec -T owner-console composer install
 docker compose exec -T owner-console php artisan migrate
 ```
 
-Code style: `vendor/bin/pint` (PHP). Tests: `vendor/bin/phpunit`.
+Code style: `vendor/bin/pint` (PHP). Tests: `vendor/bin/phpunit` — or,
+without operator fixtures, the hermetic release suite
+`vendor/bin/phpunit -c phpunit-release.xml`.
 
-> **Note (release candidate):** a subset of the feature suite exercises
-> live project-database fixtures (gate-a/gate-b) that currently exist
-> only on an operator workstation; those tests error rather than skip
-> when the fixtures are absent. CI runs the suite non-blocking until
-> this subset is made hermetic — PRs that make more of the suite
-> hermetic are very welcome.
+> **Note (release candidate):** the full feature suite is not uniformly
+> hermetic. A subset exercises live project-database fixtures (gate-a/
+> gate-b, the control-plane demo database, live Redis) that exist only on
+> an operator workstation and error (with a transaction-state cascade)
+> when the fixtures are absent. The suites are classified — and the
+> hermetic blocking release suite defined — in
+> [`docs/TEST_CLASSIFICATION.md`](docs/TEST_CLASSIFICATION.md). CI runs
+> that hermetic suite as a BLOCKING job and the broad suite non-blocking
+> until the operator-gated subset is made hermetic — PRs that shrink the
+> exclusion table are very welcome.
 
 ## Pull requests
 

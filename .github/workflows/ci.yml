@@ -15,14 +15,41 @@ on:
   pull_request:
 
 jobs:
-  owner-console-tests:
-    name: Owner Console test suite (local fixtures required)
+  owner-console-release-suite:
+    name: Owner Console hermetic release suite (BLOCKING)
     runs-on: ubuntu-latest
-    # A subset of the suite exercises live project-database fixtures
-    # (gate-a/gate-b) that only exist on an operator workstation today.
-    # Until those tests are made hermetic they error here, which would
-    # mask real regressions in the rest of the pipeline — so this job is
-    # non-blocking while remaining fully visible in the run logs.
+    defaults:
+      run:
+        working-directory: apps/owner-console
+    services:
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: bcmath, intl, zip, gd, redis, pdo_pgsql, sockets
+          coverage: none
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Run the hermetic release suite (phpunit-release.xml)
+        run: vendor/bin/phpunit -c phpunit-release.xml --no-progress
+
+  owner-console-tests:
+    name: Owner Console full test suite (local fixtures required)
+    runs-on: ubuntu-latest
+    # The FULL suite (phpunit.xml) includes operator/gate-fixture tests
+    # (gate-a/gate-b, control-plane demo database, live Redis) that only
+    # pass on an operator workstation; without the fixtures they error and
+    # cascade through the shared SQLite connection. The hermetic BLOCKING
+    # gate is the release-suite job above. Classification and the exact
+    # exclusion table: docs/TEST_CLASSIFICATION.md. This job stays visible
+    # and non-blocking — not silently green.
     continue-on-error: true
     defaults:
       run:
