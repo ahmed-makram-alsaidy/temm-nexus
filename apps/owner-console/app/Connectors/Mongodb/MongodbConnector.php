@@ -429,11 +429,35 @@ class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, Ex
      * Phase 35.6 — REAL change stream capture (§9). Requires a replica set
      * (cdcProbe reports the honest topology status).
      *
-     * $options: database scope override, await_ms, get_batch_size, projector.
+     * $options: database scope override, await_ms, get_batch_size, projector,
+     * and (Phase 36) `table_field_maps`: collection => {field_map, strategy,
+     * table_def} from the PLAN's analysis — the capture projects CDC rows
+     * through the same field map the snapshot used, so flattened/nested
+     * columns stay consistent between snapshot and stream.
      */
     public function cdcCapture(MigrationSource $source, array $options = []): MongoChangeStreamCapture
     {
         $options['database'] ??= (string) ($source->connection['database'] ?? $source->source_ref ?? '');
+
+        $fieldMaps = (array) ($options['table_field_maps'] ?? []);
+        unset($options['table_field_maps']);
+        if ($fieldMaps !== [] && ! isset($options['projectors'])) {
+            $adapter = $this->sourceAdapter($source);
+            $projectors = [];
+            foreach ($fieldMaps as $collection => $map) {
+                if (! is_array($map) || ! isset($map['field_map'])) {
+                    continue;
+                }
+                $projectors[(string) $collection] = $adapter->cdcRowProjector(
+                    (array) ($map['table_def'] ?? []),
+                    (array) $map['field_map'],
+                    (string) ($map['strategy'] ?? 'document'),
+                );
+            }
+            if ($projectors !== []) {
+                $options['projectors'] = $projectors;
+            }
+        }
 
         return new MongoChangeStreamCapture($source, $options);
     }

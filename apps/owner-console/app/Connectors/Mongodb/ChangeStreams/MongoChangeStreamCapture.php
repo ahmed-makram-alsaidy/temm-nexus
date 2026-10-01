@@ -36,7 +36,7 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
 
     public function __construct(
         protected MigrationSource $source,
-        /** database/uri/await_ms/get_batch_size/projector (optional callable) */
+        /** database/uri/await_ms/get_batch_size/projector (optional callable)/projectors (per-collection map) */
         protected array $options = [],
     ) {
     }
@@ -44,6 +44,18 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
     public function checkpointKind(): string
     {
         return 'resume_token';
+    }
+
+    /**
+     * Phase 36 — per-collection row projectors from the PLAN's field map.
+     * CDC rows must be projected through the SAME field map the snapshot
+     * used (sanitized_field_map incl. nested/flattened columns); otherwise
+     * a target schema with flattened columns gets NULLs on apply and the
+     * NOT NULL constraint pauses the stream at the first event.
+     */
+    public function setProjectors(array $projectors): void
+    {
+        $this->options['projectors'] = $projectors;
     }
 
     /** Test seam: fn() => MongoWireClient. */
@@ -121,7 +133,7 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
                         }
                         $ns = MongoWireClient::docField($event, 'ns');
                         $table = (string) ($ns['coll']['v'] ?? '');
-                        $row = $this->projectRow($full);
+                        $row = $this->projectRow($full, $table);
                         $ts = $this->clusterTimeToIso($seconds);
                         $eventObj = new CdcEvent(
                             $table,
@@ -448,8 +460,14 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
      * JSON (the same representation the snapshot path uses for JSONB).
      * A connector may inject a collection-aware projector via options.
      */
-    protected function projectRow(array $taggedFullDocument): array
+    protected function projectRow(array $taggedFullDocument, string $table = ''): array
     {
+        // Phase 36 — plan-derived projector wins: the CDC row must carry the
+        // same columns (incl. nested/flattened ones) the snapshot produced.
+        $projectors = (array) ($this->options['projectors'] ?? []);
+        if ($table !== '' && isset($projectors[$table]) && is_callable($projectors[$table])) {
+            return (array) ($projectors[$table])($taggedFullDocument);
+        }
         if (isset($this->options['projector']) && is_callable($this->options['projector'])) {
             return (array) ($this->options['projector'])($taggedFullDocument);
         }

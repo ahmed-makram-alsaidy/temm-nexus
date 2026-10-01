@@ -42,6 +42,28 @@ class CdcRunContext
 
         $targetKey = (string) ($options['target_key'] ?? '');
         $projectSlug = (string) ($plan->project->slug ?? ('p'.$run->project_id));
+
+        // Phase 36 — collections whose analysis carries a sanitized field
+        // map (MongoDB) pass it to the capture so change-stream rows are
+        // projected through the SAME field map the snapshot used; without
+        // it, flattened/nested target columns go NULL on apply and the
+        // stream pauses on the first event. Connectors without a field map
+        // concept ignore the option.
+        $tableFieldMaps = [];
+        foreach ($plan->items()->where('source_kind', 'table')->get() as $item) {
+            $analysisItem = $plan->analysis->items()
+                ->where('kind', 'table')->where('name', $item->source_name)
+                ->first();
+            $attrs = $analysisItem?->attributes ?? [];
+            if (isset($attrs['sanitized_field_map']) && is_array($attrs['sanitized_field_map'])) {
+                $tableFieldMaps[(string) $item->source_name] = [
+                    'field_map' => $attrs['sanitized_field_map'],
+                    'strategy' => (string) ($attrs['migration_strategy'] ?? 'document'),
+                    'table_def' => $attrs,
+                ];
+            }
+        }
+
         $captureOptions = array_merge([
             'slot' => self::scopedName('temm_slot', $projectSlug, (string) $run->run_id),
             'publication' => self::scopedName('temm_pub', $projectSlug, (string) $run->run_id),
@@ -53,6 +75,9 @@ class CdcRunContext
             'database' => (string) ($source->connection['database'] ?? ''),
             'run_id' => (string) $run->run_id,
         ], $options);
+        if ($tableFieldMaps !== []) {
+            $captureOptions['table_field_maps'] = $tableFieldMaps;
+        }
 
         $capture = $connector->cdcCapture($source, $captureOptions);
 

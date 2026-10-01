@@ -754,6 +754,17 @@ class MongodbSourceAdapter extends BaseSourceAdapter
         };
     }
 
+    /**
+     * Phase 36 — public projector entry for CDC capture: build the SAME row
+     * projector the snapshot extraction uses from the PLAN's persisted
+     * field map, so change-stream rows carry identical columns (flattened
+     * nested fields included).
+     */
+    public function cdcRowProjector(array $tableDef, array $fieldMap, string $strategy): \Closure
+    {
+        return $this->rowProjector($tableDef, $fieldMap, $strategy);
+    }
+
     /** Resolve + convert a (possibly nested) source path against a document. */
     protected function valueAtPath(array $document, string $path): mixed
     {
