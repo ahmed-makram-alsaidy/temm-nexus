@@ -1,4 +1,5 @@
 <x-filament-panels::page>
+    @php($rows = $this->catalogRows())
     <div class="space-y-4">
         <div class="flex gap-2">
             @foreach (['installed' => 'Installed', 'official' => 'Official', 'community' => 'Community', 'private' => 'Private'] as $section => $label)
@@ -7,8 +8,8 @@
                     wire:click="$set('activeSection', '{{ $section }}')"
                     @class([
                         'px-3 py-1.5 rounded-lg text-sm font-medium',
-                        'bg-primary-500 text-white' => $activeSection === $section,
-                        'bg-gray-100 dark:bg-gray-800' => $activeSection !== $section,
+                        'bg-primary-500 text-white' => $this->activeSection === $section,
+                        'bg-gray-100 dark:bg-gray-800' => $this->activeSection !== $section,
                     ])
                 >{{ $label }}</button>
             @endforeach
@@ -16,7 +17,7 @@
 
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @forelse ($rows as $row)
-                @if ($activeSection === 'installed' || $row['section'] === $activeSection)
+                @if ($this->activeSection === 'installed' || $row['section'] === $this->activeSection)
                     <div class="fi-section rounded-xl border border-gray-200 p-4 dark:border-gray-700">
                         <div class="flex items-center justify-between">
                             <span class="font-semibold">{{ $row['name'] }}</span>

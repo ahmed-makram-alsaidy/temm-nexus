@@ -30,6 +30,15 @@ class ConnectorCatalog extends Page implements HasTable
 
     protected static ?int $navigationSort = 4;
 
+    /**
+     * Phase 36.5 fix: render the page as a Filament panel page view. The
+     * previous render() override bypassed the panel page lifecycle —
+     * Livewire fell back to the missing default `layouts.app` and the
+     * whole page 500'd (found live on the rc.2 Azure soak). Filament
+     * renders this view inside the panel; public properties are shared.
+     */
+    protected string $view = 'filament.pages.connector-catalog';
+
     public string $activeSection = 'installed';
 
     public function mount(): void
@@ -39,9 +48,12 @@ class ConnectorCatalog extends Page implements HasTable
 
     public function table(Table $table): Table
     {
+        // Phase 36.5 fix: Table::columns() takes an ARRAY on this Filament
+        // version — a closure here 500s the whole page (found live on the
+        // rc.2 Azure soak; every other page passes an array).
         return $table
             ->records(fn () => collect($this->catalogRows()))
-            ->columns(fn () => [
+            ->columns([
                 TextColumn::make('key')->label('Key'),
                 TextColumn::make('name')->label('Name'),
                 TextColumn::make('version')->label('Version'),
@@ -73,13 +85,5 @@ class ConnectorCatalog extends Page implements HasTable
         }
 
         return $rows;
-    }
-
-    public function render(): \Illuminate\Contracts\View\View
-    {
-        return view('filament.pages.connector-catalog', [
-            'rows' => $this->catalogRows(),
-            'activeSection' => $this->activeSection,
-        ]);
     }
 }
