@@ -3,7 +3,7 @@
 How connectors declare what they can do (the stable 27C vocabulary) and how
 the platform reports per-instance status honestly — support is never faked.
 
-## The 16-key vocabulary
+## The 19-key vocabulary
 
 `App\Services\ControlPlane\Connectors\ConnectorCapability` is the single
 source of truth (`ConnectorCapability::ALL`, display order). The core platform
@@ -27,6 +27,9 @@ only knows this vocabulary — it never knows which provider supports what.
 | `source_fingerprint` | Source fingerprint |
 | `incremental_export` | Incremental export |
 | `resume` | Resume support |
+| `change_capture` | Change capture (CDC) |
+| `consistent_snapshot` | Consistent snapshot |
+| `checkpoint` | Checkpoint support |
 
 ## The 5 statuses
 
@@ -97,14 +100,52 @@ Nothing is claimed COMPLETE without evidence — PASS/PARTIAL only.
 
 ## Which shipped connectors declare what
 
-| Capability | `supabase` | `example-json` |
-|------------|:----------:|:--------------:|
-| `database_metadata`, `data_extraction`, `read_only_enforcement`, `source_fingerprint` | yes | yes |
-| `account_discovery`, `project_discovery` | yes | — |
-| `auth_metadata`, `storage_metadata`, `function_metadata`, `policy_metadata`, `realtime_metadata`, `schedule_metadata`, `client_scan` | yes | — |
-| `storage_content`, `incremental_export`, `resume` | — | — |
+All six shipped connectors are `first_party` (see `connector.json` inside
+each `app/Connectors/<Key>/` directory — that manifest is the machine
+source; this table is the human view).
 
-Honest limitations: `resume` is declared by neither connector — extraction is
-offset-batched, not token-based (`supportsResume()` returns `false`), and
-`incremental_export` is future work (change-stream-style export is a Phase 28
-design topic for MongoDB, see MONGODB_CONNECTOR_DESIGN.md).
+| Capability | `supabase` | `mongodb` | `firebase` | `postgres` | `mysql` | `example-json` |
+|------------|:----------:|:---------:|:----------:|:----------:|:-------:|:--------------:|
+| `account_discovery` | yes | — | — | — | — | — |
+| `project_discovery` | yes | — | — | — | — | — |
+| `database_metadata` | yes | yes | yes | yes | yes | yes |
+| `data_extraction` | yes | yes | yes | yes | yes | yes |
+| `auth_metadata` | yes | — | yes | — | — | — |
+| `storage_metadata` | yes | — | yes | — | — | — |
+| `function_metadata` | yes | — | yes | yes | yes | — |
+| `policy_metadata` | yes | — | — | yes | — | — |
+| `realtime_metadata` | yes | — | — | — | — | — |
+| `schedule_metadata` | yes | — | — | — | yes | — |
+| `client_scan` | yes | yes | yes | — | — | — |
+| `read_only_enforcement` | yes | yes | yes | yes | yes | yes |
+| `source_fingerprint` | yes | yes | yes | yes | yes | yes |
+| `incremental_export` | — | — | — | — | — | — |
+| `resume` | — | yes | yes | yes | yes | — |
+| `change_capture` | — | yes | — | yes | yes | — |
+| `consistent_snapshot` | — | — | — | yes | — | — |
+| `checkpoint` | — | yes | — | yes | yes | — |
+
+`example-json` is the **reference connector** (Phase 27 SDK contract
+example) — it exercises the smallest honest surface, not a migration
+product. `incremental_export` is declared by no connector: watermark
+incremental export exists as a Phase 32 mechanism, but log-based CDC
+(`change_capture` + `checkpoint`) is the supported incremental path since
+Phase 35.6 (`docs/connectors/REAL_CDC_RUNBOOK.md`).
+
+## Real CDC support matrix (Phase 35.6)
+
+Connector **analysis/migration support** and **log-based CDC support** are
+different claims; both are stated per provider. No capability below is
+marked supported from unit tests alone — each is backed by the live
+verification in `docs/connectors/PHASE_35_6_REAL_CDC_REPORT.md` and the
+Phase 35.5 live connector verification.
+
+| Provider | Connector | Migration/analysis | Log-based CDC | Mechanism |
+|----------|-----------|--------------------|---------------|-----------|
+| Supabase | `supabase` | SUPPORTED | not declared on the `supabase` connector; a Supabase database is standard PostgreSQL and may be captured with the generic `postgres` connector when its replication prerequisites are met | — |
+| MongoDB | `mongodb` | SUPPORTED | SUPPORTED (replica set required) | Change Streams + server resume tokens |
+| Firebase | `firebase` | SUPPORTED | **DEFERRED** | — |
+| Generic PostgreSQL | `postgres` | SUPPORTED | SUPPORTED | logical WAL decoding (`pgoutput`) + durable LSN |
+| MySQL 8 | `mysql` | SUPPORTED | SUPPORTED | ROW binlog capture, durable file+position (GTID evidence) |
+| MariaDB | `mysql` | **PARTIAL** | **PARTIAL** — not separately proven on a live MariaDB server | same connector, unverified |
+| Example JSON | `example-json` | reference connector | NOT_SUPPORTED | — |

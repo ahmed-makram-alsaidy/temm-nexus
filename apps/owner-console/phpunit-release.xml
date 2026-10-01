@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Phase 36 release-closure config: the HERMETIC release suite.
+
+     Identical environment to phpunit.xml, minus the operator/gate-fixture
+     tests that cannot run on a machine without live control-plane project
+     fixtures (gate-a/gate-b/gate-project, a reachable `postgres` compose
+     host, the control-plane-demo database, or live Redis + docker stack).
+
+     Excluded here (documented in docs/TEST_CLASSIFICATION.md):
+       tests/Feature/TemplateGateTest.php            — live Redis + docker stack
+       tests/Feature/BackupsAuditTest.php            — live demo database
+       tests/Feature/ControlPlaneSecurityTest.php    — gate-a/gate-b fixtures
+       tests/Feature/ControlPlaneTest.php            — gate-a/gate-b fixtures
+       tests/Feature/RecordBrowserTest.php           — live demo database
+       tests/Feature/WorkspacePagesTest.php          — live demo database
+       tests/Feature/Phase20/  (whole directory)     — gate-a/gate-b fixtures
+       tests/Feature/Phase21/ErdServiceTest.php      — gate-a/gate-b fixtures
+       tests/Feature/Phase21/ServiceMappingTest.php  — gate-a/gate-b fixtures
+       tests/Feature/Phase22/ConnectPageTest.php     — gate-project fixture
+
+     This file is the blocking release gate: `vendor/bin/phpunit -c
+     phpunit-release.xml` must report 0 failures and 0 errors. The full
+     phpunit.xml suite (including the operator-gated tests) stays the
+     operator-workstation entry point and CI keeps it visible but
+     non-blocking until the fixtures are made hermetic. -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+            <exclude>tests/Feature/TemplateGateTest.php</exclude>
+            <exclude>tests/Feature/BackupsAuditTest.php</exclude>
+            <exclude>tests/Feature/ControlPlaneSecurityTest.php</exclude>
+            <exclude>tests/Feature/ControlPlaneTest.php</exclude>
+            <exclude>tests/Feature/RecordBrowserTest.php</exclude>
+            <exclude>tests/Feature/WorkspacePagesTest.php</exclude>
+            <exclude>tests/Feature/Phase20</exclude>
+            <exclude>tests/Feature/Phase21/ErdServiceTest.php</exclude>
+            <exclude>tests/Feature/Phase21/ServiceMappingTest.php</exclude>
+            <exclude>tests/Feature/Phase22/ConnectPageTest.php</exclude>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <ini name="memory_limit" value="2G"/>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_KEY" value="base64:qc6YHmARIJTLVGypjDNZd66THnNn3nZp682KmgUPAKk="/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="DB_URL" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

@@ -49,7 +49,14 @@ class ConnectorPackageInstaller
         try {
             $manifest = ConnectorManifest::parseFile($manifestPath);
         } catch (ConnectorManifestInvalid $e) {
-            return ['ok' => false, 'reason' => 'manifest invalid: '.mb_substr($e->getMessage(), 0, 200)];
+            // The exception message embeds the full manifest path; on deep
+            // install roots a 200-char cap would cut away the actual error
+            // tail (e.g. the platform requirement). Shorten the path, keep
+            // the reason intact.
+            $message = str_replace($packageDir.'/', '<package>/', $e->getMessage());
+            $message = str_replace($packageDir, '<package>', $message);
+
+            return ['ok' => false, 'reason' => 'manifest invalid: '.mb_substr($message, 0, 200)];
         }
 
         // 35E — platform compatibility gate.

@@ -1,8 +1,17 @@
-## [0.3.0-dev] — in development
+## [0.3.0-rc.1] — 2026-10-01
 
-Development line opened on `develop/0.3.0` from `v0.2.0-rc.3`. NOT a
-release — features below land per phase and are documented as
+**PRE-RELEASE — release candidate.** This is release-candidate software;
+breaking changes may still land before stable 0.3.0. The 0.3.0 line opened
+on `develop/0.3.0` from `v0.2.0-rc.3`; features below are documented as
 SUPPORTED / PARTIAL / DEFERRED in `docs/connectors/PHASE_29_TO_32_CONNECTORS.md`.
+
+Migration capability in this release is **low-downtime**, not a guaranteed
+zero-downtime migration: CDC capture shortens the window, but the final
+cutover is operator-controlled with documented prerequisites and
+limitations (`docs/connectors/REAL_CDC_RUNBOOK.md`). Known scope limits:
+Firebase CDC is **DEFERRED**; MariaDB is **PARTIAL** unless separately
+proven; CDC sources require specific server configuration/permissions
+(logical replication, row binlog, replica set).
 
 ### Added
 
@@ -58,6 +67,14 @@ SUPPORTED / PARTIAL / DEFERRED in `docs/connectors/PHASE_29_TO_32_CONNECTORS.md`
 
 ### Fixed
 
+- **Production asset pipeline:** frontend assets (Filament CSS/JS/fonts,
+  Livewire) are generated during production builds — a fresh production
+  install no longer serves an unstyled console (found on the live Azure VPS
+  deployment)
+- **Docker/runtime:** production image ships `pdo_mysql`; scheduler
+  heartbeat age is reported unsigned in Deployment Doctor; the Pulse
+  check daemon no longer starves the schedule loop, healthcheck 200
+  detection and installer dry-run banner fixed
 - `security-check.sh` self-match: `docs/SECURITY_HARDENING.md` quoted the
   scanner's own patterns, tripping the repo hygiene gate
 - Migration engine: auth identity target table is collision-aware — a
