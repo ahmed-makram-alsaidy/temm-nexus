@@ -89,6 +89,7 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
             $lastEventTs = $checkpoint['last_event_at'] ?? null;
             $sourceClusterTime = (int) ($checkpoint['source_cluster_time'] ?? 0);
             $appliedClusterTime = (int) ($checkpoint['applied_cluster_time'] ?? 0);
+            $drained = false; // quiet await round with nothing pending
             $batch = [];
 
             $flush = function () use (&$batch, &$delivered, &$lastToken, &$appliedClusterTime, $onBatch): void {
@@ -187,7 +188,12 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
                     $lastToken = $token;
                 }
                 if ($batchEvents === []) {
-                    break; // quiet await round — cycle complete, position advanced to postBatchResumeToken
+                    // Quiet await round: the server held the reply for
+                    // maxTimeMs with nothing pending — the stream is fully
+                    // applied (cluster time still advances on its own, so
+                    // this flag — not the clock — proves caught-up).
+                    $drained = true;
+                    break;
                 }
             }
 
@@ -195,6 +201,7 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
                 'resume_token' => $lastToken,
                 'applied_cluster_time' => $appliedClusterTime,
                 'source_cluster_time' => $sourceClusterTime,
+                'drained' => $drained,
                 'last_event_at' => $lastEventTs,
                 'database' => $database,
                 'events' => $delivered,
@@ -226,8 +233,8 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
             $cursorDoc = MongoWireClient::docField($reply, 'cursor');
             $seconds = $this->postBatchResumeSeconds($cursorDoc);
             if ($seconds === 0) {
-                $opTime = MongoWireClient::docField($reply, 'operationTime');
-                $seconds = is_array($opTime) ? (int) ($opTime['seconds'] ?? 0) : 0;
+                // operationTime is a tagged BSON timestamp at reply level.
+                $seconds = $this->clusterTimeSeconds($reply['operationTime'] ?? null);
             }
 
             return [
@@ -272,6 +279,9 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
         }
         $applied = (int) ($checkpoint['applied_cluster_time'] ?? 0);
         $source = max($applied, (int) ($checkpoint['source_cluster_time'] ?? 0));
+        // An IDLE stream's cluster time always drifts ahead (the server
+        // clock advances with no changes) — drained is the caught-up proof.
+        $caughtUp = (bool) ($checkpoint['drained'] ?? false) || $source - $applied <= 1;
         $lagSeconds = null;
         if (is_string($checkpoint['last_event_at'] ?? null) && $checkpoint['last_event_at'] !== '') {
             try {
@@ -282,7 +292,7 @@ class MongoChangeStreamCapture implements ChangeCaptureConnector, CdcPositionSou
         }
 
         return [
-            'status' => $source - $applied <= 1 ? CdcStreamTelemetry::CAUGHT_UP : CdcStreamTelemetry::ACTIVE,
+            'status' => $caughtUp ? CdcStreamTelemetry::CAUGHT_UP : CdcStreamTelemetry::ACTIVE,
             'source_position_label' => $source > 0 ? 'cluster time T'.$source : null,
             'captured_position_label' => $applied > 0 ? 'cluster time T'.$applied : null,
             'applied_position_label' => $applied > 0 ? 'cluster time T'.$applied : null,
