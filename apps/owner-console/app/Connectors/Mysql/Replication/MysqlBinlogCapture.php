@@ -112,11 +112,14 @@ class MysqlBinlogCapture implements ChangeCaptureConnector, CdcPositionSource
                         $lastGtid = $gtid;
                     }
                     // The durable position is the END of the committed
-                    // transaction (event start + event size): resuming from
-                    // it replays nothing that was applied and skips nothing.
+                    // transaction. EventInfo->pos IS the header's log_pos:
+                    // the end of this event = the next event's start, so it
+                    // is already boundary-aligned (35.6 live finding: adding
+                    // the event size again landed mid-event and MySQL
+                    // refused the resume with 'bogus data in log event').
                     $info = $event->getEventInfo();
                     $file = (string) ($info->binLogCurrent->getBinFileName() ?: $file);
-                    $pos = (int) $info->pos + $info->size;
+                    $pos = (int) $info->pos;
                     continue;
                 }
                 if ($event instanceof RowsDTO) {
