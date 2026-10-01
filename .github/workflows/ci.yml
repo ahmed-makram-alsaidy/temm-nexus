@@ -209,3 +209,29 @@ jobs:
           [ "${size}" -gt 512 ] || { echo "asset body suspiciously small: /js/filament/filament/app.js"; exit 1; }
           check "/fonts/filament/filament/inter/index.css" "text/css"
           check "/css/cp.css" "text/css"
+
+      - name: Upgrade regression — Caddy config change must become active (Phase 37)
+        run: |
+          set -e
+          # Reproduce the rc.1 upgrader gap: a changed bind-mounted Caddyfile
+          # was invisible to `compose up -d`, so the running Caddy kept the
+          # old routing while the upgrade reported success. The upgrader must
+          # recreate caddy when its configuration fingerprint changes.
+          sed -i 's|X-Content-Type-Options "nosniff"|X-Content-Type-Options "nosniff"\n\t\tX-Phase37 "regression"|' infrastructure/caddy/Caddyfile.selfhost
+          grep -q 'X-Phase37' infrastructure/caddy/Caddyfile.selfhost
+          ./scripts/upgrade.sh > /tmp/upgrade.log 2>&1 || { cat /tmp/upgrade.log; exit 1; }
+          grep -q "caddy configuration CHANGED" /tmp/upgrade.log || { echo "upgrader did not detect the configuration change"; exit 1; }
+          # The stack is UNINITIALIZED at this point (no setup wizard run):
+          # /setup must serve 200 and the static asset (served by caddy's
+          # file_server inside the site block) must carry the new header.
+          CODE=$(curl -sL -o /dev/null -w '%{http_code}' http://localhost:80/setup)
+          HDR=$(curl -sI http://localhost:80/css/cp.css | grep -ci 'x-phase37: regression' || true)
+          [ "$CODE" = "200" ] || { echo "post-upgrade /setup returned $CODE"; exit 1; }
+          [ "$HDR" -ge 1 ] || { echo "new Caddyfile is NOT active after upgrade — caddy not recreated"; exit 1; }
+          # A second upgrade with an UNCHANGED config must NOT recreate caddy.
+          BEFORE=$(docker inspect --format '{{.Created}}' "$(docker compose -f docker-compose.prod.yml ps -q caddy)")
+          ./scripts/upgrade.sh > /tmp/upgrade2.log 2>&1
+          grep -q "caddy configuration unchanged" /tmp/upgrade2.log
+          AFTER=$(docker inspect --format '{{.Created}}' "$(docker compose -f docker-compose.prod.yml ps -q caddy)")
+          [ "$BEFORE" = "$AFTER" ] || { echo "unchanged configuration triggered an unnecessary caddy recreation"; exit 1; }
+          echo "Caddy upgrade-refresh regression: PASS"

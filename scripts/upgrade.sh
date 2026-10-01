@@ -96,6 +96,37 @@ $COMPOSE run --rm migrate
 echo "==> restarting application services"
 $COMPOSE up -d
 
+# ── Phase 37: Caddy edge configuration refresh ───────────────────
+# `docker compose up -d` recreates a container only when its SERVICE
+# DEFINITION changes (image, env, ports, bind-mount PATHS). The CONTENT
+# of a bind-mounted file is invisible to compose, and Caddy reads its
+# Caddyfile exactly once at container start — so a changed
+# Caddyfile.selfhost silently stays inactive after an upgrade while the
+# upgrader reports success (found on the 0.3.0-rc.1 live upgrade).
+#
+# Fingerprint the Caddy-relevant inputs (Caddyfile + the env values the
+# Caddyfile interpolates). Recreate ONLY caddy when the fingerprint
+# differs from the last-applied one — no destructive recreation without
+# reason; caddy_data/caddy_config volumes (TLS state) are untouched.
+caddy_inputs() {
+  cat infrastructure/caddy/Caddyfile.selfhost 2>/dev/null
+  grep -E '^(PRIMARY_DOMAIN|ACME_EMAIL|HTTP_PORT|HTTPS_PORT)=' .env 2>/dev/null
+}
+CADDY_FP="$(caddy_inputs | sha256sum | cut -d' ' -f1)"
+CADDY_STATE="backups/data/.caddy-config-sha256"
+APPLIED_FP="$(cat "$CADDY_STATE" 2>/dev/null || echo '')"
+if [ -f "$CADDY_STATE" ] && [ "$CADDY_FP" = "$APPLIED_FP" ]; then
+  echo "  caddy configuration unchanged — leaving the running edge as-is"
+else
+  if [ -n "$APPLIED_FP" ]; then
+    echo "  caddy configuration CHANGED since the last upgrade — recreating caddy"
+  else
+    echo "  no previous caddy configuration fingerprint — recreating caddy once to guarantee the shipped Caddyfile is active"
+  fi
+  $COMPOSE up -d --force-recreate caddy
+  printf '%s\n' "$CADDY_FP" > "$CADDY_STATE"
+fi
+
 # ── post-upgrade health verify (26H.1 spirit: never upgrade blindly) ──
 echo "==> verifying health (up to 2 minutes for containers to go healthy)"
 HEALTHY_COUNT=0

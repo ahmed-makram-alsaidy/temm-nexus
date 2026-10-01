@@ -1,3 +1,27 @@
+## [0.3.0-rc.2] — 2026-10-01
+
+**PRE-RELEASE — release candidate.** Release-closure fix on top of the
+frozen v0.3.0-rc.1. Scope limited to the upgrade edge-configuration bug
+and its regression coverage — no product features.
+
+### Fixed
+
+- **Upgrader: Caddy edge configuration was not refreshed on upgrade.**
+  `docker compose up -d` recreates a container only when its service
+  definition changes; the content of a bind-mounted file is invisible to
+  compose, and Caddy reads its Caddyfile once at container start — so an
+  upgrade that shipped a changed `Caddyfile.selfhost` left the OLD edge
+  routing active while the upgrade reported success (reproduced locally
+  and hit live upgrading the Azure test VM to rc.1: 404s until caddy was
+  recreated by hand). The upgrader now fingerprints the Caddy-relevant
+  inputs (Caddyfile + the env values it interpolates) and force-recreates
+  ONLY caddy when that fingerprint changes; unchanged configuration is
+  not recreated, and the caddy TLS volumes are untouched. The installer
+  records the same fingerprint on fresh installs. A CI regression
+  (fresh-install job) changes the Caddyfile, upgrades and asserts the
+  new configuration is served, then upgrades unchanged and asserts caddy
+  was NOT recreated.
+
 ## [0.3.0-rc.1] — 2026-10-01
 
 **PRE-RELEASE — release candidate.** This is release-candidate software;

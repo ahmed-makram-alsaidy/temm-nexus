@@ -137,6 +137,16 @@ $COMPOSE exec -T postgres sh /scripts/postgres/ensure-platform-db.sh
 echo "==> building and starting the stack (first build takes a few minutes)"
 $COMPOSE up -d --build
 
+# Phase 37 — record the deployed Caddy configuration fingerprint so the
+# upgrader can detect real Caddyfile/env changes later (bind-mount content
+# is invisible to `compose up -d`; see scripts/upgrade.sh).
+caddy_inputs() {
+  cat infrastructure/caddy/Caddyfile.selfhost 2>/dev/null
+  grep -E '^(PRIMARY_DOMAIN|ACME_EMAIL|HTTP_PORT|HTTPS_PORT)=' .env 2>/dev/null
+}
+mkdir -p backups/data
+caddy_inputs | sha256sum | cut -d' ' -f1 > backups/data/.caddy-config-sha256
+
 echo "==> waiting for services to report healthy"
 for i in $(seq 1 60); do
   UNHEALTHY="$($COMPOSE ps --format '{{.Name}} {{.Health}}' 2>/dev/null | grep -vc 'healthy\|exited (0)' || true)"
