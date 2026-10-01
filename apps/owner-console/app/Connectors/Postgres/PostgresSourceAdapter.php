@@ -132,8 +132,16 @@ class PostgresSourceAdapter extends BaseSourceAdapter
         $catalog = $this->catalog();
         $server = $catalog->serverInfo();
         $schemas = $catalog->schemas();
-        // Optional operator filter (e.g. import only 'public').
-        $only = (array) ($this->source->connection['schemas'] ?? []);
+        // Optional operator filter (e.g. import only 'public'). The
+        // configuration may arrive as a comma-separated string (35.6 live
+        // finding: (array) 'public,archive' yields ONE element and the
+        // intersect silently matched nothing — normalize first).
+        $only = collect((array) ($this->source->connection['schemas'] ?? []))
+            ->flatMap(fn ($s) => explode(',', (string) $s))
+            ->map(fn ($s) => trim((string) $s))
+            ->filter()
+            ->values()
+            ->all();
         if ($only !== []) {
             $schemas = array_values(array_intersect($schemas, $only));
         }
