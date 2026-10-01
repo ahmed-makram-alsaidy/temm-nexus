@@ -6,6 +6,23 @@ SUPPORTED / PARTIAL / DEFERRED in `docs/connectors/PHASE_29_TO_32_CONNECTORS.md`
 
 ### Added
 
+- **Phase 35.6 — real log-based CDC** (PostgreSQL WAL logical decoding,
+  MySQL row-based binlog, MongoDB change streams): provider-native captures
+  behind the generic 32A contract with normalized events (before/after
+  images, source timestamps, transaction identity), signed provider-native
+  positions (LSN / binlog file+pos with GTID evidence / server resume
+  tokens), at-least-once delivery with idempotent convergence, transaction
+  boundaries preserved, DELETE support on all three providers, project+run
+  scoped slot lifecycle with cleanup, normalized lag telemetry and the REAL
+  cutover gates (PASS/WARN/BLOCK/UNVERIFIED — watermark checkpoints never
+  pass), the final-delta freeze-boundary workflow (DATA_READY_FOR_CUTOVER),
+  and `migration:cdc-capture` as the operator entry point.
+  Proven live on disposable PostgreSQL 17 / MySQL 8.0 / MongoDB 7 replica
+  set: I/U/D + transaction batches, reader kill + resume, source restarts
+  (binlog rotation included), tamper refusal, schema-drift pause with
+  operator remediation, 155k-event storm with zero loss and bounded memory
+  (~840 events/s capture+apply on 2 vCPU). See
+  `docs/connectors/REAL_CDC_RUNBOOK.md` for the operator contract.
 - **Phase 29 — Firebase connector** (`firebase`, first_party): read-only
   Firestore analysis with inferred schema, relationship candidates with
   confidence classes, deterministic batched extraction, Firebase Auth
