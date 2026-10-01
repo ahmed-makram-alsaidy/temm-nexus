@@ -1,3 +1,16 @@
+## [0.3.0] — 2026-10-01
+
+**First STABLE release.** Open-source self-hosted backend migration &
+control plane. Content identical to `v0.3.0-rc.3` (version metadata only —
+the rc.3 codebase passed the full stable closure: real UI smoke, PostgreSQL
+WAL / MySQL binlog / MongoDB change-stream CDC with lost=0 duplicates=0
+delta=0, cutover gates, backup/restore, reboot persistence, hermetic
+blocking suite, artifact-only fresh install, rc.3 → stable upgrade drill).
+
+### Changed
+
+- Version metadata promoted from `0.3.0-rc.3` to `0.3.0`.
+
 ## [0.3.0-rc.3] — 2026-10-01
 
 **PRE-RELEASE — release candidate.** Release-closure fix found during the
