@@ -121,13 +121,15 @@ class PgCdcCapture implements ChangeCaptureConnector, CdcPositionSource
             $delivered = 0;
             $txOpen = false;
             $txXid = null;
+            $drained = false; // idle exit with no open transaction
             $batch = []; // events of the CURRENT transaction
 
             while (true) {
                 $msg = $client->readCopyMessage($idleTimeout);
                 if ($msg === null) {
                     if (! $txOpen) {
-                        break; // drained + no open transaction → cycle complete
+                        $drained = true; // idle + no open transaction → cycle complete
+                        break;
                     }
                     continue; // open transaction: keep waiting for its commit
                 }
@@ -189,6 +191,12 @@ class PgCdcCapture implements ChangeCaptureConnector, CdcPositionSource
                 'slot' => $slot,
                 'publication' => $publication,
                 'last_commit_ts' => $lastCommitTs,
+                // TRUE when the cycle ended on a quiet read with no open
+                // transaction: everything the publication will send has
+                // been applied. The instance-wide WAL end may still be
+                // ahead (unrelated databases, or a co-located target's own
+                // writes) — that byte distance is display-only.
+                'drained' => $drained,
                 'events' => $delivered,
                 'captured_at' => now()->toIso8601String(),
             ];
@@ -318,6 +326,10 @@ class PgCdcCapture implements ChangeCaptureConnector, CdcPositionSource
         $captured = PgLsn::toInt((string) $checkpoint['lsn']);
         $sourceWalEnd = PgLsn::toInt((string) ($checkpoint['source_wal_end'] ?? $checkpoint['lsn']));
         $byteLag = max(0, $sourceWalEnd - $captured);
+        // A DRAINED cycle means the publication backlog is fully applied.
+        // The instance-wide WAL distance is display-only (35.6 live
+        // finding: unrelated WAL keeps byte_lag > 0 forever).
+        $caughtUp = (bool) ($checkpoint['drained'] ?? false) || $byteLag === 0;
         $lastTs = $checkpoint['last_commit_ts'] ?? null;
         $lagSeconds = null;
         if (is_string($lastTs) && $lastTs !== '') {
@@ -329,7 +341,7 @@ class PgCdcCapture implements ChangeCaptureConnector, CdcPositionSource
         }
 
         return [
-            'status' => $byteLag === 0 ? CdcStreamTelemetry::CAUGHT_UP : CdcStreamTelemetry::ACTIVE,
+            'status' => $caughtUp ? CdcStreamTelemetry::CAUGHT_UP : CdcStreamTelemetry::ACTIVE,
             'source_position_label' => 'WAL LSN '.PgLsn::toString($sourceWalEnd),
             'captured_position_label' => 'WAL LSN '.PgLsn::toString($captured),
             'applied_position_label' => 'WAL LSN '.PgLsn::toString($captured),
