@@ -14,7 +14,9 @@ use App\Services\ControlPlane\Connectors\ConnectorManifest;
 use App\Services\ControlPlane\Connectors\ConnectorTestResult;
 use App\Services\ControlPlane\Connectors\Contracts\AnalyzableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\ExtractableSourceConnector;
+use App\Connectors\Mysql\Replication\MysqlBinlogCapture;
 use App\Services\ControlPlane\Connectors\Contracts\SourceConnector;
+use App\Services\ControlPlane\Connectors\Contracts\CdcCaptureProvider;
 use App\Services\ControlPlane\Connectors\Contracts\CdcProbeProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ValidatableSourceConnector;
 use App\Services\ControlPlane\Migration\Contracts\SourceAdapter;
@@ -30,7 +32,7 @@ use App\Services\ControlPlane\Migration\SchemaFingerprint;
  * (31D) and scheduled-event inventory (31A). The core platform learns
  * nothing MySQL-specific.
  */
-class MysqlConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, CdcProbeProvider
+class MysqlConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, CdcProbeProvider, CdcCaptureProvider
 {
     public const KEY = 'mysql';
 
@@ -282,7 +284,7 @@ class MysqlConnector implements SourceConnector, AnalyzableSourceConnector, Extr
 
         return CdcProbeResult::make(
             'binlog',
-            'binlog_gtid',
+            'binlog_position',
             $ready ? 'SUPPORTED' : 'SUPPORTED_WITH_CONFIGURATION',
             [
                 'log_bin' => $logBin,
@@ -296,5 +298,20 @@ class MysqlConnector implements SourceConnector, AnalyzableSourceConnector, Extr
                 'Prefer GTID mode ON for crash-safe positioning. Rehearse on a disposable source first.',
             ],
         );
+    }
+
+    /**
+     * Phase 35.6 — REAL binlog capture (row-based, GTID aware). Requires
+     * ROW binlog format + REPLICATION SLAVE privileges (see cdcProbe).
+     *
+     * $options: host/port/username/password overrides, server_id, timeouts.
+     */
+    public function cdcCapture(MigrationSource $source, array $options = []): MysqlBinlogCapture
+    {
+        $options['host'] ??= (string) ($source->connection['host'] ?? '');
+        $options['port'] ??= (int) ($source->connection['port'] ?? 3306);
+        $options['database'] ??= (string) ($source->connection['database'] ?? '');
+
+        return new MysqlBinlogCapture($source, $options);
     }
 }

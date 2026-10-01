@@ -23,12 +23,19 @@ final class ConnectorManifest
     public const FLOW_NONE = 'none';
     public const FLOWS = [self::FLOW_SUPABASE_ACCOUNT, self::FLOW_CREDENTIALS_FORM, self::FLOW_NONE];
 
-    /** Phase 27K.2 — connector permission vocabulary. */
+    /**
+     * Phase 27K.2 — connector permission vocabulary. 'source.replication'
+     * (35.6) declares that a connector opens a REPLICATION/log stream on the
+     * source (logical decoding slot, binlog dump, change streams) — a
+     * materially stronger read surface than source.db.read, so it is
+     * disclosed separately.
+     */
     public const PERMISSIONS = [
         'network.outbound',
         'network.local_source',
         'source.db.read',
         'source.storage.read',
+        'source.replication',
         'client.repo.read',
         'filesystem.dataset.read',
     ];

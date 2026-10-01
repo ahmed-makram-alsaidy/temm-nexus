@@ -437,6 +437,12 @@ class MigrationRunManager
         return app(MigrationCenterService::class)->makeAdapter($source);
     }
 
+    /** Phase 35.6 — public target resolution for the CDC capture worker. */
+    public function targetFor(MigrationRun $run, MigrationPlan $plan): TargetAdapter
+    {
+        return $this->makeTarget($run, $plan, false);
+    }
+
     protected function makeTarget(MigrationRun $run, MigrationPlan $plan, bool $recreate = true): TargetAdapter
     {
         $targetJson = json_decode((string) $run->target_connection, true) ?? [];

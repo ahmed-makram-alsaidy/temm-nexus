@@ -12,7 +12,9 @@ use App\Services\ControlPlane\Connectors\ConnectorHealth;
 use App\Services\ControlPlane\Connectors\ConnectorManifest;
 use App\Services\ControlPlane\Connectors\ConnectorTestResult;
 use App\Services\ControlPlane\Connectors\Contracts\AnalyzableSourceConnector;
+use App\Services\ControlPlane\Connectors\Contracts\CdcCaptureProvider;
 use App\Services\ControlPlane\Connectors\Contracts\CdcProbeProvider;
+use App\Connectors\Mongodb\ChangeStreams\MongoChangeStreamCapture;
 use App\Services\ControlPlane\Connectors\Contracts\ClientScannerProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ExtractableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\SourceConnector;
@@ -33,7 +35,7 @@ use App\Connectors\Mongodb\Protocol\MongoWireClient;
  * deterministic strategy mapping (28I), GridFS metadata (28N) and honest
  * auth semantics (28O). The core platform learns nothing MongoDB-specific.
  */
-class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, ClientScannerProvider, CdcProbeProvider
+class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, ClientScannerProvider, CdcProbeProvider, CdcCaptureProvider
 {
     public const KEY = 'mongodb';
 
@@ -421,5 +423,18 @@ class MongodbConnector implements SourceConnector, AnalyzableSourceConnector, Ex
                 'The deployment could not be reached for a topology check; change capture is not reported as available without proof.',
             ]);
         }
+    }
+
+    /**
+     * Phase 35.6 — REAL change stream capture (§9). Requires a replica set
+     * (cdcProbe reports the honest topology status).
+     *
+     * $options: database scope override, await_ms, get_batch_size, projector.
+     */
+    public function cdcCapture(MigrationSource $source, array $options = []): MongoChangeStreamCapture
+    {
+        $options['database'] ??= (string) ($source->connection['database'] ?? $source->source_ref ?? '');
+
+        return new MongoChangeStreamCapture($source, $options);
     }
 }

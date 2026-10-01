@@ -320,13 +320,17 @@ class CdcTest extends TestCase
             'host' => 'fixture', 'database' => 'synthetic_pg', 'username' => 'reader',
             'transport' => 'fixture',
             // Sandbox server overrides (fixture transport only).
-            'fixture_server' => ['wal_level' => 'logical', 'max_replication_slots' => 4],
+            'fixture_server' => ['wal_level' => 'logical', 'max_replication_slots' => 4, 'max_wal_senders' => 4],
         ]);
         $source->refresh();
 
         $probe = $connector->cdcProbe($source);
         $this->assertSame('SUPPORTED', $probe['status']);
-        $this->assertSame([], $probe['operator_instructions']);
+        // 35.6 — ready sources still get slot-lifecycle guidance: slots are
+        // source state, so the runbook (REPLICATION role, drop-on-completion)
+        // is always surfaced, never assumed.
+        $this->assertStringContainsString('REPLICATION-capable role', $probe['operator_instructions'][0]);
+        $this->assertStringContainsString('never leave slots abandoned', $probe['operator_instructions'][1]);
     }
 
     public function test_mysql_probe_reports_binlog_gaps(): void
@@ -345,7 +349,7 @@ class CdcTest extends TestCase
 
         $probe = $connector->cdcProbe($source);
         $this->assertSame('SUPPORTED_WITH_CONFIGURATION', $probe['status'], 'fixture has log_bin=OFF');
-        $this->assertSame('binlog_gtid', $probe['checkpoint_kind']);
+        $this->assertSame('binlog_position', $probe['checkpoint_kind'], '35.6 — durable position is binlog file+offset, GTID set rides as evidence');
         $this->assertStringContainsString('never performs itself', $probe['operator_instructions'][0]);
     }
 

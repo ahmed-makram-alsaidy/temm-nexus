@@ -8,6 +8,9 @@ use App\Models\CutoverPlan;
 use App\Models\MigrationRun;
 use App\Models\Project;
 use App\Services\ControlPlane\AdminAudit;
+use App\Services\ControlPlane\Connectors\Contracts\CdcCaptureProvider;
+use App\Services\ControlPlane\Migration\Cdc\CdcPositionSource;
+use App\Services\ControlPlane\Migration\Cdc\CdcRunContext;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -97,9 +100,18 @@ class CutoverCenterService
                 'evidence' => $latestRun === null ? 'no migration run on record' : 'last run did not complete ('.($latestRun->status ?? 'unknown').')'];
         }
 
-        // CDC gate: lag must be measured inside the window, not assumed.
-        $gates[] = ['gate' => 'cdc_lag', 'section' => 'CDC', 'state' => 'UNVERIFIED',
-            'evidence' => 'lag is measured live inside the window; until then it is unknown'];
+        // CDC gate (35.6 §16-18): when a REAL log-based stream has been
+        // reporting for this run, its signed telemetry decides PASS/WARN/
+        // BLOCK. Without one the gate stays UNVERIFIED — watermark
+        // incremental export is NOT log-based CDC and never passes here.
+        if ($latestRun === null) {
+            $gates[] = ['gate' => 'cdc_lag', 'section' => 'CDC', 'state' => 'UNVERIFIED',
+                'evidence' => 'no migration run on record — no CDC stream to measure'];
+        } else {
+            $cdc = (new CdcLagEvaluator)->evaluate($latestRun->id);
+            $gates[] = ['gate' => 'cdc_lag', 'section' => 'CDC',
+                'state' => $cdc['state'], 'evidence' => $cdc['evidence'], 'detail' => $cdc['detail']];
+        }
 
         // Client readiness: remaining legacy callsites on linked repositories.
         $legacy = \App\Models\ClientCallsite::query()
@@ -198,5 +210,73 @@ class CutoverCenterService
         AdminAudit::record('CUTOVER_EVENT', $plan->project, 'cutover_plan', $plan->id, [
             'event' => $event,
         ]);
+    }
+
+    // ── Phase 35.6 §19 — the FINAL SYNC workflow ─────────────────────────
+
+    /**
+     * Capture the FINAL SOURCE POSITION (the freeze boundary) and verify
+     * the applied side has reached it. The OPERATOR freezes writes — the
+     * platform never does (34D) — and never switches endpoints.
+     *
+     * Sequence: preflight already green → operator requests final sync →
+     * capture final position → run capture cycles (bounded) until the
+     * applied position covers it → record audit events. DATA_READY_FOR_
+     * CUTOVER is returned only when the applied position has covered the
+     * final source position.
+     *
+     * @return array{final_position: array, applied_through: bool, captured_events: int, evidence: string}
+     */
+    public function finalDelta(CutoverPlan $plan, int $maxWaitSeconds = 300): array
+    {
+        $run = $plan->migration_run_id !== null
+            ? MigrationRun::find($plan->migration_run_id)
+            : null;
+        abort_if($run === null, 422, 'the cutover plan has no linked migration run');
+
+        // The context builder refuses honestly when the connector has no
+        // real log-based capture (422 — operator sees the truth).
+        $context = CdcRunContext::forRun($run);
+        abort_unless($context->capture instanceof CdcPositionSource, 422, 'the capture does not expose source positions — final sync is impossible');
+
+        /** @var CdcPositionSource $capture */
+        $capture = $context->capture;
+
+        // 1. FREEZE BOUNDARY: the current source position. The operator's
+        // write freeze must be in effect (approved gate) — recorded here.
+        $final = $capture->currentSourcePosition();
+        $this->audit($plan, 'final_position_captured', [
+            'label' => $final['label'],
+            'captured_at' => $final['captured_at'],
+            'mechanism' => $context->capture->checkpointKind(),
+        ]);
+
+        // 2. CATCH UP: run capture cycles until the applied position covers
+        // the final position (or the wait budget is exhausted — honest).
+        $checkpoint = $context->worker->currentPosition();
+        $appliedThrough = $capture->hasAppliedThrough($checkpoint?->position, $final['position']);
+        $deadline = now()->addSeconds(max(5, $maxWaitSeconds));
+        $cycles = 0;
+        while (! $appliedThrough && now()->lt($deadline)) {
+            $context->worker->run(1, null, 1);
+            $cycles++;
+            $checkpoint = $context->worker->currentPosition();
+            $appliedThrough = $capture->hasAppliedThrough($checkpoint?->position, $final['position']);
+        }
+
+        $this->audit($plan, 'final_delta_result', [
+            'applied_through' => $appliedThrough,
+            'cycles' => $cycles,
+            'applied_events' => $context->worker->appliedEvents(),
+        ]);
+
+        return [
+            'final_position' => $final,
+            'applied_through' => $appliedThrough,
+            'captured_events' => $context->worker->capturedEvents(),
+            'evidence' => $appliedThrough
+                ? "target applied through the final source position ({$final['label']}) — DATA_READY_FOR_CUTOVER"
+                : "target has NOT applied through {$final['label']} within {$maxWaitSeconds}s — do not cut over",
+        ];
     }
 }

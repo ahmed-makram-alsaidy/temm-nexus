@@ -26,6 +26,7 @@ class CdcCheckpointManager
         ?int $lagEvents = null,
         ?array $lastReconciliation = null,
         ?array $errors = null,
+        ?array $streamTelemetry = null,
     ): CdcCheckpoint {
         $signature = $this->sign($migrationRunId, $sourceType, $targetKey, $kind, $position);
 
@@ -40,6 +41,9 @@ class CdcCheckpointManager
                 'lag_events' => $lagEvents,
                 'last_reconciliation' => $lastReconciliation,
                 'errors' => $errors,
+                'stream_telemetry' => $streamTelemetry,
+                'stream_status' => $streamTelemetry['status'] ?? null,
+                'last_event_at' => isset($streamTelemetry['last_event_at']) ? new \DateTimeImmutable($streamTelemetry['last_event_at']) : null,
             ]
         );
     }

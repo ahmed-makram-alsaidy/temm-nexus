@@ -3,6 +3,7 @@
 namespace App\Connectors\Postgres;
 
 use App\Connectors\Postgres\Protocol\PdoPgExecutor;
+use App\Connectors\Postgres\Replication\PgCdcCapture;
 use App\Models\MigrationSource;
 use App\Models\Project;
 use App\Services\ControlPlane\Connectors\ConnectorCapability;
@@ -15,6 +16,7 @@ use App\Services\ControlPlane\Connectors\ConnectorTestResult;
 use App\Services\ControlPlane\Connectors\Contracts\AnalyzableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\ExtractableSourceConnector;
 use App\Services\ControlPlane\Connectors\Contracts\SourceConnector;
+use App\Services\ControlPlane\Connectors\Contracts\CdcCaptureProvider;
 use App\Services\ControlPlane\Connectors\Contracts\CdcProbeProvider;
 use App\Services\ControlPlane\Connectors\Contracts\ValidatableSourceConnector;
 use App\Services\ControlPlane\Migration\Contracts\SourceAdapter;
@@ -30,7 +32,7 @@ use App\Services\ControlPlane\Migration\SchemaFingerprint;
  * NEEDS_REVIEW handling of unknown extension types (30C). The core platform
  * learns nothing PostgreSQL-specific beyond what it already knew.
  */
-class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, CdcProbeProvider
+class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, ExtractableSourceConnector, ValidatableSourceConnector, CdcProbeProvider, CdcCaptureProvider
 {
     public const KEY = 'postgres';
 
@@ -135,6 +137,12 @@ class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, E
         }
         if (in_array($capability, [ConnectorCapability::READ_ONLY_ENFORCEMENT, ConnectorCapability::SOURCE_FINGERPRINT, ConnectorCapability::RESUME], true)) {
             return ConnectorCapability::SUPPORTED;
+        }
+        if ($capability === ConnectorCapability::CHANGE_CAPTURE || $capability === ConnectorCapability::CONSISTENT_SNAPSHOT) {
+            // Real capability (35.6), but never assumed: wal_level=logical,
+            // a replication role and slot capacity are SOURCE-side states —
+            // the per-instance probe reports them honestly (32B).
+            return ConnectorCapability::SUPPORTED_WITH_CONFIGURATION;
         }
 
         return in_array('host', $resolvableFieldKeys, true)
@@ -319,25 +327,45 @@ class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, E
     {
         $adapter = $this->sourceAdapter($source);
         $executor = $adapter->catalog()->executor();
-        $rows = $executor->rows("SELECT name, setting FROM pg_settings WHERE name IN ('wal_level', 'max_replication_slots')");
+        $rows = $executor->rows("SELECT name, setting FROM pg_settings WHERE name IN ('wal_level', 'max_replication_slots', 'max_wal_senders')");
         $byName = [];
         foreach ($rows as $row) {
             $byName[$row['name']] = $row['setting'];
         }
         $walLevel = strtolower((string) ($byName['wal_level'] ?? 'unknown'));
         $maxSlots = (int) ($byName['max_replication_slots'] ?? 0);
-        $ready = $walLevel === 'logical' && $maxSlots >= 1;
+        $maxSenders = (int) ($byName['max_wal_senders'] ?? 0);
+        $ready = $walLevel === 'logical' && $maxSlots >= 1 && $maxSenders >= 1;
+
+        $observed = ['wal_level' => $walLevel, 'max_replication_slots' => $maxSlots, 'max_wal_senders' => $maxSenders];
 
         return CdcProbeResult::make(
             'logical_replication',
             'lsn',
             $ready ? 'SUPPORTED' : 'SUPPORTED_WITH_CONFIGURATION',
-            ['wal_level' => $walLevel, 'max_replication_slots' => $maxSlots],
-            $ready ? [] : [
-                'Set wal_level=logical and max_replication_slots>=1, then restart PostgreSQL — a SERVER CONFIGURATION CHANGE the platform never performs itself (32B).',
+            $observed,
+            $ready ? [
+                'Use a REPLICATION-capable role (REPLICATION attribute or pg_write_all_data membership) for the logical slot.',
+                'The migration creates a project-scoped logical slot + publication; both are dropped when the run completes — never leave slots abandoned.',
+            ] : [
+                "Set wal_level=logical (observed: {$walLevel}) and max_replication_slots>=1, max_wal_senders>=1, then restart PostgreSQL — a SERVER CONFIGURATION CHANGE the platform never performs itself (32B).",
                 'Create a dedicated logical replication slot for the migration; drop it after cutover to avoid WAL retention growth.',
                 'Use a replication-capable role. Rehearse on a disposable source first — this probe only READS settings.',
             ],
         );
+    }
+
+    /**
+     * Phase 35.6 — REAL log-based capture (WAL → logical decoding →
+     * pgoutput). Requires the source to be replication-ready (see cdcProbe).
+     *
+     * $options: slot, publication (project+run scoped names), tables
+     * (['schema.table', ...] for the publication scope), allow_setup.
+     */
+    public function cdcCapture(MigrationSource $source, array $options = []): PgCdcCapture
+    {
+        $options['allow_setup'] ??= (bool) config('cdc.capture.allow_source_setup', false);
+
+        return new PgCdcCapture($source, $options);
     }
 }
