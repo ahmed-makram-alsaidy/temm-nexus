@@ -209,9 +209,20 @@ class PgCdcCapture implements ChangeCaptureConnector, CdcPositionSource
         $schema = $relation['schema'];
 
         if ($decoded['type'] === 'delete') {
-            $key = $decoded['key'];
+            // The key tuple carries EVERY relation column (non-key columns
+            // as NULL). Deleting with `column = NULL` predicates can never
+            // match, so the delete image keeps ONLY the replica-identity
+            // columns (the PK under DEFAULT identity); under FULL identity
+            // it keeps the non-null old-image columns (35.6 live finding).
+            $keyFlags = array_filter($relation['columns'], fn ($c) => $c['key']);
+            if ($keyFlags !== []) {
+                $keyNames = array_column($keyFlags, 'name');
+                $key = array_intersect_key($decoded['key'], array_flip($keyNames));
+            } else {
+                $key = array_filter($decoded['key'], fn ($v) => $v !== null);
+            }
             if ($key === []) {
-                throw new \RuntimeException("DELETE for {$schema}.{$table} carried no key tuple — set REPLICA IDENTITY DEFAULT/FULL");
+                throw new \RuntimeException("DELETE for {$schema}.{$table} carried no usable key tuple — set REPLICA IDENTITY DEFAULT/FULL");
             }
 
             return [new CdcEvent($table, CdcEvent::DELETE, $key, $position, $schema, null, null, null)];

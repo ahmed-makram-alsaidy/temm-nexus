@@ -156,7 +156,9 @@ class CdcCaptureWorker
         $telemetry = null;
         $lagEvents = null;
         if ($this->capture instanceof CdcPositionSource) {
-            $telemetry = CdcStreamTelemetry::fromLagSnapshot($this->capture->lagSnapshot($position));
+            $telemetry = CdcStreamTelemetry::fromLagSnapshot(
+                self::cleanUtf8($this->capture->lagSnapshot($position))
+            );
             $lagEvents = $telemetry->lagEvents;
         }
 
@@ -174,6 +176,32 @@ class CdcCaptureWorker
         );
     }
 
+    /**
+     * Source/PDO error strings may carry raw binary bytes (bytea values in
+     * exceptions) — telemetry is stored as JSON, so scrub invalid UTF-8
+     * (35.6 live finding: a bytea-laden PDO error broke json encoding and
+     * masked the real failure).
+     */
+    public static function cleanUtf8(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            $scrubbed = @mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+
+            return $scrubbed === false
+                ? (string) preg_replace('/[-ÿ]+/', '?', $value)
+                : $scrubbed;
+        }
+        if (is_array($value)) {
+            foreach ($value as $key => $item) {
+                $value[$key] = self::cleanUtf8($item);
+            }
+
+            return $value;
+        }
+
+        return $value;
+    }
+
     protected function markStreamStatus(string $status, string $error): void
     {
         $checkpoint = $this->checkpoints->load($this->migrationRunId, $this->targetKey);
@@ -181,6 +209,7 @@ class CdcCaptureWorker
             return;
         }
         $telemetry = is_array($checkpoint->stream_telemetry) ? $checkpoint->stream_telemetry : [];
+        $telemetry = self::cleanUtf8($telemetry);
         $telemetry['status'] = $status;
         $telemetry['error'] = $error;
         $telemetry['updated_at'] = now()->toIso8601String();
