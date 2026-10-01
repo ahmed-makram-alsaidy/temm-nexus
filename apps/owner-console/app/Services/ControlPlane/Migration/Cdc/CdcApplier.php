@@ -58,9 +58,20 @@ class CdcApplier
 
     protected function deleteByPk(string $table, array $pkRow): int
     {
-        // Delegate through the target's raw surface via upsert of an empty
-        // image is impossible — deletes go through a guarded helper that
-        // each adapter implements idempotently (delete-if-exists).
+        // Narrow the delete to the PLAN's primary key columns when they are
+        // known. Log-based captures deliver whole old-row images (MySQL
+        // binlog_row_image=FULL); matching on decoded non-key columns
+        // (JSON, blobs, floats) is fragile and can silently miss the row —
+        // the PK is the identity the applier contract speaks in (35.6 live
+        // finding).
+        $keys = $this->tableKeys[$table] ?? [];
+        if ($keys !== []) {
+            $narrowed = array_intersect_key($pkRow, array_flip($keys));
+            if ($narrowed !== []) {
+                $pkRow = $narrowed;
+            }
+        }
+
         return $this->target->deleteByPk($table, $pkRow) ? 1 : 0;
     }
 
