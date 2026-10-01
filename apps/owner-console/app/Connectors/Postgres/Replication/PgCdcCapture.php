@@ -320,27 +320,14 @@ class PgCdcCapture implements ChangeCaptureConnector, CdcPositionSource
         if (PgLsn::atOrAfter(PgLsn::toInt((string) $checkpoint['lsn']), PgLsn::toInt((string) $sourcePosition['lsn']))) {
             return true;
         }
-        // Necessary fallback: the reader is drained AND the source has
-        // committed NOTHING new since the freeze (the LSN gap is then
-        // instance-internal WAL, not user changes).
-        if (! ($checkpoint['drained'] ?? false)) {
-            return false;
-        }
-        $frozenCommits = $sourcePosition['xact_commit'] ?? null;
-        if ($frozenCommits === null) {
-            return false;
-        }
-        $client = $this->newClient();
-        $client->connect();
-        try {
-            $rows = $client->query(
-                'SELECT xact_commit FROM pg_stat_database WHERE datname = '.PgReplicationClient::quoteLiteral((string) ($sourcePosition['database'] ?? ''))
-            );
-
-            return (int) ($rows[0]['xact_commit'] ?? -1) === (int) $frozenCommits;
-        } finally {
-            $client->close();
-        }
+        // Necessary fallback: the reader DRAINED the stream (idle read with
+        // no open transaction = every published change applied). The
+        // instance-wide LSN gap is then non-published WAL (autovacuum,
+        // hint bits, the platform's own probes) — never user changes,
+        // PROVIDED the caller drained only after the write freeze (35.6
+        // final-sync contract; the Cutover Center requires two consecutive
+        // drained cycles after the freeze).
+        return (bool) ($checkpoint['drained'] ?? false);
     }
 
     public function lagSnapshot(?array $checkpoint): array

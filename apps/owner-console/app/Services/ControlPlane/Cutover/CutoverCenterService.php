@@ -252,16 +252,32 @@ class CutoverCenterService
         ]);
 
         // 2. CATCH UP: run capture cycles until the applied position covers
-        // the final position (or the wait budget is exhausted — honest).
+        // the frozen position — proven by TWO consecutive DRAINED cycles
+        // separated by a pause (a drain means every published change is
+        // applied; the second proves no straggler committed during the
+        // first). The wait budget is honest: exhaust it and the plan does
+        // NOT go ready.
         $checkpoint = $context->worker->currentPosition();
         $appliedThrough = $capture->hasAppliedThrough($checkpoint?->position, $final['position']);
         $deadline = now()->addSeconds(max(5, $maxWaitSeconds));
         $cycles = 0;
+        $consecutiveDrains = 0;
         while (! $appliedThrough && now()->lt($deadline)) {
             $context->worker->run(1, null, 1);
             $cycles++;
             $checkpoint = $context->worker->currentPosition();
-            $appliedThrough = $capture->hasAppliedThrough($checkpoint?->position, $final['position']);
+            if ($checkpoint !== null && (bool) ($checkpoint->position['drained'] ?? false)) {
+                $consecutiveDrains++;
+                if ($consecutiveDrains >= 2) {
+                    $appliedThrough = true;
+                    continue;
+                }
+                sleep(1); // straggler window between the two drains
+            } else {
+                $consecutiveDrains = 0;
+            }
+            $appliedThrough = $appliedThrough
+                || $capture->hasAppliedThrough($checkpoint?->position, $final['position']);
         }
 
         $this->audit($plan, 'final_delta_result', [
