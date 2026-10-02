@@ -1,3 +1,29 @@
+## [0.4.0-rc.2] — 2026-10-02
+
+**PRE-RELEASE — release candidate.** Narrow polish/packaging release on top
+of the accepted v0.4.0-rc.1 (which stays frozen). Exactly three fixes, no
+new features.
+
+### Fixed
+
+- **The Inspect toggle overlapped the Nexus AI launcher.** With a long
+  scope label ("Project — Client One Website") the absolutely positioned
+  launcher grew leftward under the fixed Inspect toggle, hiding it and
+  intercepting its clicks. Both controls now live in one floating flex
+  container (`nx-floating-controls`) — no overlap and no click interception
+  at any viewport width, with Inspect on or off; the launcher's scope label
+  truncates instead of colliding.
+- **The artifact silently dropped `docs/product/PHASE_*.md`.** The
+  root-history exclude `PHASE*.md` was unanchored and matched at every path
+  level, removing the 0.4.0 gate reports from the rc.1 artifact (found by
+  the rc.2 dist-docs test). The exclude is now anchored to the repo root,
+  the allowlist names the required 0.4.0 docs, and
+  `scripts/tests/dist-docs.test.sh` verifies their presence in every built
+  artifact. The packager also no longer masks transient tar failures with
+  `|| true` — it retries and fails loudly.
+- **"1 project need attention"** now reads "1 project needs attention" /
+  "2 projects need attention" — the verb agrees with the count.
+
 ## [0.4.0-rc.1] — 2026-10-02
 
 **PRE-RELEASE — release candidate.** The 0.4.0 product transformation,
@@ -47,7 +73,7 @@ Phases A–K. `v0.3.0` is untouched.
   edge cases with certain document shapes are documented in the release
   report (byte-identical engine to v0.3.0, whose own proof stands).
 - Known limitations are stated in `docs/product/PHASE_IJK_FINAL_REPORT.md`.
-
+>>>>>>> origin/main
 ## [0.3.0] — 2026-10-01
 
 **First STABLE release.** Open-source self-hosted backend migration &

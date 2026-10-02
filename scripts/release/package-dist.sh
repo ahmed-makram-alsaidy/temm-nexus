@@ -39,7 +39,7 @@ EXCLUDES=(
   --exclude='*.key' --exclude='*.pem'
   --exclude='secrets'
   --exclude='backups/data' --exclude='backups/*.sql' --exclude='backups/*.sql.gz' --exclude='backups/*.dump'
-  --exclude='PHASE*.md' --exclude='FINAL_INFRASTRUCTURE_REPORT.md'
+  --exclude='./PHASE*.md' --exclude='./FINAL_INFRASTRUCTURE_REPORT.md'
   --exclude='docs/phase18-evidence' --exclude='docs/phase20*' --exclude='docs/phase21' --exclude='docs/phase22'
   --exclude='docs/control-plane-screenshots'
   --exclude='docs/platform/ai-migration/PHASE25_TEST_MATRIX.md'
@@ -60,11 +60,29 @@ EXCLUDES=(
 
 OUT="$OUT_DIR/${NAME}.tar.gz"
 echo "==> packaging $NAME"
-tar -czf "$OUT" "${EXCLUDES[@]}" \
-  apps packages infrastructure deploy scripts docs examples sdk-integration-demo \
-  docker-compose.yml docker-compose.prod.yml .env.example .gitignore .dockerignore VERSION \
-  README.md INSTALL.md UPGRADE.md BACKUP.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md \
-  ARCHITECTURE.md TROUBLESHOOTING.md CHANGELOG.md LICENSE COPYRIGHT.md TRADEMARKS.md .github 2>/dev/null || true
+# The tar invocation used to be `|| true`, which masked transient Windows
+# file-lock errors (antivirus scanning freshly written files) — rc.1's
+# artifact silently lost files at random (found by the rc.2 dist-docs test).
+# Retry deterministically and fail loudly instead.
+TAR_OK=0
+for attempt in 1 2 3; do
+  if tar -czf "$OUT" "${EXCLUDES[@]}" \
+    apps packages infrastructure deploy scripts docs examples sdk-integration-demo \
+    docker-compose.yml docker-compose.prod.yml .env.example .gitignore .dockerignore VERSION \
+    README.md INSTALL.md UPGRADE.md BACKUP.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md \
+    ARCHITECTURE.md TROUBLESHOOTING.md CHANGELOG.md LICENSE COPYRIGHT.md TRADEMARKS.md .github \
+    2> "$OUT_DIR/.tar-stderr.log"
+  then
+    TAR_OK=1
+    break
+  fi
+  echo "    tar attempt $attempt failed:"; tail -3 "$OUT_DIR/.tar-stderr.log" || true
+  sleep 2
+done
+if [ "$TAR_OK" != "1" ]; then
+  echo "FATAL: tar failed after 3 attempts — the artifact is NOT trustworthy."
+  exit 1
+fi
 
 echo "==> verifying artifact size + top-level contents"
 du -h "$OUT"
