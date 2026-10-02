@@ -232,7 +232,7 @@ Live Sync filter read the flag from the wrong DOM node.
 | --- | --- |
 | Base | `ad693fc` (`v0.3.0`) |
 | Preceding | `160a5bf` (Phase E) |
-| **Phase F commit** | `8ba6b0d` — `feat(0.4.0): Phase F — Connector Catalog as a product catalogue` |
+| **Phase F commit** | `7a79924` — `feat(0.4.0): Phase F — Connector Catalog as a product catalogue` |
 | `v0.3.0` tag | still `ad693fc` — **not moved, not replaced, not retagged** |
 | New tags published | **none** |
 | `v0.4.0` published | **no** |
