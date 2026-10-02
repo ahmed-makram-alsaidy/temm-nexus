@@ -519,7 +519,14 @@ final class ProjectPulse
             return null;
         }
 
-        return max(0, (int) $checkpoint->last_event_at->diffInSeconds(now(), false));
+        // `checkpoint()` reads the row via the query builder, so
+        // `last_event_at` arrives as a raw STRING — calling ->diffInSeconds()
+        // on it fatals the Home/Overview screens for any project whose
+        // checkpoint carries a last-event time (found live on the operator
+        // VPS during rc.2 acceptance). Normalize before measuring.
+        $last = $checkpoint->last_event_at;
+
+        return max(0, (int) \Illuminate\Support\Carbon::parse($last)->diffInSeconds(now(), false));
     }
 
     /**
