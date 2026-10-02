@@ -179,6 +179,85 @@
                         @if ($turn['text'] !== '')
                             <p class="nx-chat__text">{!! nl2br(e($turn['text'])) !!}</p>
                         @endif
+
+                        {{-- Phase J: proposed action plans. A card is a
+                             permissioned proposal — nothing has executed and
+                             nothing executes without a human click here. --}}
+                        @foreach (($turn['actions'] ?? []) as $card)
+                            <div class="nx-action-card" role="group" aria-label="Proposed action">
+                                <header class="nx-action-card__head">
+                                    <span class="nx-action-card__title">
+                                        <x-filament::icon icon="heroicon-o-bolt" class="h-4 w-4" />
+                                        Proposed action: {{ $card['action'] }}
+                                    </span>
+                                    <span @class(['nx-risk', 'nx-risk--'.$card['risk']])>
+                                        {{ ucfirst($card['risk']) }} risk
+                                    </span>
+                                </header>
+
+                                <p class="nx-action-card__intent">{{ $card['intent'] }}</p>
+
+                                <dl class="nx-action-card__facts">
+                                    <div>
+                                        <dt>Affected</dt>
+                                        <dd>
+                                            @foreach ($card['affected'] as $affected)
+                                                {{ $affected['resource'] }}@if(!empty($affected['project'])) · {{ $affected['project'] }}@endif@if(!empty($affected['id'])) · {{ $affected['id'] }}@endif
+                                            @endforeach
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt>What it does</dt>
+                                        <dd>{{ $card['expected'] }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Plan</dt>
+                                        <dd>
+                                            <code class="nx-code">{{ \Illuminate\Support\Str::limit($card['plan_id'], 18) }}</code>
+                                            @if ($card['expires_at'])
+                                                · decision needed {{ \Illuminate\Support\Carbon::parse($card['expires_at'])->diffForHumans(parts: 1) }}
+                                            @endif
+                                        </dd>
+                                    </div>
+                                </dl>
+
+                                @if ($card['status'] === 'pending')
+                                    {{-- The plan id is a UUID (registry-validated), so it interpolates
+                                         directly: @js does not compile inside component attributes. --}}
+                                    <div class="nx-action-card__actions">
+                                        <x-filament::button type="button" size="sm"
+                                                            wire:click="approveActionPlan('{{ $card['plan_id'] }}')"
+                                                            icon="heroicon-o-shield-check">
+                                            Approve &amp; Apply
+                                        </x-filament::button>
+                                        <x-filament::button type="button" size="sm" color="gray"
+                                                            wire:click="rejectActionPlan('{{ $card['plan_id'] }}')">
+                                            Cancel
+                                        </x-filament::button>
+                                    </div>
+                                @else
+                                    <p @class(['nx-action-card__outcome', 'nx-action-card__outcome--'.$card['status']])>
+                                        @if ($card['status'] === 'verified')
+                                            Applied and verified — {{ $card['result']['verification']['detail'] ?? 'confirmed.' }}
+                                        @elseif ($card['status'] === 'verification_failed')
+                                            Applied, but verification could NOT confirm it — {{ $card['result']['verification']['detail'] ?? 'unconfirmed.' }}
+                                        @elseif ($card['status'] === 'failed')
+                                            The action failed: {{ $card['result']['error'] ?? 'an error occurred.' }} Nothing was changed.
+                                        @elseif ($card['status'] === 'rejected')
+                                            Declined — nothing was changed.
+                                        @elseif ($card['status'] === 'expired')
+                                            This plan expired before approval — nothing was changed.
+                                        @elseif ($card['status'] === 'stale')
+                                            The situation changed after this plan was made — refused for safety.
+                                        @elseif ($card['status'] === 'approved')
+                                            Approved — executing…
+                                        @else
+                                            {{ ucfirst($card['status']) }}.
+                                        @endif
+                                    </p>
+                                @endif
+                            </div>
+                        @endforeach
                     </div>
                 @endforeach
             </div>
@@ -297,9 +376,12 @@
             <div class="nx-fact">
                 <span class="nx-fact__label">Actions and approvals</span>
                 <span class="nx-fact__detail">
-                    The assistant is read-only. It cannot change anything, and no action tool is
-                    reachable from this page. Appearance preferences above are the only writes, and
-                    each one needs your explicit preview and apply.
+                    Limited, permissioned actions exist: pause/resume Live Sync, create a backup,
+                    re-run validation, retry one failed job, and record a cutover preflight. The
+                    assistant can only PROPOSE them — every card above needs an explicit human
+                    Approve &amp; Apply, re-authorised at the click. Arbitrary shell, arbitrary SQL,
+                    restores, cutovers and credential changes are NOT available to the assistant at
+                    all, and code changes never happen through this page.
                 </span>
             </div>
             <div class="nx-fact">

@@ -6,6 +6,7 @@ use App\Filament\Support\PlatformAccess;
 use App\Models\Project;
 use App\Models\Workspace;
 use App\Services\Access\Capability;
+use App\Services\Ai\Actions\ActionBroker;
 use App\Services\Ai\AiContext;
 use App\Services\Ai\ConversationEngine;
 use App\Services\Ai\ModelRouter;
@@ -726,6 +727,9 @@ class NexusAi extends Page
             'role' => 'assistant',
             'text' => (string) $result['reply'],
             'tools' => $result['tools'],
+            // Phase J: plans the model PROPOSED this turn — cards awaiting a
+            // human decision. Nothing in here has executed.
+            'actions' => $result['actions'] ?? [],
         ];
     }
 
@@ -734,6 +738,50 @@ class NexusAi extends Page
         $this->transcript = [];
         $this->error = null;
         $this->lastRoute = null;
+    }
+
+    // ── Action approvals (Phase J) ─────────────────────────────────────
+
+    /**
+     * Approve & Apply a proposed action plan.
+     *
+     * The client supplies ONLY the plan id — every argument, the scope, the
+     * fingerprint, and the authorisation live in the immutable plan row and
+     * are re-checked server-side at this exact moment. A revoked user, an
+     * expired plan, a tampered world, or a double click is refused by the
+     * broker, and the card shows that honestly.
+     */
+    public function approveActionPlan(string $planId): void
+    {
+        $broker = new ActionBroker($this->context());
+        $result = $broker->approveAndExecute($planId, auth()->user());
+
+        $this->refreshActionCard($result['plan']);
+    }
+
+    /** Decline a proposed action. Cancelling never executes anything. */
+    public function rejectActionPlan(string $planId): void
+    {
+        $broker = new ActionBroker($this->context());
+        $result = $broker->reject($planId, auth()->user());
+
+        if ($result['ok'] ?? false) {
+            $this->refreshActionCard($result['plan']);
+        }
+    }
+
+    /** Replace a transcript card with the plan's current, honest state. */
+    protected function refreshActionCard(\App\Models\ActionPlan $plan): void
+    {
+        foreach ($this->transcript as $index => $turn) {
+            foreach (($turn['actions'] ?? []) as $cardIndex => $card) {
+                if (($card['plan_id'] ?? null) === $plan->getKey()) {
+                    $this->transcript[$index]['actions'][$cardIndex] = $plan->card();
+
+                    return;
+                }
+            }
+        }
     }
 
     // ── Quick actions (§28) ────────────────────────────────────────────

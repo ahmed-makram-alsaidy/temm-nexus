@@ -3,6 +3,8 @@
 namespace App\Services\Ai;
 
 use App\Models\AiProviderConfig;
+use App\Services\Ai\Actions\ActionBroker;
+use App\Services\Ai\Actions\ActionRegistry;
 use App\Services\Ai\Tools\ReadToolHandlers;
 use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\Ai\AiGateway;
@@ -57,6 +59,7 @@ final class ConversationEngine
      *     ok: bool, error: ?string, reply: ?string, role: string,
      *     model: ?string, provider: ?string,
      *     tools: list<array{tool: string, label: string, ok: bool, denied: ?string}>,
+     *     actions: list<array<string, mixed>>,
      *     usage: array{input_tokens: int, output_tokens: int},
      *     context: array<string, mixed>
      * }
@@ -83,6 +86,7 @@ final class ConversationEngine
         $messages = $this->buildMessages($message, $history, $available);
 
         $toolResults = [];
+        $actionCards = [];
         $usage = ['input_tokens' => 0, 'output_tokens' => 0];
         $provider = $route['provider'];
         $model = $route['model'];
@@ -119,6 +123,50 @@ final class ConversationEngine
                     $arguments = is_array($call['arguments'] ?? null) ? $call['arguments'] : [];
                     $handler = $handlers[$name] ?? null;
 
+                    // PHASE J TRUST BOUNDARY — the model's request for a
+                    // MUTATION is never executed here. A registered action
+                    // becomes a PERSISTENT PLAN awaiting a human; anything
+                    // unregistered stays `unknown_tool` and reaches nothing.
+                    if ($handler === null && ActionRegistry::exists($name)) {
+                        $broker = new ActionBroker($this->context);
+                        $proposal = $broker->propose($name, $arguments);
+
+                        if ($proposal['ok']) {
+                            $plan = $proposal['plan'];
+                            $actionCards[] = $plan->card();
+                            $toolResults[] = [
+                                'tool' => $name,
+                                'label' => ActionRegistry::definition($name)['label'],
+                                'ok' => true,
+                                'denied' => null,
+                                'proposed_plan' => $plan->getKey(),
+                            ];
+                            $payloads[] = [
+                                'tool' => $name,
+                                'ok' => true,
+                                'action_proposed' => true,
+                                'plan_id' => $plan->getKey(),
+                                'note' => 'A plan was created and is awaiting EXPLICIT HUMAN APPROVAL. '
+                                    .'It has NOT been executed. Do not claim it was performed. '
+                                    .'Tell the user to review and approve the card.',
+                            ];
+                        } else {
+                            $toolResults[] = [
+                                'tool' => $name,
+                                'label' => ActionRegistry::definition($name)['label'],
+                                'ok' => false,
+                                'denied' => $proposal['denied'],
+                            ];
+                            $payloads[] = [
+                                'tool' => $name,
+                                'ok' => false,
+                                'error' => 'refused: '.$proposal['denied'],
+                            ];
+                        }
+
+                        continue;
+                    }
+
                     if ($handler === null) {
                         $toolResults[] = ['tool' => $name, 'label' => ToolRegistry::label($name), 'ok' => false, 'denied' => 'unknown_tool'];
                         $payloads[] = ['tool' => $name, 'ok' => false, 'error' => 'unknown tool'];
@@ -151,7 +199,7 @@ final class ConversationEngine
                 $reply = 'I gathered the information but ran out of tool budget before summarising. Ask again for a shorter answer.';
             }
 
-            $this->audit($message, $toolResults, $route, $usage, $started);
+            $this->audit($message, $toolResults, $route, $usage, $started, $actionCards);
 
             return [
                 'ok' => true,
@@ -161,6 +209,7 @@ final class ConversationEngine
                 'provider' => $provider->display_name ?? $provider->provider,
                 'model' => $model,
                 'tools' => $toolResults,
+                'actions' => $actionCards,
                 'usage' => $usage,
                 'context' => $this->context->auditPayload(),
             ];
@@ -258,6 +307,14 @@ final class ConversationEngine
                 .'After you have what you need, answer in plain language with no TOOL_CALL lines.';
         }
 
+        $lines[] = '';
+        $lines[] = 'ACTIONS — how proposing a change works:';
+        $lines[] = 'Registered mutation tools exist (for example: '.implode(', ', ActionRegistry::names()).').';
+        $lines[] = 'You may PROPOSE one with a TOOL_CALL line, exactly like a read. You can NEVER execute anything yourself: '
+            .'every proposal becomes a plan that a human must explicitly approve in the interface before the platform performs it. '
+            .'Never say you fixed, paused, resumed, or changed anything — at most, say you proposed it and the human decides. '
+            .'If a proposal is refused, accept the refusal and explain it; never retry the same mutation in the same reply.';
+
         return implode("\n", $lines);
     }
 
@@ -350,6 +407,7 @@ final class ConversationEngine
             'provider' => null,
             'model' => null,
             'tools' => [],
+            'actions' => [],
             'usage' => ['input_tokens' => 0, 'output_tokens' => 0],
             'context' => $this->context->auditPayload(),
         ];
@@ -361,7 +419,7 @@ final class ConversationEngine
      * audit entry (it belongs to the conversation, not the ledger), and no
      * secrets are recorded here or anywhere in this class.
      */
-    private function audit(string $message, array $toolResults, array $route, array $usage, float $startedAt): void
+    private function audit(string $message, array $toolResults, array $route, array $usage, float $startedAt, array $actionCards = []): void
     {
         try {
             AdminAudit::record(
@@ -387,6 +445,11 @@ final class ConversationEngine
                         fn (array $t): ?string => $t['ok'] ? null : $t['tool'],
                         $toolResults,
                     ))),
+                    // Phase J: plans PROPOSED this turn (never executed here).
+                    'actions_proposed' => array_map(
+                        fn (array $card): string => $card['action'],
+                        $actionCards,
+                    ),
                     'input_tokens' => $usage['input_tokens'],
                     'output_tokens' => $usage['output_tokens'],
                     'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),

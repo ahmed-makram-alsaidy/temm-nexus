@@ -63,6 +63,22 @@ class FakeAiDriver implements AiDriver
     {
         self::$lastComplete = ['config' => $config, 'messages' => $messages, 'options' => $options];
 
+        // Local QA affordance: a script file lets a REAL browser session walk
+        // the fake provider through a multi-round conversation without any
+        // network. Only meaningful when the operator deliberately configures
+        // the 'fake' provider; hermetic tests set self::$script directly.
+        if (self::$script === null && env('FAKE_AI_SCRIPT_FILE')) {
+            try {
+                $raw = file_get_contents((string) env('FAKE_AI_SCRIPT_FILE'));
+                $decoded = is_string($raw) ? json_decode($raw, true) : null;
+                if (is_array($decoded)) {
+                    self::$script = $decoded;
+                }
+            } catch (\Throwable) {
+                // An unreadable script file falls through to the default reply.
+            }
+        }
+
         if (! empty($options['fake_error'])) {
             throw new \RuntimeException('Fake AI error: '.$options['fake_error']);
         }
