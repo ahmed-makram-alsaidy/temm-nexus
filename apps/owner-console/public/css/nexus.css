@@ -850,11 +850,31 @@ html:not(.dark) {
 /* 10.13 Persistent Nexus AI launcher (§15).
    Fixed bottom-right, above content, and it always states the current scope so
    the user cannot be confused about what the assistant is looking at. */
-.nx-ai-launcher {
+/* rc.2 — ONE floating container owns the fixed position; the launcher and
+   the Inspect toggle are flex items inside it, so they can never overlap
+   however long the scope label is (the launcher's label truncates via
+   min-width: 0 + ellipsis). Replaces the two independent absolute
+   positions that collided. */
+.nx-floating-controls {
     position: fixed;
     inset-block-end: 20px;
     inset-inline-end: 20px;
     z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* The row itself never leaves the viewport; the launcher shrinks. */
+    max-width: calc(100vw - 40px);
+    pointer-events: none;
+}
+
+/* Children re-enable interaction (the container is a positioning shim). */
+.nx-floating-controls > * {
+    pointer-events: auto;
+}
+
+.nx-ai-launcher {
+    position: static;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -870,7 +890,11 @@ html:not(.dark) {
     /* Never wrap: a wrapped pill overlaps page content. The scope label
        truncates instead, and is dropped entirely on narrow viewports. */
     white-space: nowrap;
-    max-width: min(320px, calc(100vw - 40px));
+    /* Inside the floating row the launcher YIELDS: it shrinks before it can
+       push the Inspect toggle out of or over its place. */
+    min-width: 0;
+    flex: 0 1 auto;
+    max-width: min(320px, calc(100vw - 200px));
     transition: border-color 120ms ease, transform 120ms ease;
 }
 
@@ -989,9 +1013,11 @@ html:not(.dark) {
 }
 
 
-/* Keep the launcher clear of the viewport edge on small screens. */
+/* Keep the floating controls clear of the viewport edge on small screens
+   (rc.2: positioning moved to .nx-floating-controls; the launcher itself
+   no longer carries insets). */
 @media (max-width: 640px) {
-    .nx-ai-launcher { inset-inline-end: 12px; inset-block-end: 12px; }
+    .nx-floating-controls { inset-inline-end: 12px; inset-block-end: 12px; }
     .nx-ai-launcher__scope { display: none; }
 }
 
@@ -2060,10 +2086,7 @@ html:not(.dark) {
    ========================================================================== */
 
 .nx-inspect-toggle {
-    position: fixed;
-    inset-block-end: 20px;
-    inset-inline-end: 180px;
-    z-index: 40;
+    position: static;
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -2077,6 +2100,7 @@ html:not(.dark) {
     font-weight: 560;
     cursor: pointer;
     white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .nx-inspect-toggle:hover {
@@ -2126,22 +2150,15 @@ html:not(.dark) {
 
 .nx-inspect-target:hover,
 .nx-inspect-selected {
-    position: relative;
-}
-
-.nx-inspect-selected {
     outline: 2px solid var(--nx-text);
     outline-offset: 2px;
     border-radius: var(--nx-radius-sm, 6px);
 }
 
-@media (max-width: 1439px) {
-    .nx-inspect-toggle { inset-inline-end: 160px; }
-}
-
-@media (max-width: 1279px) {
-    .nx-inspect-toggle { inset-inline-end: 12px; inset-block-end: 64px; }
-}
+/* rc.2: the old per-viewport absolute offsets for the toggle are gone —
+   both controls are flex items of .nx-floating-controls and cannot
+   collide at any viewport width. Narrow viewports shrink the launcher's
+   scope label (ellipsis) instead of moving anything. */
 
 /* ── The Inspect panel on the Nexus AI page ─────────────────────────── */
 

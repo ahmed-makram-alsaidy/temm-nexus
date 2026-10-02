@@ -22,7 +22,7 @@ class ControlPlaneChrome
     public const CSS_VERSION = '20.8.0';
 
     /** Bump when public/css/nexus.css changes (0.4.0 product design system). */
-    public const NEXUS_CSS_VERSION = '40.1.0';
+    public const NEXUS_CSS_VERSION = '40.2.0';
 
     /** Bump when public/js/nexus-inspect.js changes (0.4.0 Phase I). */
     public const INSPECT_JS_VERSION = '40.1.0';
@@ -206,8 +206,15 @@ class ControlPlaneChrome
             $inspect = self::inspectToggleHook()();
             $script = self::inspectScriptHook()();
 
+            // rc.2: the launcher and the Inspect toggle live in ONE floating
+            // container (flex row) so they can never overlap, whatever the
+            // scope label's length — previously each control was absolutely
+            // positioned and the launcher grew leftward under the toggle.
             return new HtmlString(
-                $search->toHtml().$launcher->toHtml().$inspect->toHtml().$script->toHtml()
+                '<div class="nx-floating-controls">'
+                .$launcher->toHtml().$inspect->toHtml()
+                .'</div>'
+                .$search->toHtml().$script->toHtml()
             );
         };
     }

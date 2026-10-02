@@ -116,7 +116,7 @@ class Dashboard extends BaseDashboard
 
         $parts = [];
         if ($attention > 0) {
-            $parts[] = $attention.' project'.($attention === 1 ? '' : 's').' need attention';
+            $parts[] = self::projectAttentionPhrase($attention);
         }
         if ($running > 0) {
             $parts[] = $running.' migration'.($running === 1 ? '' : 's').' running';
@@ -130,6 +130,26 @@ class Dashboard extends BaseDashboard
         }
 
         return ucfirst(implode(' · ', $parts)).'.';
+    }
+
+    /**
+     * The attention phrase with correct singular/plural agreement
+     * (rc.2: "1 project needs attention" vs "2 projects need attention" —
+     * the verb must agree with the count, not just the noun).
+     *
+     * @return string '' when nothing needs attention
+     */
+    public static function projectAttentionPhrase(int $count): string
+    {
+        if ($count <= 0) {
+            return '';
+        }
+
+        if ($count === 1) {
+            return '1 project needs attention';
+        }
+
+        return $count.' projects need attention';
     }
 
     public function canCreateProject(): bool

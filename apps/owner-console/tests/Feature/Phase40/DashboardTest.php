@@ -277,4 +277,44 @@ class DashboardTest extends TestCase
         $this->actingAs($this->platformOwner)->get('/admin/team')->assertOk();
         $this->actingAs($this->platformOwner)->get('/admin/switcher')->assertOk();
     }
+
+    // ── rc.2: pluralization and the floating-controls layout ──────────
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('attentionCounts')]
+    public function test_the_attention_phrase_agrees_in_number(int $count, string $expected): void
+    {
+        $this->assertSame($expected, \App\Filament\Pages\Dashboard::projectAttentionPhrase($count));
+    }
+
+    public static function attentionCounts(): array
+    {
+        return [
+            'zero projects' => [0, ''],
+            'one project' => [1, '1 project needs attention'],
+            'two projects' => [2, '2 projects need attention'],
+            'eleven projects' => [11, '11 projects need attention'],
+        ];
+    }
+
+    public function test_the_launcher_and_the_inspect_toggle_share_one_floating_row(): void
+    {
+        // rc.1 finding: the two fixed-position controls overlapped when the
+        // launcher's scope label was long. They now live in one flex
+        // container — asserted here structurally; the interaction contract
+        // (both independently clickable, no intersection) is proven in the
+        // real-browser QA.
+        $html = $this->actingAs($this->platformOwner)->get('/admin')->getContent();
+
+        $open = strpos((string) $html, '<div class="nx-floating-controls">');
+        $this->assertNotFalse($open, 'the floating controls container is missing');
+
+        $launcher = strpos((string) $html, 'class="nx-ai-launcher"', $open);
+        $toggle = strpos((string) $html, 'data-nx-inspect-toggle', $open);
+        $close = strpos((string) $html, '</div>', (int) $open);
+
+        $this->assertNotFalse($launcher, 'the launcher is not inside the floating container');
+        $this->assertNotFalse($toggle, 'the Inspect toggle is not inside the floating container');
+        $this->assertLessThan($close, $launcher);
+        $this->assertLessThan($close, $toggle);
+    }
 }
