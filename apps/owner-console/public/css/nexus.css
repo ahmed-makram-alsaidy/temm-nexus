@@ -696,6 +696,13 @@ html:not(.dark) {
     line-height: 1.6;
 }
 
+.nx-empty__actions {
+    display: flex;
+    gap: var(--nx-space-3);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
 /* 10.9 Notice */
 .nx-notice {
     display: flex;
@@ -1013,17 +1020,375 @@ html:not(.dark) {
     color: var(--nx-success);
 }
 
+/* 10.15 Home hero (§7) — greeting, state sentence, one primary action. */
+.nx-hero {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--nx-space-6);
+    flex-wrap: wrap;
+}
+
+.nx-hero__greeting {
+    font-size: 26px;
+    font-weight: 640;
+    letter-spacing: -0.02em;
+    color: var(--nx-text);
+}
+
+.nx-hero__state {
+    margin-top: var(--nx-space-2);
+    font-size: 14px;
+    color: var(--nx-text-muted);
+    max-width: 70ch;
+}
+
+.nx-hero__actions {
+    display: flex;
+    gap: var(--nx-space-3);
+    flex-wrap: wrap;
+}
+
+/* 10.16 Timeline (recent activity). */
+.nx-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    overflow: hidden;
+}
+
+.nx-timeline__row {
+    display: flex;
+    gap: var(--nx-space-4);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    font-size: 13px;
+}
+
+.nx-timeline__row + .nx-timeline__row {
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-timeline__time {
+    flex: 0 0 92px;
+    color: var(--nx-text-subtle);
+    font-variant-numeric: tabular-nums;
+}
+
+.nx-timeline__what {
+    color: var(--nx-text);
+}
+
+/* 10.17 Full-width list rows (recent projects). */
+.nx-list:not(.nx-list--compact) {
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    overflow: hidden;
+    gap: 0;
+}
+
+.nx-list:not(.nx-list--compact) li + li {
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-list:not(.nx-list--compact) a {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    color: var(--nx-text);
+    text-decoration: none;
+    font-size: 13.5px;
+}
+
+.nx-list:not(.nx-list--compact) a:hover {
+    background: var(--nx-surface-sunken);
+}
+
+.nx-list__name {
+    font-weight: 560;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-list:not(.nx-list--compact) .nx-list__hint {
+    margin-inline-start: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Stat value tones — the number alone is never the whole message; every card
+   carries a hint line beneath it. */
+.nx-stat-card__value--success { color: var(--nx-success); }
+.nx-stat-card__value--warning { color: var(--nx-warning); }
+.nx-stat-card__value--danger { color: var(--nx-danger); }
+.nx-stat-card__value--info { color: var(--nx-info); }
+
+/* 10.18 Journey stepper (§6) — the spine of the project scope.
+   A horizontal rail on wide screens, a vertical list under 1280px so no step
+   is ever hidden behind a fold or a scroll. */
+.nx-journey {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--nx-space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nx-journey__step {
+    position: relative;
+    min-width: 0;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+    border-top: 3px solid var(--nx-neutral);
+}
+
+.nx-journey__step--success { border-top-color: var(--nx-success); }
+.nx-journey__step--warning { border-top-color: var(--nx-warning); }
+.nx-journey__step--danger { border-top-color: var(--nx-danger); }
+.nx-journey__step--info { border-top-color: var(--nx-info); }
+.nx-journey__step--neutral { border-top-color: var(--nx-border-strong); }
+
+.nx-journey__step.is-current {
+    border-color: var(--nx-accent);
+    background: color-mix(in srgb, var(--nx-accent) 7%, var(--nx-surface));
+}
+
+.nx-journey__link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+    padding: var(--nx-space-3);
+    color: inherit;
+    text-decoration: none;
+    height: 100%;
+}
+
+.nx-journey__link:hover .nx-journey__label {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.nx-journey__marker {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+}
+
+.nx-journey__step--success .nx-journey__marker { background: var(--nx-success-soft); color: var(--nx-success); }
+.nx-journey__step--warning .nx-journey__marker { background: var(--nx-warning-soft); color: var(--nx-warning); }
+.nx-journey__step--danger .nx-journey__marker { background: var(--nx-danger-soft); color: var(--nx-danger); }
+.nx-journey__step--info .nx-journey__marker { background: var(--nx-info-soft); color: var(--nx-info); }
+
+.nx-journey__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.nx-journey__label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--nx-text);
+}
+
+.nx-journey__here {
+    display: inline-block;
+    margin-inline-start: 4px;
+    padding: 1px 6px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-accent);
+    color: var(--nx-accent-contrast);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.nx-journey__state {
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.nx-journey__step--success .nx-journey__state { color: var(--nx-success); }
+.nx-journey__step--warning .nx-journey__state { color: var(--nx-warning); }
+.nx-journey__step--danger .nx-journey__state { color: var(--nx-danger); }
+.nx-journey__step--info .nx-journey__state { color: var(--nx-info); }
+.nx-journey__step--neutral .nx-journey__state { color: var(--nx-text-subtle); }
+
+.nx-journey__detail {
+    font-size: 11.5px;
+    color: var(--nx-text-muted);
+    line-height: 1.4;
+}
+
+/* 10.19 Project overview headline — the answer before the detail (§9). */
+.nx-overview-head {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: var(--nx-space-6);
+    padding: var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+.nx-overview-head__progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+}
+
+.nx-overview-head__pct {
+    font-size: 44px;
+    font-weight: 660;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--nx-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.nx-bar {
+    height: 8px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    overflow: hidden;
+}
+
+.nx-bar__fill {
+    height: 100%;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-accent);
+    transition: width 240ms ease;
+}
+
+.nx-overview-head__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--nx-space-4);
+    align-content: start;
+}
+
+.nx-fact__label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+.nx-fact__value {
+    display: block;
+    margin-top: 2px;
+    font-size: 15px;
+    font-weight: 580;
+    color: var(--nx-text);
+}
+
+.nx-fact__detail {
+    font-size: 12px;
+    color: var(--nx-text-muted);
+}
+
+/* Advanced disclosure: technical depth stays reachable, never leading (§14). */
+.nx-advanced {
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-advanced > summary {
+    padding: var(--nx-space-3) var(--nx-space-4);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 560;
+    color: var(--nx-text-muted);
+}
+
+.nx-advanced[open] > summary {
+    border-bottom: 1px solid var(--nx-border);
+    color: var(--nx-text);
+}
+
+.nx-advanced__body {
+    padding: var(--nx-space-4);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--nx-space-4);
+}
+
+.nx-code {
+    font-family: var(--nx-font-mono, ui-monospace, monospace);
+    font-size: 12px;
+    color: var(--nx-text);
+    word-break: break-all;
+}
+
+/* 10.20 Vertical rhythm for composed pages. */
+.nx-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-6);
+}
+
 /* ── 11. Responsive ─────────────────────────────────────────────────────── */
+
+/* The journey needs ~180px per step to stay readable ("Validate", "Needs
+   attention", plus a one-line detail). Seven columns therefore require about
+   1440px of content width; below that the stepper becomes a vertical list.
+   1366×768 is an explicit support target (§33), and at 1366px a 7-column rail
+   left each step ~130px — narrow enough to wrap the detail to three lines and
+   stop the stepper being scannable at all. */
+@media (max-width: 1439px) {
+    .nx-journey {
+        grid-template-columns: 1fr;
+    }
+
+    .nx-journey__step {
+        border-top-width: 1px;
+        border-inline-start: 3px solid var(--nx-neutral);
+    }
+
+    .nx-journey__step--success { border-inline-start-color: var(--nx-success); }
+    .nx-journey__step--warning { border-inline-start-color: var(--nx-warning); }
+    .nx-journey__step--danger { border-inline-start-color: var(--nx-danger); }
+    .nx-journey__step--info { border-inline-start-color: var(--nx-info); }
+
+    .nx-journey__link {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: var(--nx-space-3);
+    }
+}
+
 @media (max-width: 1279px) {
     .nx-grid--workspaces,
     .nx-grid--projects {
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+
+    .nx-overview-head {
+        grid-template-columns: 1fr;
     }
 }
 
 @media (max-width: 1023px) {
     .nx-stats { gap: var(--nx-space-4); }
     .nx-stat-card__value { font-size: 26px; }
+    .nx-hero { flex-direction: column; align-items: flex-start; }
+    .nx-hero__actions { width: 100%; }
 }
 
 /* 1366×768 is a supported target: keep the primary action above the fold by

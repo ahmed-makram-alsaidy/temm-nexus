@@ -95,18 +95,14 @@
             @else
                 <div class="nx-grid nx-grid--projects">
                     @foreach ($projects as $project)
+                        @php $pulse = \App\Services\Product\ProjectPulse::for($project); @endphp
                         <a class="nx-card nx-card--link"
                            href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $project]) }}">
                             <div class="nx-card__header">
                                 <h3 class="nx-card__title">{{ $project->name }}</h3>
-                                <span @class([
-                                    'nx-status',
-                                    'nx-status--success' => $project->health_status === 'healthy',
-                                    'nx-status--danger' => $project->health_status === 'unhealthy',
-                                    'nx-status--warning' => $project->health_status === 'degraded',
-                                    'nx-status--neutral' => ! in_array($project->health_status, ['healthy', 'unhealthy', 'degraded'], true),
-                                ])>
-                                    {{ $project->healthLabel() }}
+                                <span @class(['nx-status', 'nx-status--'.$pulse->overallState()->tone()])>
+                                    <x-filament::icon :icon="$pulse->overallState()->icon()" class="h-3.5 w-3.5" />
+                                    {{ $pulse->overallState()->label() }}
                                 </span>
                             </div>
                             <p class="nx-card__meta">
@@ -114,6 +110,15 @@
                                 @if ($project->domain)
                                     · {{ $project->domain }}
                                 @endif
+                            </p>
+                            {{-- §8: the workspace must show migration activity, not just names. --}}
+                            <div class="nx-bar" role="progressbar" aria-valuenow="{{ $pulse->progressPercent() }}"
+                                 aria-valuemin="0" aria-valuemax="100"
+                                 aria-label="{{ $project->name }} migration progress">
+                                <div class="nx-bar__fill" style="width: {{ $pulse->progressPercent() }}%"></div>
+                            </div>
+                            <p class="nx-card__hint">
+                                {{ $pulse->progressPercent() }}% · {{ $pulse->currentStage()->label() }}
                             </p>
                         </a>
                     @endforeach

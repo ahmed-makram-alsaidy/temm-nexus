@@ -75,3 +75,16 @@ Route::prefix('setup')->middleware(['throttle:30,1'])->group(function () {
     Route::get('/step/{step}', [\App\Http\Controllers\Setup\SetupController::class, 'show'])->name('setup.show');
     Route::post('/step/{step}', [\App\Http\Controllers\Setup\SetupController::class, 'store'])->name('setup.store');
 });
+
+// ── 0.4.0 — redirects for admin paths that never existed ─────────────
+// The UX audit found two dead links in the wild: /admin/team-management and
+// /admin/project-switcher both returned 404 because the real routes are
+// /admin/team and /admin/switcher. They are redirected rather than left dead,
+// so an operator's bookmark or an old runbook link keeps working.
+//
+// Deliberately 302 (temporary): the canonical URLs are the ones above, and this
+// is a compatibility shim, not a rename.
+Route::middleware(['web'])->prefix('admin')->group(function () {
+    Route::redirect('team-management', '/admin/team', 302);
+    Route::redirect('project-switcher', '/admin/switcher', 302);
+});
