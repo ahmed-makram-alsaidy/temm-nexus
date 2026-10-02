@@ -13,6 +13,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # rc.2: manual dispatch so a release branch can run the blocking suite
+  # directly (added during a GitHub pull_request-trigger outage).
+  workflow_dispatch:
 
 jobs:
   owner-console-release-suite:
