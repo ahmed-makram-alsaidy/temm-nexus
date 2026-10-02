@@ -1,3 +1,21 @@
+## [0.4.0-rc.3] — 2026-10-02
+
+**PRE-RELEASE — release candidate.** One hotfix on top of the published
+v0.4.0-rc.2, cut under the release-correction policy after the VPS
+acceptance found a release-blocking defect (rc.2 stays frozen and
+published; this supersedes it).
+
+### Fixed
+
+- **Home and Project Overview returned HTTP 500 for any project whose CDC
+  checkpoint carried a last-event time.** `ProjectPulse::checkpoint()`
+  reads the checkpoint row through the query builder, so `last_event_at`
+  arrived as a raw string and `syncLagSeconds()` called `->diffInSeconds()`
+  on it — a fatal 500 on the platform's first screen (found live on the
+  operator test VPS during rc.2 acceptance; the local smokes had seeded
+  checkpoints without that column set). The timestamp is now normalized
+  before measuring, with a regression test.
+
 ## [0.4.0-rc.2] — 2026-10-02
 
 **PRE-RELEASE — release candidate.** Narrow polish/packaging release on top
