@@ -255,7 +255,7 @@ readable detail need ~1440px.
 | --- | --- |
 | Base | `ad693fc` (`v0.3.0`) |
 | Preceding | `dc17c8e` (Phase A/B/C gate) |
-| **Phase D commit** | `90cf1c6` — `feat(0.4.0): Phase D — redesigned Home, Workspace and Project Overview` |
+| **Phase D commit** | `cd9bd33` — `feat(0.4.0): Phase D — redesigned Home, Workspace and Project Overview` |
 | Branch | `develop/0.4.0` |
 | `v0.3.0` tag | still `ad693fc` — **not moved, not replaced, not retagged** |
 | New tags published | **none** |
