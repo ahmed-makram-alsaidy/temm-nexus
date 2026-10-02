@@ -362,7 +362,9 @@ final class ProjectPulse
             $out[] = [
                 'severity' => 'danger',
                 'title' => 'The last transfer run failed',
-                'detail' => (string) ($run->failure ? mb_substr($run->failure, 0, 200) : 'Review the run for the cause.'),
+                'detail' => self::failureText($run->failure) !== ''
+                    ? mb_substr(self::failureText($run->failure), 0, 200)
+                    : 'Review the run for the cause.',
                 'url' => $this->stageUrl(JourneyStage::MIGRATE),
             ];
         }
@@ -519,7 +521,33 @@ final class ProjectPulse
             return null;
         }
 
-        return max(0, (int) $checkpoint->last_event_at->diffInSeconds(now(), false));
+        // `checkpoint()` reads the row via the query builder, so
+        // `last_event_at` arrives as a raw STRING — calling ->diffInSeconds()
+        // on it fatals the Home/Overview screens for any project whose
+        // checkpoint carries a last-event time (found live on the operator
+        // VPS during rc.2 acceptance). Normalize before measuring.
+        $last = $checkpoint->last_event_at;
+
+        return max(0, (int) \Illuminate\Support\Carbon::parse($last)->diffInSeconds(now(), false));
+    }
+
+    /**
+     * A blocked run's `failure` payload is CAST TO AN ARRAY on the model —
+     * `mb_substr()` on it fatals the Home screen when a soak project has a
+     * blocked run with structured failure data (found live on the operator
+     * VPS during rc.2 acceptance). Reduce any shape to readable text.
+     */
+    private static function failureText(mixed $failure): string
+    {
+        if ($failure === null || $failure === '') {
+            return '';
+        }
+
+        if (is_array($failure)) {
+            return (string) json_encode($failure, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
+        return (string) $failure;
     }
 
     /**

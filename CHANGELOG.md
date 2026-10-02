@@ -1,3 +1,23 @@
+## [0.4.0-rc.4] — 2026-10-02
+
+**PRE-RELEASE — release candidate.** Two hotfixes on top of the published
+v0.4.0-rc.2, cut under the release-correction policy after the VPS
+acceptance found release-blocking defects (rc.2 stays frozen and published;
+this supersedes it).
+
+### Fixed
+
+- **Home and Project Overview returned HTTP 500 for any project whose CDC
+  checkpoint carried a last-event time.** `ProjectPulse::checkpoint()`
+  reads the checkpoint row through the query builder, so `last_event_at`
+  arrived as a raw string and `syncLagSeconds()` called `->diffInSeconds()`
+  on it (found live on the operator test VPS during rc.2 acceptance).
+- **The Home attention list fataled when a blocked transfer run carried a
+  structured failure payload** (`failure` is cast to an array on the model
+  and `mb_substr()` received it — same real-data class, same VPS acceptance
+  pass). Both shapes now reduce to readable text, with regressions for
+  each in `ProjectPulseCheckpointTest`.
+
 ## [0.4.0-rc.2] — 2026-10-02
 
 **PRE-RELEASE — release candidate.** Narrow polish/packaging release on top
@@ -24,6 +44,56 @@ new features.
 - **"1 project need attention"** now reads "1 project needs attention" /
   "2 projects need attention" — the verb agrees with the count.
 
+## [0.4.0-rc.1] — 2026-10-02
+
+**PRE-RELEASE — release candidate.** The 0.4.0 product transformation,
+Phases A–K. `v0.3.0` is untouched.
+
+### Added
+
+- **Workspace / client layer** — a real tenancy boundary between the
+  platform and its clients' projects, with workspace overview, members and
+  activity, and per-scope capability bundles (fail-closed, re-checked at
+  every call).
+- **Product information architecture** — redesigned Platform Home,
+  Workspace and Project Overview around the migration journey; Cutover
+  became its own readiness screen; infrastructure telemetry demoted to
+  progressive disclosure.
+- **Nexus AI** — scoped conversations (platform / workspace / project) with
+  17 typed read-only tools, provider-agnostic TOOL_CALL/TOOL_RESULTS
+  transport (OpenAI, Anthropic, Gemini, OpenRouter, OpenAI-compatible —
+  BYOK), bounded model-role routing, and a hash-only audit ledger.
+- **Inspect Mode** — select a registered UI component and attach it to the
+  conversation; server-side registry + capability checks; Explain /
+  Diagnose; no DOM ever leaves the browser.
+- **Structured UI preferences** — whitelisted, typed, per-user appearance
+  (visibility, density, expanded-by-default, position) behind an explicit
+  preview → apply step.
+- **Safe AI actions** — six narrow, permissioned mutations (pause/resume
+  Live Sync, create backup, re-run validation, retry one failed job,
+  cutover preflight) behind the full
+  PLAN → HUMAN APPROVAL → APPLY → VERIFY chain with execution-time
+  authorization re-checks, state-fingerprint staleness defense,
+  idempotency and an AI-action audit trail. Arbitrary shell and arbitrary
+  SQL remain registered nowhere.
+
+### Fixed
+
+- The Cutover screen no longer 500s for projects with a CDC stream
+  (gate details may be structured; found by the Phase K UX review).
+- MySQL 8.4 compatibility for binlog CDC (SHOW BINARY LOG STATUS with a
+  fallback for 8.0), found by the Phase K live smoke.
+- The blocking release suite is hermetic on phpredis-less hosts
+  (skip-clean; CI runs the suite with real Redis).
+
+### Notes
+
+- Firebase CDC remains DEFERRED. MariaDB remains PARTIAL.
+- MongoDB: change streams proven live on the artifact; inherited snapshot
+  edge cases with certain document shapes are documented in the release
+  report (byte-identical engine to v0.3.0, whose own proof stands).
+- Known limitations are stated in `docs/product/PHASE_IJK_FINAL_REPORT.md`.
+>>>>>>> origin/main
 ## [0.3.0] — 2026-10-01
 
 **First STABLE release.** Open-source self-hosted backend migration &
