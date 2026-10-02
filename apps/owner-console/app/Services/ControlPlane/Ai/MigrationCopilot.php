@@ -4,11 +4,10 @@ namespace App\Services\ControlPlane\Ai;
 
 use App\Models\ClientRepository;
 use App\Models\CopilotRun;
-use App\Models\MigrationAnalysis;
 use App\Models\Project;
 use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\ClientSetupService;
-use App\Services\ControlPlane\Repository\ClientDependencyScanner;
+use App\Services\ControlPlane\CpAccess;
 use Illuminate\Support\Str;
 
 /**
@@ -60,7 +59,7 @@ class MigrationCopilot
     {
         $spec = self::ACTIONS[$action] ?? null;
         abort_if($spec === null, 422, "Unknown Copilot action '{$action}'");
-        abort_if(! \App\Services\ControlPlane\CpAccess::allows(auth()->user(), 'copilot.run'), 403, 'Missing copilot.run permission.');
+        abort_if(! CpAccess::allows(auth()->user(), 'copilot.run'), 403, 'Missing copilot.run permission.');
 
         $mode = $spec['mode'];
         $resolved = $this->gateway->profile($project, $spec['profile']);

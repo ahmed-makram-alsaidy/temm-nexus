@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Projects\Pages;
 
+use App\Filament\Pages\WorkspaceDetail;
+use App\Filament\Pages\Workspaces;
 use App\Filament\Resources\Projects\Pages\Concerns\HasProjectContext;
 use App\Filament\Resources\Projects\ProjectResource;
 use App\Models\BackupRecord;
@@ -10,15 +12,15 @@ use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\ControlPlanePaths;
 use App\Services\ControlPlane\ProjectHealthService;
 use App\Services\ControlPlane\ProjectOverviewData;
+use App\Services\Product\JourneyStage;
+use App\Services\Product\ProjectPulse;
+use App\Services\Product\UiPreferenceService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
-use Filament\Schemas\Components\EmbeddedSchema;
-use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Html;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Redis;
@@ -40,154 +42,224 @@ class ViewProject extends Page
         $this->record = $this->resolveRecord($record);
     }
 
+    /**
+     * 0.4.0 Phase D (§9) — the Project Overview is rebuilt around the MIGRATION
+     * JOURNEY, not around infrastructure.
+     *
+     * v0.3.0's first screen led with database reachability, Pulse API request
+     * counts and queue depth, and showed no migration progress, no current
+     * stage, and no readiness at all. The mission's own example for this screen
+     * is: name, source/target, progress %, current stage, health, Live Sync,
+     * last backup, readiness, and ONE primary CTA.
+     *
+     * All of the old telemetry is preserved — it moves under "Advanced
+     * details", which is progressive disclosure, not deletion (§14).
+     */
     public function getTitle(): string|Htmlable
     {
-        return 'Overview';
+        return $this->project()->name;
     }
 
+    public function getSubheading(): ?string
+    {
+        $p = $this->project();
+        $parts = array_filter([
+            $p->workspace?->name,
+            strtoupper((string) ($p->environment ?? 'local')),
+            $p->api_domain ?: $p->slug,
+        ]);
+
+        return implode(' · ', $parts) ?: null;
+    }
+
+    /**
+     * Breadcrumbs follow the three-scope model: Platform -> Workspace -> Project.
+     *
+     * NOTE ON THE SHAPE: Laravel/Filament expect `[url => label]`, NOT
+     * `[label => url]`. Getting this backwards renders the URL as the visible
+     * text and puts the label in the href, which is exactly what an earlier
+     * revision of this page did.
+     */
     public function getBreadcrumbs(): array
     {
-        return ['Overview'];
+        $crumbs = [];
+
+        $workspace = $this->project()->workspace;
+        if ($workspace) {
+            $crumbs[Workspaces::getUrl()] = 'Clients & Workspaces';
+            $crumbs[WorkspaceDetail::urlFor($workspace)] = $workspace->name;
+        } else {
+            // Ungrouped legacy project: no workspace crumb to show.
+            $crumbs[ProjectResource::getUrl('index')] = 'Projects';
+        }
+
+        $crumbs[static::getUrl(['record' => $this->project()])] = 'Overview';
+
+        return $crumbs;
     }
 
     public function content(Schema $schema): Schema
     {
         return $schema->extraAttributes(['class' => 'cp-reference cp-reference--overview'])->components([
             $this->subnavSection('overview'),
-            EmbeddedSchema::make('infolist'),
+            Html::make(fn (): string => view('filament.projects.overview', $this->overviewViewData())->render()),
         ]);
     }
 
     /**
-     * Operational home: context strip, health grid, usage metrics,
-     * activity + needs-attention. Every source degrades to "—",
-     * never to an exception.
+     * Everything the overview view needs, resolved in PHP.
+     *
+     * The view is rendered through `view()`, so the page's protected helpers are
+     * NOT in scope inside it. Passing an explicit array keeps the template free
+     * of logic and makes a missing value a visible null rather than an
+     * "Undefined variable" 500 at render time.
+     *
+     * @return array<string, mixed>
      */
-    public function infolist(Schema $schema): Schema
+    protected function overviewViewData(): array
     {
-        $p = $this->project();
-        $data = ProjectOverviewData::for($p);
+        $pulse = $this->pulse();
+        $project = $this->project();
+
+        return [
+            'project' => $project,
+            'pulse' => $pulse,
+            'journey' => $pulse->journey(),
+            'current' => $pulse->currentStage(),
+            'progress' => $pulse->progressPercent(),
+            'overall' => $pulse->overallState(),
+            'sync' => $pulse->liveSync(),
+            'backup' => $pulse->backup(),
+            'blockers' => $pulse->blockers(),
+            'warnings' => $pulse->warnings(),
+            'primaryAction' => $this->primaryAction(),
+            'legacy' => $this->legacyTelemetry(),
+            'advancedUrl' => $this->projectAdvancedUrl(),
+            // Phase I — this user's appearance preferences for the overview
+            // components, resolved at project scope (falling back to their
+            // global preference).
+            'ui' => UiPreferenceService::for(auth()->user())->effectiveForComponents(
+                [
+                    'project.overview.progress',
+                    'project.overview.facts',
+                    'project.overview.journey',
+                    'project.overview.attention',
+                    'project.overview.activity',
+                    'project.overview.advanced',
+                ],
+                $project->workspace?->getKey(),
+                $project->getKey(),
+            ),
+        ];
+    }
+
+    /** Deep link to the existing technical surface, so depth stays one click away. */
+    protected function projectAdvancedUrl(): ?string
+    {
+        try {
+            return ProjectResource::hasPage('db-advanced')
+                ? static::projectUrl($this->project(), 'db-advanced')
+                : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** Cached per request so the journey is not recomputed for every block. */
+    private ?ProjectPulse $pulseCache = null;
+
+    protected function pulse(): ProjectPulse
+    {
+        return $this->pulseCache ??= ProjectPulse::for($this->project());
+    }
+
+    /**
+     * The v0.3.0 telemetry, gathered for the Advanced disclosure.
+     *
+     * Kept deliberately tolerant: every figure degrades to null/'—' rather than
+     * throwing, because an optional subsystem being absent must not take down
+     * the project's home screen.
+     *
+     * @return array<string, mixed>
+     */
+    protected function legacyTelemetry(): array
+    {
+        try {
+            $data = ProjectOverviewData::for($this->project());
+        } catch (\Throwable) {
+            return ['available' => false];
+        }
+
         $health = $data['health'] + ['ok' => null, 'database' => [], 'redis' => [], 'application' => []];
         $m = $data['metrics'];
         $pulse = is_array($m['pulse'] ?? null) ? $m['pulse'] : [];
-        $requests = array_sum(array_map('intval', $pulse));
-        $errors = (int) ($pulse['exception'] ?? 0) + (int) ($pulse['slow_request'] ?? 0);
-        /** @var BackupRecord|null $lastBackup */
-        $lastBackup = $m['last_backup'];
-        $B = ProjectOverviewData::class;
-
         $db = is_array($health['database'] ?? null) ? $health['database'] : [];
         $redis = is_array($health['redis'] ?? null) ? $health['redis'] : [];
-        $failed = is_numeric($m['queue_failed'] ?? null) ? (int) $m['queue_failed'] : null;
-        $pending = is_numeric($redis['pending_jobs'] ?? null) ? (int) $redis['pending_jobs'] : null;
+        /** @var BackupRecord|null $lastBackup */
+        $lastBackup = $m['last_backup'] ?? null;
 
-        return $schema
-            ->record($p)
-            ->components([
-                Html::make($this->contextHtml($p)),
-                Html::make('<h3 class="cp-ov__h">Health</h3><div class="cp-ov__grid">'
-                    .$this->cell('Database', ! empty($db['reachable']) ? 'Healthy' : (($health['ok'] === null && empty($db)) ? '—' : 'Unreachable'), ! empty($db['reachable']) ? ((int) ($db['connections'] ?? 0)).(((int) ($db['connections'] ?? 0)) === 1 ? ' conn' : ' conns') : '', empty($db['reachable']) && ! ($health['ok'] === null && empty($db)) ? 'is-danger' : 'is-success')
-                    .$this->cell('API', $requests.' req', $errors > 0 ? $errors.' errors' : 'Pulse snapshot', $errors > 0 ? 'is-warning' : '')
-                    .$this->cell('Storage', $B::bytes(is_numeric($m['storage'] ?? null) ? (int) $m['storage'] : null), '', '')
-                    .$this->cell('Queues', $pending === null && $failed === null ? '—' : trim(($pending ?? 0).' pending · '.($failed ?? 0).' failed'), '', ($failed ?? 0) > 0 ? 'is-danger' : '')
-                    .'</div>'),
-                Html::make('<h3 class="cp-ov__h">Usage Metrics</h3><div class="cp-ov__grid">'
-                    .$this->cell('Users', isset($m['app_users']) && is_numeric($m['app_users']) ? (string) $m['app_users'] : '—', 'app database', '')
-                    .$this->cell('DB size', $B::bytes(is_numeric($m['db_size'] ?? null) ? (int) $m['db_size'] : null), '', '')
-                    .$this->cell('Functions', (string) (int) ($m['functions'] ?? 0), 'deployed', '')
-                    .$this->cell('Backup', $lastBackup ? ucfirst((string) $lastBackup->status) : '—', $lastBackup && $lastBackup->finished_at ? $lastBackup->finished_at->format('M j, H:i') : 'no run yet', $lastBackup && $lastBackup->status === 'ok' ? 'is-success' : 'is-warning')
-                    .'</div>'),
-                Html::make('<h3 class="cp-ov__h">Quick actions</h3>'.$this->quickActionsHtml($p)),
-                Grid::make(2)->schema([
-                    Section::make('Recent activity')
-                        ->description('No events does not imply a healthy system.')
-                        ->extraAttributes(['class' => 'cp-ov__panel'])
-                        ->schema([
-                            Html::make($this->activityHtml($data['activity'])),
-                        ])->compact(),
-                    Section::make('Needs attention')
-                        ->extraAttributes(['class' => 'cp-ov__panel'])
-                        ->schema([
-                            Html::make($this->attentionHtml($health, $lastBackup, $failed, $errors)),
-                        ])->compact(),
-                ]),
-            ]);
-    }
-
-    protected function cell(string $label, string $value, string $sub, string $tone): string
-    {
-        return '<div class="cp-ov__cell"><span class="cp-ov__label">'.e($label).'</span>'
-            .'<span class="cp-ov__value '.e($tone).'">'.e($value).'</span>'
-            .($sub !== '' ? '<span class="cp-ov__sub">'.e($sub).'</span>' : '').'</div>';
-    }
-
-    protected function contextHtml(Project $p): string
-    {
-        $env = strtoupper((string) ($p->environment ?? 'local'));
-        $health = ucfirst((string) ($p->health_status ?? 'unknown'));
-        $domain = $p->api_domain ?: $p->slug;
-
-        return '<div class="cp-ov__context"><span class="cp-badge">'.$env.'</span>'
-            .'<span class="cp-badge '.($p->health_status === 'healthy' ? 'is-success' : ($p->health_status === 'unhealthy' ? 'is-danger' : 'is-warning')).'">Health '.$health.'</span>'
-            .'<code class="cp-ov__domain">'.e($domain).'</code></div>';
-    }
-
-    /** @return string HTML pill links; only to registered pages (no dead links). */
-    protected function quickActionsHtml(Project $p): string
-    {
-        $actions = [
-            'sql' => 'SQL Editor',
-            'database' => 'Table Editor',
-            'logs' => 'Logs',
+        return [
+            'available' => true,
+            'health_ok' => $health['ok'],
+            'database_reachable' => $db['reachable'] ?? null,
+            'database_connections' => $db['connections'] ?? null,
+            'pulse_requests' => array_sum(array_map('intval', $pulse)),
+            'pulse_errors' => (int) ($pulse['exception'] ?? 0) + (int) ($pulse['slow_request'] ?? 0),
+            'storage_bytes' => is_numeric($m['storage'] ?? null) ? (int) $m['storage'] : null,
+            'queue_pending' => is_numeric($redis['pending_jobs'] ?? null) ? (int) $redis['pending_jobs'] : null,
+            'queue_failed' => is_numeric($m['queue_failed'] ?? null) ? (int) $m['queue_failed'] : null,
+            'app_users' => is_numeric($m['app_users'] ?? null) ? (int) $m['app_users'] : null,
+            'db_size' => is_numeric($m['db_size'] ?? null) ? (int) $m['db_size'] : null,
+            'functions' => (int) ($m['functions'] ?? 0),
+            'last_backup_status' => $lastBackup?->status,
+            'last_backup_at' => $lastBackup?->finished_at,
+            'bytes' => fn (?int $b): string => ProjectOverviewData::bytes($b),
+            'activity' => $data['activity'] ?? [],
         ];
-        $html = '<div class="cp-qa cp-ov__actions">';
-        foreach ($actions as $page => $label) {
-            if (! ProjectResource::hasPage($page)) {
-                continue;
-            }
-            $html .= '<a class="cp-qa__btn" href="'.e(static::projectUrl($p, $page)).'">'.e($label).' →</a>';
-        }
-
-        return $html.'</div>';
     }
 
-    /** @param list<array{time:string,text:string}> $activity */
-    protected function activityHtml(array $activity): string
+    /**
+     * The single primary action (§9).
+     *
+     * A dashboard with no primary CTA was a baseline finding on both Home and
+     * this page. The CTA follows the journey: whatever the NEXT unfinished
+     * stage is, that is what the button does.
+     *
+     * @return array{label: string, url: string, description: string}
+     */
+    public function primaryAction(): array
     {
-        if ($activity === []) {
-            return '<div class="cp-ov__notes"><div class="cp-ov__note"><span>No activity recorded yet.</span></div></div>';
-        }
-        $rows = '';
-        foreach (array_slice($activity, 0, 8) as $a) {
-            $rows .= '<div class="cp-ov__note"><span class="cp-ov__time">'.e((string) ($a['time'] ?? '—')).'</span>'
-                .'<span>'.e((string) ($a['text'] ?? '')).'</span></div>';
+        $project = $this->project();
+        $stage = $this->pulse()->currentStage();
+
+        $page = match ($stage) {
+            JourneyStage::CONNECT => 'connect',
+            JourneyStage::ANALYZE, JourneyStage::PLAN, JourneyStage::MIGRATE => 'migration-center',
+            JourneyStage::SYNC => 'monitoring',
+            JourneyStage::VALIDATE => 'readiness',
+            // 0.4.0 Phase E — the journey's final step is its own screen.
+            JourneyStage::CUTOVER => 'cutover',
+        };
+
+        if (! ProjectResource::hasPage($page)) {
+            $page = 'overview';
         }
 
-        return '<div class="cp-ov__notes">'.$rows.'</div>';
-    }
+        $label = match ($stage) {
+            JourneyStage::CONNECT => 'Connect a source',
+            JourneyStage::ANALYZE => 'Analyze the source',
+            JourneyStage::PLAN => 'Review the plan',
+            JourneyStage::MIGRATE => 'Continue migration',
+            JourneyStage::SYNC => 'Check Live Sync',
+            JourneyStage::VALIDATE => 'Run validation',
+            JourneyStage::CUTOVER => 'Review cutover',
+        };
 
-    protected function attentionHtml(array $health, mixed $lastBackup, ?int $failed, int $errors): string
-    {
-        $rows = '';
-        if (($health['ok'] ?? null) === null && empty($health['database'])) {
-            $rows .= '<div class="cp-ov__note"><span class="cp-dot is-warning"></span><span>Health has not run — no conclusive result recorded.</span></div>';
-        } elseif (($health['ok'] ?? null) === false) {
-            $rows .= '<div class="cp-ov__note"><span class="cp-dot is-danger"></span><span>Last health check failed — open Monitoring for detail.</span></div>';
-        }
-        if (! $lastBackup || ($lastBackup->status ?? null) !== 'ok') {
-            $rows .= '<div class="cp-ov__note"><span class="cp-dot is-warning"></span><span>Backup pending — last run: '.e($lastBackup ? (string) ($lastBackup->status ?? 'unknown') : 'never').'.</span></div>';
-        }
-        if (($failed ?? 0) > 0) {
-            $rows .= '<div class="cp-ov__note"><span class="cp-dot is-danger"></span><span>'.$failed.' failed job(s) need review.</span></div>';
-        }
-        if ($errors > 0) {
-            $rows .= '<div class="cp-ov__note"><span class="cp-dot is-warning"></span><span>'.$errors.' API error(s) in the Pulse snapshot.</span></div>';
-        }
-        if ($rows === '') {
-            $rows = '<div class="cp-ov__note"><span class="cp-dot is-healthy"></span><span>All clear.</span></div>';
-        }
-
-        return '<div class="cp-ov__notes">'.$rows.'</div>';
+        return [
+            'label' => $label,
+            'url' => static::projectUrl($project, $page),
+            'description' => $stage->description(),
+        ];
     }
 
     protected function getHeaderActions(): array

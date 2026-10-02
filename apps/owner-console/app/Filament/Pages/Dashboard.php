@@ -2,197 +2,166 @@
 
 namespace App\Filament\Pages;
 
-use App\Filament\Resources\Projects\ProjectResource;
-use App\Models\AdminAuditEntry;
-use App\Models\BackupRecord;
-use App\Models\Project;
+use App\Filament\Support\PlatformAccess;
+use App\Services\Access\Capability;
+use App\Services\Product\JourneyState;
+use App\Services\Product\PlatformPulse;
+use App\Services\Product\UiPreferenceService;
 use Filament\Pages\Dashboard as BaseDashboard;
-use Filament\Schemas\Components\Html;
-use Filament\Schemas\Schema;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Support\Htmlable;
 
+/**
+ * 0.4.0 Phase D — PLATFORM HOME (§7).
+ *
+ * The first screen answers, in this order:
+ *   1. What requires attention?
+ *   2. What is running?
+ *   3. What should I do next?
+ *
+ * v0.3.0 led with infrastructure ("DB STORAGE", "LAST BACKUP") above anything
+ * user-relevant. Here infrastructure is demoted to the last section and
+ * summarised in product language.
+ *
+ * Every figure comes from `PlatformPulse`, which is scoped to
+ * `Access::accessibleProjects()` — so a summary can never count a project the
+ * viewer cannot open.
+ */
 class Dashboard extends BaseDashboard
 {
     protected static bool $isDiscovered = false;
 
-    public function content(Schema $schema): Schema
+    protected string $view = 'filament.pages.home';
+
+    private ?PlatformPulse $pulse = null;
+
+    /**
+     * The greeting IS the page heading, so Filament must not render a second
+     * one. v0.3.0 stacked "Dashboard" over "Good evening"; one heading is
+     * enough and the greeting carries more information.
+     */
+    public function getHeading(): string|Htmlable|null
     {
-        return $schema->extraAttributes(['class' => 'cp-dash'])
-            ->components([Html::make($this->cockpitHtml())]);
+        return '';
     }
 
-    protected function cockpitHtml(): string
+    public function getTitle(): string
     {
-        $projects = Project::query()->orderBy('name')->get();
-        $healthy = $projects->where('health_status', 'healthy')->count();
-        $unhealthy = $projects->where('health_status', 'unhealthy')->count();
-        $unknown = $projects->count() - $healthy - $unhealthy;
+        return 'Home';
+    }
 
+    public function getSubheading(): ?string
+    {
+        return null;
+    }
+
+    public function pulse(): PlatformPulse
+    {
+        return $this->pulse ??= PlatformPulse::for(PlatformAccess::current()->access());
+    }
+
+    /**
+     * Phase I — this user's effective appearance preferences for the Home
+     * components, in one query. The view applies visibility and density from
+     * this; the Inspect panel writes them.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function uiPreferences(): array
+    {
+        return UiPreferenceService::for(auth()->user())->effectiveForComponents([
+            'home.hero',
+            'home.summary',
+            'home.attention',
+            'home.recent_projects',
+            'home.platform_health',
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+
+    public function greeting(): string
+    {
         $hour = (int) now()->format('G');
-        $greeting = $hour < 5 ? 'Good night' : ($hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening'));
 
-        $h = '<div class="cp-dash__greet"><h2>'.$greeting.'</h2>'
-            .'<p>'.$projects->count().' projects · '.$healthy.' healthy · '.($unhealthy + $unknown).' need attention · '.e(now()->format('D, M j')).'</p></div>';
-
-        $systemOk = $unhealthy === 0;
-        $h .= '<div class="cp-dash__stats">'
-            .$this->stat('Projects', (string) $projects->count(), $healthy.' healthy · '.$unhealthy.' unhealthy · '.$unknown.' unknown', $unhealthy > 0 ? 'is-danger' : 'is-success')
-            .$this->stat('System', $systemOk ? 'Healthy' : 'Attention', $this->hostLine(), $systemOk ? 'is-success' : 'is-warning')
-            .$this->stat('DB storage', $this->dbBytes(), 'project databases', '')
-            .$this->stat('Last backup', $this->backupLine(), $this->backupSub(), $this->backupOk() ? 'is-success' : 'is-warning')
-            .'</div>';
-
-        $h .= '<div class="cp-dash__cols"><div class="cp-dash__col">'
-            .'<h3 class="cp-dash__h">Recent projects</h3><div class="cp-dash__rows">';
-        if ($projects->isEmpty()) {
-            $h .= '<div class="cp-dash__row"><span>No projects yet. Create your first backend project or import an existing one.</span></div>'
-                .'<div class="cp-dash__row cp-dash__new" style="display:flex;gap:14px;">';
-            if (ProjectResource::canCreate()) {
-                $h .= '<a class="cp-btn" href="'.e(ProjectResource::getUrl('create')).'">Create new project</a>'
-                    .'<a class="cp-btn" href="'.e(\App\Filament\Pages\OnboardingWizard::getUrl(['start' => 'import'])).'">Import existing project</a>';
-            }
-            $h .= '</div>';
-        }
-        foreach ($projects as $p) {
-            $dot = $p->health_status === 'healthy' ? 'is-healthy' : ($p->health_status === 'unhealthy' ? 'is-danger' : 'is-unknown');
-            $h .= '<a class="cp-dash__row" href="'.e(ProjectResource::getUrl('overview', ['record' => $p])).'">'
-                .'<span class="cp-dot '.$dot.'"></span>'
-                .'<span class="cp-dash__name">'.e($p->name).'</span>'
-                .'<span class="cp-badge">'.e(strtoupper((string) ($p->environment ?? 'local'))).'</span>'
-                .'<span class="cp-dash__health">'.e(ucfirst((string) ($p->health_status ?? 'unknown'))).'</span></a>';
-        }
-        if (ProjectResource::canCreate()) {
-            $h .= '<a class="cp-dash__row cp-dash__new" href="'.e(ProjectResource::getUrl('create')).'">+ New project</a>';
-        }
-        $h .= '</div></div><div class="cp-dash__col">'
-            .'<h3 class="cp-dash__h">Needs attention</h3><div class="cp-dash__rows">'.$this->attentionRows($projects, $unhealthy, $unknown).'</div>'
-            .'<h3 class="cp-dash__h">Recent activity</h3><div class="cp-dash__rows">'.$this->activityRows().'</div>'
-            .'</div></div>';
-
-        return $h;
+        return match (true) {
+            $hour < 5 => 'Good night',
+            $hour < 12 => 'Good morning',
+            $hour < 18 => 'Good afternoon',
+            default => 'Good evening',
+        };
     }
 
-    protected function stat(string $label, string $value, string $sub, string $tone): string
+    public function userName(): string
     {
-        return '<div class="cp-dash__stat"><span class="cp-dash__label">'.e($label).'</span>'
-            .'<span class="cp-dash__value '.e($tone).'">'.e($value).'</span>'
-            .'<span class="cp-dash__sub">'.e($sub).'</span></div>';
+        return (string) (auth()->user()?->name ?? 'there');
     }
 
-    protected function hostLine(): string
+    /**
+     * One sentence describing the platform's state.
+     *
+     * Deliberately does not invent a status: it reports the same counts the
+     * sections below show, so the headline can never contradict the detail.
+     */
+    public function stateSentence(): string
     {
-        try {
-            $load = sys_getloadavg();
-            $cpu = $load ? round($load[0], 2) : '?';
-            $info = (string) @file_get_contents('/proc/meminfo');
-            preg_match('/MemTotal:\s+(\d+)/', $info, $t);
-            preg_match('/MemAvailable:\s+(\d+)/', $info, $a);
-            $mem = isset($t[1], $a[1]) && (int) $t[1] > 0 ? round(100 * (1 - ((int) $a[1] / (int) $t[1]))).'% RAM' : '? RAM';
-            $free = @disk_free_space('/var/www/html');
-            $total = @disk_total_space('/var/www/html');
-            $disk = $free && $total ? round(100 * (1 - $free / $total)).'% disk' : '? disk';
+        $pulse = $this->pulse();
 
-            return "CPU {$cpu} · {$mem} · {$disk} (container)";
-        } catch (\Throwable) {
-            return 'container view unavailable';
+        if (! $pulse->hasAnyProject()) {
+            return 'No projects yet — create one to start your first migration.';
         }
+
+        $attention = $pulse->projectsNeedingAttention()->count();
+        $running = $pulse->activeMigrationCount();
+        $ready = $pulse->readyForCutoverCount();
+
+        $parts = [];
+        if ($attention > 0) {
+            $parts[] = $attention.' project'.($attention === 1 ? '' : 's').' need attention';
+        }
+        if ($running > 0) {
+            $parts[] = $running.' migration'.($running === 1 ? '' : 's').' running';
+        }
+        if ($ready > 0) {
+            $parts[] = $ready.' ready for cutover';
+        }
+
+        if ($parts === []) {
+            return 'All clear — nothing needs you right now.';
+        }
+
+        return ucfirst(implode(' · ', $parts)).'.';
     }
 
-    protected function dbBytes(): string
+    public function canCreateProject(): bool
     {
-        try {
-            $row = DB::connection('pgsql-monitor')->selectOne(
-                'SELECT coalesce(sum(pg_database_size(datname)),0) AS bytes FROM pg_database WHERE datistemplate = false'
-            );
-
-            return $this->bytes((int) ($row->bytes ?? 0));
-        } catch (\Throwable) {
-            return '—';
-        }
+        return PlatformAccess::current()->canCreateProject();
     }
 
-    protected function lastBackup(): mixed
+    public function canViewWorkspaces(): bool
     {
-        try {
-            return BackupRecord::latest('finished_at')->first();
-        } catch (\Throwable) {
-            return null;
-        }
+        return PlatformAccess::current()->access()->accessibleWorkspaces()->isNotEmpty();
     }
 
-    protected function backupLine(): string
+    public function canUseAi(): bool
     {
-        $b = $this->lastBackup();
-
-        return $b ? ($b->finished_at?->diffForHumans() ?? '—') : 'none';
+        return PlatformAccess::current()->allowsPlatform(Capability::AI_USE);
     }
 
-    protected function backupSub(): string
+    /** Tone class for a summary card. */
+    public function toneClass(string $tone): string
     {
-        $b = $this->lastBackup();
-
-        return $b ? "{$b->db_name} · {$b->status}" : 'no runs yet';
+        return match ($tone) {
+            'success' => 'nx-stat-card__value--success',
+            'warning' => 'nx-stat-card__value--warning',
+            'danger' => 'nx-stat-card__value--danger',
+            'info' => 'nx-stat-card__value--info',
+            default => '',
+        };
     }
 
-    protected function backupOk(): bool
+    /** Status modifier for a journey state. */
+    public function statusClass(JourneyState $state): string
     {
-        $b = $this->lastBackup();
-
-        return (bool) ($b && $b->status === 'ok');
-    }
-
-    protected function attentionRows(mixed $projects, int $unhealthy, int $unknown): string
-    {
-        $rows = '';
-        foreach ($projects as $p) {
-            if ($p->health_status === 'unhealthy') {
-                $rows .= '<a class="cp-dash__row" href="'.e(ProjectResource::getUrl('overview', ['record' => $p])).'">'
-                    .'<span class="cp-dot is-danger"></span><span>'.e($p->name).' is unhealthy — run a health check.</span></a>';
-            }
-        }
-        if ($unknown > 0) {
-            $rows .= '<div class="cp-dash__row"><span class="cp-dot is-unknown"></span><span>'.$unknown.' project(s) have no conclusive health result.</span></div>';
-        }
-        $b = $this->lastBackup();
-        if (! $b || $b->status !== 'ok') {
-            $rows .= '<div class="cp-dash__row"><span class="cp-dot is-warning"></span><span>Backups: '.e($b ? "{$b->status} · {$b->db_name}" : 'no runs yet').'.</span></div>';
-        }
-        if ($unhealthy === 0 && $b && $b->status === 'ok') {
-            $rows .= '<div class="cp-dash__row"><span class="cp-dot is-healthy"></span><span>All clear.</span></div>';
-        }
-
-        return $rows;
-    }
-
-    protected function activityRows(): string
-    {
-        try {
-            $entries = AdminAuditEntry::query()->orderByDesc('id')->limit(8)->get();
-        } catch (\Throwable) {
-            return '<div class="cp-dash__row"><span>Activity unavailable.</span></div>';
-        }
-        if ($entries->isEmpty()) {
-            return '<div class="cp-dash__row"><span>No activity recorded yet.</span></div>';
-        }
-        $names = Project::query()->whereIn('id', $entries->pluck('project_id')->filter()->unique())->pluck('name', 'id');
-        $rows = '';
-        foreach ($entries as $e) {
-            $rows .= '<div class="cp-dash__row"><span class="cp-dash__time">'.e($e->created_at?->format('M j, H:i') ?? '—').'</span>'
-                .'<span>'.e($e->action).($e->project_id && isset($names[$e->project_id]) ? ' · '.e($names[$e->project_id]) : '').'</span></div>';
-        }
-
-        return $rows;
-    }
-
-    protected function bytes(int $b): string
-    {
-        foreach (['B', 'KB', 'MB', 'GB', 'TB'] as $u) {
-            if ($b < 1024) {
-                return round($b, 1).' '.$u;
-            }
-            $b /= 1024;
-        }
-
-        return round($b, 1).' PB';
+        return 'nx-status--'.$state->tone();
     }
 }

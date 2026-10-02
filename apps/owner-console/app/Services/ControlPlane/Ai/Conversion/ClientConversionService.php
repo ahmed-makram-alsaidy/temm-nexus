@@ -3,12 +3,12 @@
 namespace App\Services\ControlPlane\Ai\Conversion;
 
 use App\Models\AiPatchRun;
+use App\Models\ClientCallsite;
 use App\Models\ClientRepository;
 use App\Models\Project;
+use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\Ai\AiGateway;
 use App\Services\ControlPlane\Ai\PatchWorkspace;
-use App\Services\ControlPlane\AdminAudit;
-use App\Models\ClientCallsite;
 
 /**
  * Phase 33A — the client-code conversion workflow.
@@ -111,7 +111,7 @@ class ClientConversionService
     public function metrics(ClientRepository $repo, ?AiPatchRun $patchRun, array $generation): array
     {
         // 33G — remaining legacy callsites = still-DISCOVERED scanner rows.
-        $remaining = \App\Models\ClientCallsite::query()
+        $remaining = ClientCallsite::query()
             ->where('client_repository_id', $repo->id)
             ->where('status', 'DISCOVERED')
             ->count();

@@ -48,6 +48,7 @@ class ConversionPlanBuilder
                 // Categories with no deterministic mapping are recorded, not
                 // silently dropped (33G manual-review surface).
                 $skipped[] = ['file' => $callsite->file, 'line' => $callsite->line, 'category' => $callsite->category];
+
                 continue;
             }
             $items[] = [

@@ -1,12 +1,19 @@
 <?php
 
+use App\Filament\Resources\Projects\ProjectResource;
 use App\Http\Controllers\FunctionInvokeController;
+use App\Http\Controllers\NodeAgentController;
 use App\Http\Controllers\ProjectCsvExportController;
+use App\Http\Controllers\ProjectErdController;
+use App\Http\Controllers\ProjectFileDownloadController;
 use App\Http\Controllers\ProjectOpenApiController;
+use App\Http\Controllers\ProjectSqlController;
+use App\Http\Controllers\Setup\SetupController;
 use App\Http\Controllers\SignedDownloadController;
 use App\Http\Controllers\WebhookFixtureController;
-use App\Http\Controllers\ProjectSqlController;
-use App\Http\Controllers\ProjectFileDownloadController;
+use App\Models\Project;
+use App\Models\ProjectEnvironment;
+use App\Services\ControlPlane\EnvironmentContext;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -42,14 +49,14 @@ Route::prefix('/cp-sql/{project}')->middleware(['web', 'auth'])->group(function 
 });
 // Phase 21B node agent channel (token-authenticated heartbeat push only).
 Route::prefix('/cp-nodes')->middleware(['web', 'throttle:120,1'])->group(function () {
-    Route::post('/heartbeat', [\App\Http\Controllers\NodeAgentController::class, 'heartbeat'])->name('control-plane.node-heartbeat');
-    Route::get('/config', [\App\Http\Controllers\NodeAgentController::class, 'agentConfig'])->name('control-plane.node-config');
+    Route::post('/heartbeat', [NodeAgentController::class, 'heartbeat'])->name('control-plane.node-heartbeat');
+    Route::get('/config', [NodeAgentController::class, 'agentConfig'])->name('control-plane.node-config');
 });
 // Phase 21A ERD graph JSON backend (read-only metadata, layout persist).
 Route::prefix('/cp-erd/{project}')->middleware(['web', 'auth'])->group(function () {
-    Route::get('/', [\App\Http\Controllers\ProjectErdController::class, 'show'])->name('control-plane.erd');
-    Route::get('/schemas', [\App\Http\Controllers\ProjectErdController::class, 'schemas'])->name('control-plane.erd-schemas');
-    Route::put('/layout', [\App\Http\Controllers\ProjectErdController::class, 'saveLayout'])->name('control-plane.erd-layout');
+    Route::get('/', [ProjectErdController::class, 'show'])->name('control-plane.erd');
+    Route::get('/schemas', [ProjectErdController::class, 'schemas'])->name('control-plane.erd-schemas');
+    Route::put('/layout', [ProjectErdController::class, 'saveLayout'])->name('control-plane.erd-layout');
 });
 // Phase 20H Server Functions invocation surface (per-function auth, logged).
 Route::match(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], '/f/{projectSlug}/{functionSlug}', FunctionInvokeController::class)
@@ -60,10 +67,10 @@ Route::get('/project-files/{project}/{bucket}/{key}', ProjectFileDownloadControl
     ->middleware(['web', 'auth'])
     ->name('control-plane.download');
 // Phase 24C environment switcher: updates session-scoped environment context.
-Route::get('/cp-environments/{project}/switch/{environment}', function (\App\Models\Project $project, \App\Models\ProjectEnvironment $environment) {
-    \App\Services\ControlPlane\EnvironmentContext::switch($project, $environment->id);
+Route::get('/cp-environments/{project}/switch/{environment}', function (Project $project, ProjectEnvironment $environment) {
+    EnvironmentContext::switch($project, $environment->id);
 
-    return redirect()->to(request()->header('referer') ?: \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $project]));
+    return redirect()->to(request()->header('referer') ?: ProjectResource::getUrl('overview', ['record' => $project]));
 })->middleware(['web', 'auth'])->name('control-plane.environment-switch');
 
 // ── Phase 26D — first-run setup wizard ──────────────────────────────
@@ -71,7 +78,25 @@ Route::get('/cp-environments/{project}/switch/{environment}', function (\App\Mod
 // gate); locked once bootstrap completes. Rate-limited; server-side checks at
 // every step; admin is created exactly once (SetupState::complete).
 Route::prefix('setup')->middleware(['throttle:30,1'])->group(function () {
-    Route::get('/', [\App\Http\Controllers\Setup\SetupController::class, 'index'])->name('setup.index');
-    Route::get('/step/{step}', [\App\Http\Controllers\Setup\SetupController::class, 'show'])->name('setup.show');
-    Route::post('/step/{step}', [\App\Http\Controllers\Setup\SetupController::class, 'store'])->name('setup.store');
+    Route::get('/', [SetupController::class, 'index'])->name('setup.index');
+    Route::get('/step/{step}', [SetupController::class, 'show'])->name('setup.show');
+    Route::post('/step/{step}', [SetupController::class, 'store'])->name('setup.store');
+});
+
+// ── 0.4.0 — redirects for admin paths that never existed ─────────────
+// The UX audit found two dead links in the wild: /admin/team-management and
+// /admin/project-switcher both returned 404 because the real routes are
+// /admin/team and /admin/switcher. They are redirected rather than left dead,
+// so an operator's bookmark or an old runbook link keeps working.
+//
+// Deliberately 302 (temporary): the canonical URLs are the ones above, and this
+// is a compatibility shim, not a rename.
+Route::middleware(['web'])->prefix('admin')->group(function () {
+    Route::redirect('team-management', '/admin/team', 302);
+    Route::redirect('project-switcher', '/admin/switcher', 302);
+
+    // 0.4.0 Phase F: the catalogue moved from the internal "connector-catalog"
+    // path to the product path "connectors". The old URL keeps working so an
+    // operator's bookmark does not 404.
+    Route::redirect('connector-catalog', '/admin/connectors', 302);
 });

@@ -22,6 +22,7 @@ class DiffParser
             if (preg_match('#^--- (.*?)(?:\t.*)?$#', $line, $m)) {
                 $old = trim($m[1]);
                 $pendingOldPath = $old === '/dev/null' ? null : preg_replace('#^a/#', '', $old);
+
                 continue;
             }
             if (preg_match('#^\+\+\+ (.*?)(?:\t.*)?$#', $line, $m)) {
@@ -40,6 +41,7 @@ class DiffParser
                     'diff' => $line."\n",
                     'reason' => 'AI client-code conversion',
                 ];
+
                 continue;
             }
             if ($current !== null) {

@@ -4,6 +4,9 @@ namespace App\Services\ControlPlane;
 
 use App\Models\ControlPlaneRole;
 use App\Models\User;
+use App\Services\Access\Access;
+use App\Services\Access\Capability;
+use App\Services\Access\Roles;
 
 /**
  * Phase 20V team RBAC. Permission vocabulary for control-plane surfaces.
@@ -90,8 +93,53 @@ class CpAccess
         return self::defaultRoles()[$user->cp_role] ?? [];
     }
 
+    /**
+     * 0.4.0 — bridge to the capability model.
+     *
+     * WHY THIS EXISTS
+     * 0.4.0 introduced `users.platform_role` and `workspace_members`, but
+     * roughly a dozen v0.3.0 pages still authorise through this class. Without
+     * this bridge those pages CANNOT SEE the new roles at all: a user holding
+     * `platform_role = platform_owner` with the legacy `is_admin` flag unset
+     * was granted `team.manage` by `Access` and refused it by `CpAccess`, so
+     * /admin/team returned 403 for a platform owner.
+     *
+     * Resolution order is deliberately: NEW role first, LEGACY second. An
+     * installation that has migrated to scoped roles is governed by them; one
+     * that has not keeps behaving exactly as it did in v0.3.0.
+     *
+     * The legacy permission array remains the storage format of
+     * `control_plane_roles.permissions`; `Capability::fromLegacy()` is the
+     * single, explicit translation point.
+     */
     public static function allows(?User $user, string $permission): bool
     {
+        if (! $user) {
+            return false;
+        }
+
+        // A failure here must not silently widen access — it falls through to
+        // the legacy path below, which is itself fail-closed.
+        try {
+            $access = Access::for($user);
+
+            if ($access->hasPlatformAccess()) {
+                $capabilities = Roles::capabilities('platform', $access->platformRole());
+
+                foreach (Capability::fromLegacy([$permission]) as $capability) {
+                    if (in_array('*', $capabilities, true) || in_array($capability, $capabilities, true)) {
+                        return true;
+                    }
+                }
+
+                // The new role system knows this user and did NOT grant the
+                // permission, so a stale legacy column must not re-grant it.
+                return false;
+            }
+        } catch (\Throwable) {
+            // Fall through to the legacy decision.
+        }
+
         $perms = self::rolePermissions($user);
 
         return in_array('*', $perms, true) || in_array($permission, $perms, true);

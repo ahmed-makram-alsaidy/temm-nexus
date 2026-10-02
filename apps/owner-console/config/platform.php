@@ -6,9 +6,16 @@
 // VERSION file so scripts, containers and UI all report the same value.
 
 $version = '0.0.0-dev';
-// Container: VERSION is bind-mounted at the app root; host/dev: repo root is
-// three levels up from this config directory (apps/owner-console/config).
-foreach ([base_path('VERSION'), dirname(__DIR__, 3).'/VERSION'] as $versionFile) {
+// Container: VERSION is bind-mounted at the app root. Host/dev: the canonical
+// release version lives in the REPOSITORY ROOT (three levels up from
+// apps/owner-console/config).
+//
+// 0.4.0 fix — order matters. The repo-root file is authoritative and is checked
+// FIRST. Previously `base_path('VERSION')` won, and apps/owner-console/VERSION
+// is a stale copy (it read 0.3.0-rc.1 while the release was 0.3.0), so both the
+// UI footer and `platform:doctor` displayed a version that did not match the
+// release. See docs/product/UX_AUDIT_0_4.md finding P3.
+foreach ([dirname(__DIR__, 3).'/VERSION', base_path('VERSION')] as $versionFile) {
     if (is_readable($versionFile)) {
         $candidate = trim((string) file_get_contents($versionFile));
         if ($candidate !== '' && preg_match('/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/', $candidate)) {

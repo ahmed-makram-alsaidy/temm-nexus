@@ -4,6 +4,7 @@ namespace App\Services\ControlPlane\Ai;
 
 use App\Models\AiPatchRun;
 use App\Models\AiRepairLoop;
+use App\Models\CopilotRun;
 use App\Models\Project;
 use App\Services\ControlPlane\AdminAudit;
 use Illuminate\Support\Facades\Process;
@@ -32,6 +33,7 @@ class RepairLoopService
     ];
 
     public const DEFAULT_MAX_ITERATIONS = 3;
+
     public const DEFAULT_MAX_AI_CALLS = 6;
 
     /** Start a loop for an approved+applied patch run (or a bare tree check). */
@@ -117,13 +119,14 @@ class RepairLoopService
     }
 
     /** Ask the Copilot builder for a repair proposal (consumes AI budget). */
-    public static function proposeRepair(AiRepairLoop $loop, MigrationCopilot $copilot, array $testResult): ?\App\Models\CopilotRun
+    public static function proposeRepair(AiRepairLoop $loop, MigrationCopilot $copilot, array $testResult): ?CopilotRun
     {
         abort_if($loop->ai_calls >= $loop->max_ai_calls, 422, 'AI call budget exhausted.');
         $loop->ai_calls++;
         $loop->save();
 
         $patchRun = $loop->patchRun;
+
         return $copilot->run($loop->project, 'fix_failures', [
             'repository' => $patchRun?->clientRepository,
             'failures' => $testResult['failures'] ?? [],

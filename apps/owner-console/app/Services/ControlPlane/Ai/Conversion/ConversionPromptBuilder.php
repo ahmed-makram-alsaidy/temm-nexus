@@ -65,7 +65,7 @@ RULES;
 
         $prompt = "Convert the following files from their legacy provider SDK to the platform client SDK.\n\n"
             ."STACK: {$plan['stack']}\n"
-            ."SKIPPED (out of scope, leave untouched): ".(count($plan['skipped']))." callsite(s)\n\n"
+            .'SKIPPED (out of scope, leave untouched): '.(count($plan['skipped']))." callsite(s)\n\n"
             .implode("\n\n", $sections)."\n\n"
             .'Respond with one unified diff converting every listed callsite.';
 

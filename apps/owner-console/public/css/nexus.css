@@ -1,0 +1,2383 @@
+/* ==========================================================================
+   TEMM Nexus 0.4.0 — product design system
+   --------------------------------------------------------------------------
+   Loaded AFTER Filament's own stylesheet via the panel HEAD_END render hook, so
+   these declarations are the product's, not a theme's. See
+   docs/product/DESIGN_SYSTEM.md for the rationale behind every token.
+
+   Two jobs:
+     1. Define the Nexus token set (surfaces, borders, text, semantic, spacing,
+        radius, elevation, type) for dark and light.
+     2. Decouple the product shell from generic Filament chrome — sidebar,
+        topbar, cards, tables, forms, badges, empty states — without forking.
+
+   Bump NEXUS_CSS_VERSION in ControlPlaneChrome when this file changes.
+   ========================================================================== */
+
+/* ── 1. Tokens — dark is the default ─────────────────────────────────────── */
+html {
+    --nx-bg: #0b0b0e;
+    --nx-surface: #121216;
+    --nx-surface-raised: #191920;
+    --nx-surface-sunken: #17171c;
+
+    --nx-border: #26262e;
+    --nx-border-strong: #35353f;
+
+    --nx-text: #f2f2f4;
+    --nx-text-muted: #a3a3ad;
+    --nx-text-subtle: #71717c;
+
+    --nx-accent: #6366f1;
+    --nx-accent-hover: #7c7ff2;
+    --nx-accent-contrast: #ffffff;
+
+    --nx-success: #22c55e;
+    --nx-success-soft: rgb(34 197 94 / 0.12);
+    --nx-warning: #f59e0b;
+    --nx-warning-soft: rgb(245 158 11 / 0.12);
+    --nx-danger: #f43f5e;
+    --nx-danger-soft: rgb(244 63 94 / 0.12);
+    --nx-info: #38bdf8;
+    --nx-info-soft: rgb(56 189 248 / 0.12);
+    --nx-neutral: #8b8b95;
+    --nx-neutral-soft: rgb(139 139 149 / 0.12);
+
+    --nx-space-1: 4px;
+    --nx-space-2: 8px;
+    --nx-space-3: 12px;
+    --nx-space-4: 16px;
+    --nx-space-5: 20px;
+    --nx-space-6: 24px;
+    --nx-space-8: 32px;
+    --nx-space-10: 40px;
+
+    --nx-radius-sm: 6px;
+    --nx-radius: 10px;
+    --nx-radius-lg: 14px;
+    --nx-radius-full: 999px;
+
+    --nx-elev-0: none;
+    --nx-elev-1: 0 1px 2px rgb(0 0 0 / 0.30);
+    --nx-elev-2: 0 16px 40px rgb(0 0 0 / 0.45);
+
+    --nx-sidebar-width: 248px;
+    --nx-topbar-height: 56px;
+}
+
+/* ── Light theme: swap surfaces/text/borders only, never semantic hues ──── */
+html:not(.dark) {
+    --nx-bg: #f7f7f9;
+    --nx-surface: #ffffff;
+    --nx-surface-raised: #ffffff;
+    --nx-surface-sunken: #f2f2f5;
+
+    --nx-border: #e4e4e9;
+    --nx-border-strong: #d2d2da;
+
+    --nx-text: #16161a;
+    --nx-text-muted: #55555f;
+    --nx-text-subtle: #8b8b95;
+
+    --nx-elev-1: 0 1px 2px rgb(16 16 24 / 0.06);
+    --nx-elev-2: 0 16px 40px rgb(16 16 24 / 0.14);
+}
+
+/* ── 2. Product shell ───────────────────────────────────────────────────── */
+
+/* The sidebar is the product's identity surface, not an admin menu. */
+.fi-sidebar {
+    border-inline-end: 1px solid var(--nx-border);
+    background: var(--nx-bg);
+}
+
+.fi-sidebar-header {
+    height: var(--nx-topbar-height);
+    border-bottom: 1px solid var(--nx-border);
+    background: transparent;
+}
+
+/* Brand lockup: TEMM NEXUS reads as a product wordmark, not a panel title. */
+.fi-logo,
+.fi-sidebar-header .fi-logo {
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--nx-text);
+}
+
+/* Group headings: sentence case, smaller, quieter than the items they hold. */
+.fi-sidebar-group-label,
+.fi-sidebar-group-btn {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    color: var(--nx-text-subtle) !important;
+}
+
+/* Nav items: calmer resting state, one clear active state. */
+.fi-sidebar-item-btn {
+    border-radius: var(--nx-radius) !important;
+    color: var(--nx-text-muted) !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    padding-block: 7px !important;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.fi-sidebar-item-btn:hover {
+    background: var(--nx-surface-raised) !important;
+    color: var(--nx-text) !important;
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-btn,
+.fi-sidebar-item-btn[aria-current="page"] {
+    background: color-mix(in srgb, var(--nx-accent) 14%, transparent) !important;
+    color: var(--nx-text) !important;
+    font-weight: 600 !important;
+}
+
+/* Active marker: a bar, so the active item is not signalled by colour alone. */
+.fi-sidebar-item-active .fi-sidebar-item-btn::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-accent);
+}
+
+/* Topbar: reduce it to identity + context + actions. */
+.fi-topbar {
+    height: var(--nx-topbar-height);
+    border-bottom: 1px solid var(--nx-border);
+    background: color-mix(in srgb, var(--nx-bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+}
+
+.fi-topbar nav {
+    height: var(--nx-topbar-height);
+}
+
+/* Filament puts a full-width global search in the topbar. It consumes the most
+   valuable strip of the product for a secondary action; reduce it to a control. */
+.fi-topbar .fi-global-search {
+    max-width: 260px;
+}
+
+/* Page canvas */
+.fi-main {
+    background: var(--nx-bg);
+}
+
+.fi-page {
+    gap: var(--nx-space-6);
+}
+
+/* Page header: title dominant, description present, one primary action. */
+.fi-header-heading {
+    font-size: 26px !important;
+    font-weight: 640 !important;
+    letter-spacing: -0.02em;
+    color: var(--nx-text);
+}
+
+.fi-header-subheading {
+    font-size: 13.5px !important;
+    color: var(--nx-text-muted) !important;
+    margin-top: var(--nx-space-1);
+}
+
+.fi-breadcrumbs {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+}
+
+/* ── 3. Cards & sections — borders, not shadows ─────────────────────────── */
+.fi-section,
+.fi-wi {
+    background: var(--nx-surface) !important;
+    border: 1px solid var(--nx-border) !important;
+    border-radius: var(--nx-radius-lg) !important;
+    box-shadow: var(--nx-elev-0) !important;
+}
+
+.fi-section-header-heading,
+.fi-wi-header-heading {
+    font-size: 14px !important;
+    font-weight: 620 !important;
+    color: var(--nx-text);
+}
+
+/* ── 4. Tables ──────────────────────────────────────────────────────────── */
+.fi-ta-header-cell {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    color: var(--nx-text-subtle) !important;
+    background: var(--nx-surface-sunken) !important;
+}
+
+.fi-ta-row:hover {
+    background: var(--nx-surface-sunken);
+}
+
+.fi-ta-cell {
+    font-size: 13.5px;
+    color: var(--nx-text);
+}
+
+/* Numeric columns should not jitter as values change. */
+.fi-ta-cell .nx-num,
+.nx-stat-card__value,
+.nx-stat dd {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── 5. Forms ───────────────────────────────────────────────────────────── */
+.fi-fo-field-wrp-label,
+.fi-fo-field-wrp label {
+    font-size: 13px !important;
+    font-weight: 550 !important;
+    color: var(--nx-text-muted) !important;
+}
+
+.fi-input-wrp,
+.fi-select-input,
+.fi-fo-field-wrp input,
+.fi-fo-field-wrp textarea,
+.fi-fo-field-wrp select {
+    border-radius: var(--nx-radius) !important;
+    border-color: var(--nx-border-strong) !important;
+    background: var(--nx-surface-raised) !important;
+    color: var(--nx-text) !important;
+}
+
+.fi-fo-field-wrp-helper-text {
+    font-size: 12px !important;
+    color: var(--nx-text-subtle) !important;
+}
+
+/* ── 6. Buttons — one primary per screen ────────────────────────────────── */
+.fi-btn {
+    border-radius: var(--nx-radius) !important;
+    font-size: 13.5px !important;
+    font-weight: 560 !important;
+}
+
+.fi-btn-color-primary {
+    background: var(--nx-accent) !important;
+    color: var(--nx-accent-contrast) !important;
+}
+
+.fi-btn-color-primary:hover {
+    background: var(--nx-accent-hover) !important;
+}
+
+/* ── 7. Badges: soft background + full-strength text of the same hue ────── */
+.fi-badge {
+    border-radius: var(--nx-radius-full) !important;
+    font-size: 11.5px !important;
+    font-weight: 560 !important;
+    padding-inline: 8px !important;
+}
+
+/* Filament's default badge paints a solid loud colour; soften it so status
+   reads as information rather than alarm. */
+.fi-badge-color-primary { background: var(--nx-neutral-soft) !important; color: var(--nx-text-muted) !important; }
+.fi-badge-color-success { background: var(--nx-success-soft) !important; color: var(--nx-success) !important; }
+.fi-badge-color-warning { background: var(--nx-warning-soft) !important; color: var(--nx-warning) !important; }
+.fi-badge-color-danger  { background: var(--nx-danger-soft)  !important; color: var(--nx-danger)  !important; }
+.fi-badge-color-info    { background: var(--nx-info-soft)    !important; color: var(--nx-info)    !important; }
+
+/* ── 8. Modals & drawers ────────────────────────────────────────────────── */
+.fi-modal-window {
+    border: 1px solid var(--nx-border) !important;
+    border-radius: var(--nx-radius-lg) !important;
+    box-shadow: var(--nx-elev-2) !important;
+    background: var(--nx-surface-raised) !important;
+}
+
+.fi-modal-heading {
+    font-size: 16px !important;
+    font-weight: 620 !important;
+}
+
+.fi-modal-description {
+    font-size: 13px !important;
+    color: var(--nx-text-muted) !important;
+}
+
+/* ── 9. Accessibility ───────────────────────────────────────────────────── */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--nx-accent);
+    outline-offset: 2px;
+    border-radius: var(--nx-radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ── 10. Nexus components (used by the 0.4.0 pages) ─────────────────────── */
+
+/* 10.1 Scope banner — makes the active scope unmistakable. */
+.nx-scope-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--nx-space-2);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-inline-start: 3px solid var(--nx-accent);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface-sunken);
+}
+
+.nx-scope-banner__label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+.nx-scope-banner__value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--nx-text);
+}
+
+.nx-scope-banner__note {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+    flex-basis: 100%;
+}
+
+/* 10.2 Layout */
+.nx-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-4);
+}
+
+.nx-section__title {
+    font-size: 16px;
+    font-weight: 620;
+    color: var(--nx-text);
+    letter-spacing: -0.01em;
+}
+
+.nx-section__description {
+    font-size: 13px;
+    color: var(--nx-text-muted);
+    max-width: 78ch;
+    margin-top: calc(var(--nx-space-2) * -1);
+}
+
+.nx-grid {
+    display: grid;
+    gap: var(--nx-space-4);
+}
+
+.nx-grid--workspaces,
+.nx-grid--projects {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.nx-grid--stats {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.nx-grid--actions {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+/* 10.3 Cards */
+.nx-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    box-shadow: var(--nx-elev-0);
+}
+
+.nx-card--link {
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.nx-card--link:hover {
+    border-color: var(--nx-border-strong);
+    transform: translateY(-1px);
+}
+
+.nx-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--nx-space-3);
+}
+
+.nx-card__identity {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-3);
+    min-width: 0;
+}
+
+.nx-card__mark {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    border-radius: var(--nx-radius);
+    background: color-mix(in srgb, var(--nx-accent) 16%, transparent);
+    color: var(--nx-accent);
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.nx-card__title {
+    font-size: 15px;
+    font-weight: 620;
+    color: var(--nx-text);
+    letter-spacing: -0.01em;
+}
+
+.nx-card__title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.nx-card__title a:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.nx-card__meta,
+.nx-card__hint,
+.nx-card__description {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+.nx-card__description {
+    color: var(--nx-text-muted);
+    line-height: 1.55;
+}
+
+.nx-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3);
+    margin-top: auto;
+    padding-top: var(--nx-space-3);
+    border-top: 1px solid var(--nx-border);
+}
+
+/* 10.4 Stats */
+.nx-stats {
+    display: flex;
+    gap: var(--nx-space-6);
+    padding-block: var(--nx-space-1);
+}
+
+.nx-stat dt {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+.nx-stat dd {
+    font-size: 20px;
+    font-weight: 620;
+    color: var(--nx-text);
+    margin-top: 2px;
+}
+
+.nx-stat dd.nx-stat__value--warning,
+.nx-stat-card__value--warning {
+    color: var(--nx-warning);
+}
+
+.nx-stat-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-1);
+    padding: var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+.nx-stat-card__label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+.nx-stat-card__value {
+    font-size: 30px;
+    font-weight: 640;
+    line-height: 1.1;
+    color: var(--nx-text);
+}
+
+.nx-stat-card__hint {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+/* 10.5 Status: ALWAYS icon + label, never colour alone (§34). */
+.nx-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: var(--nx-radius-full);
+    font-size: 12px;
+    font-weight: 560;
+    white-space: nowrap;
+}
+
+.nx-status--success { background: var(--nx-success-soft); color: var(--nx-success); }
+.nx-status--warning { background: var(--nx-warning-soft); color: var(--nx-warning); }
+.nx-status--danger  { background: var(--nx-danger-soft);  color: var(--nx-danger); }
+.nx-status--info    { background: var(--nx-info-soft);    color: var(--nx-info); }
+.nx-status--neutral { background: var(--nx-neutral-soft); color: var(--nx-text-muted); }
+
+.nx-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-neutral);
+}
+
+.nx-dot--success { background: var(--nx-success); }
+.nx-dot--danger { background: var(--nx-danger); }
+.nx-dot--warning { background: var(--nx-warning); }
+.nx-dot--neutral { background: var(--nx-neutral); }
+
+/* 10.6 Lists */
+.nx-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+}
+
+.nx-list--compact a,
+.nx-list--compact li {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    padding: 6px 8px;
+    border-radius: var(--nx-radius-sm);
+    font-size: 13.5px;
+    color: var(--nx-text);
+    text-decoration: none;
+}
+
+.nx-list--compact a:hover {
+    background: var(--nx-surface-sunken);
+}
+
+.nx-list__hint,
+.nx-list__more {
+    margin-inline-start: auto;
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+}
+
+/* 10.7 Attention list — every item states WHY (§10). */
+.nx-attention {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+    margin: 0;
+    padding: 0;
+}
+
+.nx-attention__item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-inline-start: 3px solid var(--nx-neutral);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-attention__item strong {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--nx-text);
+}
+
+.nx-attention__item p {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+    margin-top: 2px;
+}
+
+.nx-attention__item .nx-link { margin-inline-start: auto; }
+
+.nx-attention__item--danger  { border-inline-start-color: var(--nx-danger); color: var(--nx-danger); }
+.nx-attention__item--warning { border-inline-start-color: var(--nx-warning); color: var(--nx-warning); }
+.nx-attention__item--info    { border-inline-start-color: var(--nx-info); color: var(--nx-info); }
+
+/* 10.8 Empty states — icon, WHY, and an action (§32). */
+.nx-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-10) var(--nx-space-6);
+    border: 1px dashed var(--nx-border-strong);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    text-align: center;
+}
+
+.nx-empty--inline {
+    flex-direction: row;
+    align-items: center;
+    text-align: start;
+    padding: var(--nx-space-4);
+    border-style: solid;
+}
+
+.nx-empty__icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+}
+
+.nx-empty__title {
+    font-size: 15px;
+    font-weight: 620;
+    color: var(--nx-text);
+}
+
+.nx-empty__body {
+    font-size: 13.5px;
+    color: var(--nx-text-muted);
+    max-width: 52ch;
+    line-height: 1.6;
+}
+
+.nx-empty__actions {
+    display: flex;
+    gap: var(--nx-space-3);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* 10.9 Notice */
+.nx-notice {
+    display: flex;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-notice strong {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--nx-text);
+}
+
+.nx-notice p {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+    margin-top: 2px;
+}
+
+.nx-notice__action {
+    font-weight: 550;
+    color: var(--nx-text) !important;
+}
+
+.nx-notice--info    { border-inline-start: 3px solid var(--nx-info); }
+.nx-notice--warning { border-inline-start: 3px solid var(--nx-warning); }
+.nx-notice--warning > svg { color: var(--nx-warning); }
+
+/* 10.10 People */
+.nx-people {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--nx-space-3);
+    margin: 0;
+    padding: 0;
+}
+
+.nx-person {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-person strong {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 580;
+    color: var(--nx-text);
+}
+
+.nx-person__role {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+}
+
+.nx-avatar {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+    font-size: 12px;
+    font-weight: 620;
+}
+
+/* 10.11 AI tool inventory */
+.nx-tools {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--nx-space-3);
+    margin: 0;
+    padding: 0;
+}
+
+.nx-tool {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-1);
+    padding: var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-tool__head {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    color: var(--nx-text-muted);
+}
+
+.nx-tool__name {
+    font-family: var(--nx-font-mono, ui-monospace, monospace);
+    font-size: 12.5px;
+    color: var(--nx-text);
+}
+
+.nx-tool__description {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+    line-height: 1.5;
+}
+
+.nx-limitations {
+    margin: 0;
+    padding-inline-start: var(--nx-space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-1);
+    font-size: 13px;
+    color: var(--nx-text-muted);
+}
+
+/* 10.12 Small pieces */
+.nx-action {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+    font-size: 13.5px;
+    color: var(--nx-text);
+    text-align: start;
+}
+
+.nx-action:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* 10.13 Persistent Nexus AI launcher (§15).
+   Fixed bottom-right, above content, and it always states the current scope so
+   the user cannot be confused about what the assistant is looking at. */
+.nx-ai-launcher {
+    position: fixed;
+    inset-block-end: 20px;
+    inset-inline-end: 20px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-raised);
+    box-shadow: var(--nx-elev-2);
+    color: var(--nx-text);
+    font-size: 13px;
+    font-weight: 560;
+    text-decoration: none;
+    /* Never wrap: a wrapped pill overlaps page content. The scope label
+       truncates instead, and is dropped entirely on narrow viewports. */
+    white-space: nowrap;
+    max-width: min(320px, calc(100vw - 40px));
+    transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.nx-ai-launcher:hover {
+    border-color: var(--nx-accent);
+    transform: translateY(-1px);
+}
+
+.nx-ai-launcher__icon {
+    color: var(--nx-accent);
+    font-size: 14px;
+    flex: 0 0 auto;
+}
+
+.nx-ai-launcher__text {
+    flex: 0 0 auto;
+}
+
+.nx-ai-launcher__scope {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding-inline-start: 8px;
+    margin-inline-start: 2px;
+    border-inline-start: 1px solid var(--nx-border);
+    color: var(--nx-text-subtle);
+    font-size: 11.5px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── 10.14 Project context chip (topbar).
+   Lives in the topbar rather than the sidebar so the project you are in — and
+   the way out of it — is always visible without displacing the global nav. */
+.nx-context {
+    position: relative;
+}
+
+.nx-context__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 320px;
+    padding: 6px 11px;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface);
+    color: var(--nx-text);
+    font-size: 12.5px;
+    font-weight: 550;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.nx-context__chip:hover {
+    border-color: var(--nx-border-strong);
+}
+
+.nx-context__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nx-context__env {
+    padding: 1px 7px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-neutral-soft);
+    color: var(--nx-text-muted);
+    font-size: 10.5px;
+    font-weight: 620;
+    letter-spacing: 0.04em;
+}
+
+.nx-context__menu {
+    position: absolute;
+    inset-inline-end: 0;
+    top: calc(100% + 6px);
+    z-index: 50;
+    min-width: 240px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 6px;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface-raised);
+    box-shadow: var(--nx-elev-2);
+}
+
+.nx-context__menu a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 10px;
+    border-radius: var(--nx-radius-sm);
+    color: var(--nx-text);
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.nx-context__menu a:hover {
+    background: var(--nx-surface-sunken);
+}
+
+.nx-context__menu a[aria-current="true"] {
+    font-weight: 620;
+    color: var(--nx-accent);
+}
+
+.nx-context__footer {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--nx-border);
+}
+
+
+/* Keep the launcher clear of the viewport edge on small screens. */
+@media (max-width: 640px) {
+    .nx-ai-launcher { inset-inline-end: 12px; inset-block-end: 12px; }
+    .nx-ai-launcher__scope { display: none; }
+}
+
+.nx-link {
+    font-size: 12.5px;
+    font-weight: 560;
+    color: var(--nx-accent);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.nx-link:hover { text-decoration: underline; }
+
+.nx-tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-neutral-soft);
+    color: var(--nx-text-muted);
+    font-size: 11px;
+    font-weight: 560;
+}
+
+.nx-tag--readonly {
+    background: var(--nx-success-soft);
+    color: var(--nx-success);
+}
+
+/* 10.15 Home hero (§7) — greeting, state sentence, one primary action. */
+.nx-hero {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--nx-space-6);
+    flex-wrap: wrap;
+}
+
+.nx-hero__greeting {
+    font-size: 26px;
+    font-weight: 640;
+    letter-spacing: -0.02em;
+    color: var(--nx-text);
+}
+
+.nx-hero__state {
+    margin-top: var(--nx-space-2);
+    font-size: 14px;
+    color: var(--nx-text-muted);
+    max-width: 70ch;
+}
+
+.nx-hero__actions {
+    display: flex;
+    gap: var(--nx-space-3);
+    flex-wrap: wrap;
+}
+
+/* 10.16 Timeline (recent activity). */
+.nx-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    overflow: hidden;
+}
+
+.nx-timeline__row {
+    display: flex;
+    gap: var(--nx-space-4);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    font-size: 13px;
+}
+
+.nx-timeline__row + .nx-timeline__row {
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-timeline__time {
+    flex: 0 0 92px;
+    color: var(--nx-text-subtle);
+    font-variant-numeric: tabular-nums;
+}
+
+.nx-timeline__what {
+    color: var(--nx-text);
+}
+
+/* 10.17 Full-width list rows (recent projects). */
+.nx-list:not(.nx-list--compact) {
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    overflow: hidden;
+    gap: 0;
+}
+
+.nx-list:not(.nx-list--compact) li + li {
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-list:not(.nx-list--compact) a {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    color: var(--nx-text);
+    text-decoration: none;
+    font-size: 13.5px;
+}
+
+.nx-list:not(.nx-list--compact) a:hover {
+    background: var(--nx-surface-sunken);
+}
+
+.nx-list__name {
+    font-weight: 560;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-list:not(.nx-list--compact) .nx-list__hint {
+    margin-inline-start: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Stat value tones — the number alone is never the whole message; every card
+   carries a hint line beneath it. */
+.nx-stat-card__value--success { color: var(--nx-success); }
+.nx-stat-card__value--warning { color: var(--nx-warning); }
+.nx-stat-card__value--danger { color: var(--nx-danger); }
+.nx-stat-card__value--info { color: var(--nx-info); }
+
+/* 10.18 Journey stepper (§6) — the spine of the project scope.
+   A horizontal rail on wide screens, a vertical list under 1280px so no step
+   is ever hidden behind a fold or a scroll. */
+.nx-journey {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--nx-space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nx-journey__step {
+    position: relative;
+    min-width: 0;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+    border-top: 3px solid var(--nx-neutral);
+}
+
+.nx-journey__step--success { border-top-color: var(--nx-success); }
+.nx-journey__step--warning { border-top-color: var(--nx-warning); }
+.nx-journey__step--danger { border-top-color: var(--nx-danger); }
+.nx-journey__step--info { border-top-color: var(--nx-info); }
+.nx-journey__step--neutral { border-top-color: var(--nx-border-strong); }
+
+.nx-journey__step.is-current {
+    border-color: var(--nx-accent);
+    background: color-mix(in srgb, var(--nx-accent) 7%, var(--nx-surface));
+}
+
+.nx-journey__link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+    padding: var(--nx-space-3);
+    color: inherit;
+    text-decoration: none;
+    height: 100%;
+}
+
+.nx-journey__link:hover .nx-journey__label {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.nx-journey__marker {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+}
+
+.nx-journey__step--success .nx-journey__marker { background: var(--nx-success-soft); color: var(--nx-success); }
+.nx-journey__step--warning .nx-journey__marker { background: var(--nx-warning-soft); color: var(--nx-warning); }
+.nx-journey__step--danger .nx-journey__marker { background: var(--nx-danger-soft); color: var(--nx-danger); }
+.nx-journey__step--info .nx-journey__marker { background: var(--nx-info-soft); color: var(--nx-info); }
+
+.nx-journey__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.nx-journey__label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--nx-text);
+}
+
+.nx-journey__here {
+    display: inline-block;
+    margin-inline-start: 4px;
+    padding: 1px 6px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-accent);
+    color: var(--nx-accent-contrast);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.nx-journey__state {
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.nx-journey__step--success .nx-journey__state { color: var(--nx-success); }
+.nx-journey__step--warning .nx-journey__state { color: var(--nx-warning); }
+.nx-journey__step--danger .nx-journey__state { color: var(--nx-danger); }
+.nx-journey__step--info .nx-journey__state { color: var(--nx-info); }
+.nx-journey__step--neutral .nx-journey__state { color: var(--nx-text-subtle); }
+
+.nx-journey__detail {
+    font-size: 11.5px;
+    color: var(--nx-text-muted);
+    line-height: 1.4;
+}
+
+/* 10.19 Project overview headline — the answer before the detail (§9). */
+.nx-overview-head {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: var(--nx-space-6);
+    padding: var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+.nx-overview-head__progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+}
+
+.nx-overview-head__pct {
+    font-size: 44px;
+    font-weight: 660;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--nx-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.nx-bar {
+    height: 8px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    overflow: hidden;
+}
+
+.nx-bar__fill {
+    height: 100%;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-accent);
+    transition: width 240ms ease;
+}
+
+.nx-overview-head__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--nx-space-4);
+    align-content: start;
+}
+
+.nx-fact__label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+.nx-fact__value {
+    display: block;
+    margin-top: 2px;
+    font-size: 15px;
+    font-weight: 580;
+    color: var(--nx-text);
+}
+
+.nx-fact__detail {
+    font-size: 12px;
+    color: var(--nx-text-muted);
+}
+
+/* Advanced disclosure: technical depth stays reachable, never leading (§14). */
+.nx-advanced {
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-advanced > summary {
+    padding: var(--nx-space-3) var(--nx-space-4);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 560;
+    color: var(--nx-text-muted);
+}
+
+.nx-advanced[open] > summary {
+    border-bottom: 1px solid var(--nx-border);
+    color: var(--nx-text);
+}
+
+.nx-advanced__body {
+    padding: var(--nx-space-4);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--nx-space-4);
+}
+
+.nx-code {
+    font-family: var(--nx-font-mono, ui-monospace, monospace);
+    font-size: 12px;
+    color: var(--nx-text);
+    word-break: break-all;
+}
+
+/* 10.20 Vertical rhythm for composed pages. */
+.nx-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-6);
+}
+
+/* 10.21 Cutover readiness (§10) — the critical product moment.
+   The answer must be legible from across the room, and the action must be
+   visibly unavailable while anything blocks. */
+.nx-cutover-state {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    font-size: 34px;
+    font-weight: 660;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.nx-cutover-state--success { color: var(--nx-success); }
+.nx-cutover-state--warning { color: var(--nx-warning); }
+.nx-cutover-state--danger { color: var(--nx-danger); }
+
+.nx-cutover-action {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-4);
+    flex-wrap: wrap;
+    padding: var(--nx-space-4) var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+/* Gates: state icon + section + evidence + state label. Never colour-only. */
+.nx-gates {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    overflow: hidden;
+}
+
+.nx-gate {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3) var(--nx-space-4);
+}
+
+.nx-gate + .nx-gate {
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-gate--success > svg { color: var(--nx-success); }
+.nx-gate--warning > svg { color: var(--nx-warning); }
+.nx-gate--danger > svg { color: var(--nx-danger); }
+.nx-gate--neutral > svg { color: var(--nx-text-subtle); }
+
+.nx-gate__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.nx-gate__section {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--nx-text);
+}
+
+.nx-gate__evidence {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+.nx-gate__detail {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+}
+
+.nx-gate__state {
+    margin-inline-start: auto;
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nx-text-muted);
+}
+
+/* Approvals. */
+.nx-approvals {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+}
+
+.nx-approval {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-inline-start: 3px solid var(--nx-text-subtle);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-approval--approved { border-inline-start-color: var(--nx-success); }
+.nx-approval--approved > svg { color: var(--nx-success); }
+.nx-approval--rejected { border-inline-start-color: var(--nx-danger); }
+.nx-approval--rejected > svg { color: var(--nx-danger); }
+
+.nx-approval strong {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--nx-text);
+}
+
+.nx-approval p {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+    margin-top: 2px;
+}
+
+.nx-approval__state {
+    margin-inline-start: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nx-text-muted);
+    white-space: nowrap;
+}
+
+/* Ordered plan steps. */
+.nx-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    overflow: hidden;
+}
+
+.nx-step {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3) var(--nx-space-4);
+}
+
+.nx-step + .nx-step {
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-step__num {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+    font-size: 11.5px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+
+.nx-step--gated .nx-step__num {
+    background: var(--nx-warning-soft);
+    color: var(--nx-warning);
+}
+
+.nx-step--blocked {
+    opacity: 0.62;
+}
+
+.nx-step__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.nx-step__label {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    font-size: 13.5px;
+    font-weight: 560;
+    color: var(--nx-text);
+}
+
+.nx-step__note {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+.nx-tag--approval {
+    background: var(--nx-warning-soft);
+    color: var(--nx-warning);
+}
+
+/* 10.22 Connector catalogue (§11). */
+.nx-catalog-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-4);
+    flex-wrap: wrap;
+}
+
+.nx-search {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    flex: 1 1 320px;
+    max-width: 520px;
+    padding: 8px 12px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+    color: var(--nx-text-subtle);
+}
+
+.nx-search:focus-within {
+    border-color: var(--nx-accent);
+    outline: 2px solid color-mix(in srgb, var(--nx-accent) 35%, transparent);
+    outline-offset: 1px;
+}
+
+.nx-search__input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--nx-text);
+    font-size: 13.5px;
+    font-family: inherit;
+}
+
+.nx-check {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    font-size: 13px;
+    color: var(--nx-text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.nx-filters {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+.nx-filters__group {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    flex-wrap: wrap;
+}
+
+.nx-filters__label {
+    flex: 0 0 84px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+.nx-filters__summary {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+.nx-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface);
+    color: var(--nx-text-muted);
+    font-size: 12px;
+    font-weight: 520;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.nx-chip:hover {
+    border-color: var(--nx-accent);
+    color: var(--nx-text);
+}
+
+/* Selected state carries a ring as well as colour, so it is not colour-only. */
+.nx-chip.is-on {
+    border-color: var(--nx-accent);
+    background: color-mix(in srgb, var(--nx-accent) 15%, transparent);
+    color: var(--nx-text);
+    font-weight: 620;
+}
+
+.nx-chip__count {
+    font-size: 10.5px;
+    color: var(--nx-text-subtle);
+    font-variant-numeric: tabular-nums;
+}
+
+.nx-grid--connectors {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+}
+
+.nx-connector {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+.nx-connector__head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--nx-space-3);
+}
+
+.nx-connector__icon {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+}
+
+.nx-connector__identity {
+    min-width: 0;
+    flex: 1;
+}
+
+.nx-connector__name {
+    font-size: 15px;
+    font-weight: 620;
+    color: var(--nx-text);
+    letter-spacing: -0.01em;
+}
+
+.nx-connector__vendor {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+    margin-top: 2px;
+}
+
+.nx-connector__description {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--nx-text-muted);
+    /* Long manifest descriptions are clamped so cards stay scannable; the
+       full text remains available via the title attribute. */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.nx-connector__flags {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--nx-space-3);
+    margin: 0;
+    padding: var(--nx-space-3) 0;
+    border-block: 1px solid var(--nx-border);
+}
+
+.nx-connector__flags > div {
+    min-width: 0;
+}
+
+.nx-connector__flags dt {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+    margin-bottom: 3px;
+}
+
+.nx-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12.5px;
+    font-weight: 560;
+    /* "Not supported" must stay on one line: wrapped, it reads as a broken
+       layout and pushes the three flags out of vertical alignment. */
+    white-space: nowrap;
+}
+
+.nx-flag svg {
+    flex: 0 0 auto;
+}
+
+.nx-flag.is-yes { color: var(--nx-success); }
+.nx-flag.is-no { color: var(--nx-text-subtle); }
+
+.nx-connector__features {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.nx-feature {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+    font-size: 11.5px;
+}
+
+.nx-feature svg { color: var(--nx-success); }
+
+.nx-connector__safety {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--nx-text-muted);
+}
+
+.nx-connector__safety svg { color: var(--nx-success); }
+
+.nx-connector__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3);
+    margin-top: auto;
+    padding-top: var(--nx-space-3);
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-connector__advanced summary {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+    cursor: pointer;
+}
+
+.nx-connector__meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px var(--nx-space-3);
+    margin: var(--nx-space-2) 0 0;
+    font-size: 11.5px;
+}
+
+.nx-connector__meta dt {
+    color: var(--nx-text-subtle);
+    white-space: nowrap;
+}
+
+.nx-connector__meta dd {
+    margin: 0;
+    color: var(--nx-text-muted);
+}
+
+.nx-connector__disabled {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+}
+
+/* 10.23 Nexus AI conversation (§29). */
+.nx-chat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-4);
+    min-height: 120px;
+    max-height: 52vh;
+    overflow-y: auto;
+    padding: var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface-sunken);
+}
+
+.nx-chat__turn {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+    max-width: 78ch;
+    padding: var(--nx-space-3) var(--nx-space-4);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+    border: 1px solid var(--nx-border);
+}
+
+/* The user's own turn is aligned right so the two voices are distinct without
+   relying on colour alone. */
+.nx-chat__turn--user {
+    align-self: flex-end;
+    border-color: var(--nx-border-strong);
+}
+
+.nx-chat__turn--ai {
+    align-self: flex-start;
+    border-inline-start: 3px solid var(--nx-accent);
+}
+
+.nx-chat__who {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+.nx-chat__text {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--nx-text);
+    white-space: pre-wrap;
+}
+
+.nx-chat__tools {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.nx-tool-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--nx-text-muted);
+}
+
+.nx-tool-step svg { color: var(--nx-success); flex: 0 0 auto; }
+
+.nx-tool-step.is-denied svg { color: var(--nx-warning); }
+
+.nx-composer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+.nx-composer__input {
+    width: 100%;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface-raised);
+    color: var(--nx-text);
+    font-size: 13.5px;
+    font-family: inherit;
+    line-height: 1.55;
+}
+
+.nx-composer__input:focus-visible {
+    border-color: var(--nx-accent);
+    outline: 2px solid color-mix(in srgb, var(--nx-accent) 35%, transparent);
+    outline-offset: 1px;
+}
+
+.nx-composer__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3);
+    flex-wrap: wrap;
+}
+
+.nx-composer__role {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+.nx-composer__role select {
+    padding: 5px 8px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-sm);
+    background: var(--nx-surface-raised);
+    color: var(--nx-text);
+    font-size: 12.5px;
+    font-family: inherit;
+}
+
+.nx-composer__actions {
+    display: flex;
+    gap: var(--nx-space-2);
+    align-items: center;
+}
+
+/* Screen-reader-only label: the composer needs a real label, but a visible one
+   would crowd the control. */
+.nx-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ── 11. Responsive ─────────────────────────────────────────────────────── */
+
+/* The journey needs ~180px per step to stay readable ("Validate", "Needs
+   attention", plus a one-line detail). Seven columns therefore require about
+   1440px of content width; below that the stepper becomes a vertical list.
+   1366×768 is an explicit support target (§33), and at 1366px a 7-column rail
+   left each step ~130px — narrow enough to wrap the detail to three lines and
+   stop the stepper being scannable at all. */
+@media (max-width: 1439px) {
+    .nx-journey {
+        grid-template-columns: 1fr;
+    }
+
+    .nx-journey__step {
+        border-top-width: 1px;
+        border-inline-start: 3px solid var(--nx-neutral);
+    }
+
+    .nx-journey__step--success { border-inline-start-color: var(--nx-success); }
+    .nx-journey__step--warning { border-inline-start-color: var(--nx-warning); }
+    .nx-journey__step--danger { border-inline-start-color: var(--nx-danger); }
+    .nx-journey__step--info { border-inline-start-color: var(--nx-info); }
+
+    .nx-journey__link {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: var(--nx-space-3);
+    }
+}
+
+@media (max-width: 1279px) {
+    .nx-grid--workspaces,
+    .nx-grid--projects {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+
+    .nx-grid--connectors {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+
+    .nx-overview-head {
+        grid-template-columns: 1fr;
+    }
+
+    .nx-filters__label {
+        flex-basis: 100%;
+    }
+}
+
+@media (max-width: 1023px) {
+    .nx-stats { gap: var(--nx-space-4); }
+    .nx-stat-card__value { font-size: 26px; }
+    .nx-hero { flex-direction: column; align-items: flex-start; }
+    .nx-hero__actions { width: 100%; }
+}
+
+/* 1366×768 is a supported target: keep the primary action above the fold by
+   tightening vertical rhythm rather than hiding anything. */
+@media (max-height: 800px) and (min-width: 1024px) {
+    .nx-empty { padding-block: var(--nx-space-8); }
+    .nx-section { gap: var(--nx-space-3); }
+}
+
+/* ==========================================================================
+   0.4.0 Phase I — INSPECT MODE
+   --------------------------------------------------------------------------
+   The toggle lives next to the AI launcher. While selecting, the document
+   root carries `.nx-inspecting`; registered components carry
+   `.nx-inspect-target` on hover and `.nx-inspect-selected` once chosen.
+
+   Non-color-only signalling: highlight is an OUTLINE plus an "Inspect"
+   badge, never a fill change alone.
+   ========================================================================== */
+
+.nx-inspect-toggle {
+    position: fixed;
+    inset-block-end: 20px;
+    inset-inline-end: 180px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 14px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-raised);
+    box-shadow: var(--nx-elev-2);
+    color: var(--nx-text);
+    font-size: 13px;
+    font-weight: 560;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.nx-inspect-toggle:hover {
+    border-color: var(--nx-accent, var(--nx-border-strong));
+}
+
+.nx-inspect-toggle:focus-visible {
+    outline: 2px solid var(--nx-text);
+    outline-offset: 2px;
+}
+
+.nx-inspect-toggle[aria-pressed="true"] {
+    background: var(--nx-text);
+    color: var(--nx-surface-raised);
+}
+
+/* While selecting: crosshair intent, and embedded controls do not steal
+   clicks — the capture-phase guard in nexus-inspect.js handles that. */
+.nx-inspecting,
+.nx-inspecting * {
+    cursor: crosshair !important;
+}
+
+.nx-inspect-target:hover {
+    outline: 2px dashed var(--nx-border-strong);
+    outline-offset: 2px;
+    border-radius: var(--nx-radius-sm, 6px);
+}
+
+/* The badge makes the highlight legible without colour and without JS. */
+.nx-inspect-target:hover::after,
+.nx-inspect-selected::after {
+    content: "Inspect";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    transform: translateY(-50%);
+    padding: 1px 8px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-raised);
+    color: var(--nx-text);
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.nx-inspect-target:hover,
+.nx-inspect-selected {
+    position: relative;
+}
+
+.nx-inspect-selected {
+    outline: 2px solid var(--nx-text);
+    outline-offset: 2px;
+    border-radius: var(--nx-radius-sm, 6px);
+}
+
+@media (max-width: 1439px) {
+    .nx-inspect-toggle { inset-inline-end: 160px; }
+}
+
+@media (max-width: 1279px) {
+    .nx-inspect-toggle { inset-inline-end: 12px; inset-block-end: 64px; }
+}
+
+/* ── The Inspect panel on the Nexus AI page ─────────────────────────── */
+
+.nx-inspect-panel {
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-md, 10px);
+    background: var(--nx-surface-raised);
+    padding: var(--nx-space-4, 16px);
+    margin-block-end: var(--nx-space-4, 16px);
+    display: grid;
+    gap: var(--nx-space-3, 12px);
+}
+
+.nx-inspect-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3, 12px);
+}
+
+.nx-inspect-panel__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 620;
+    color: var(--nx-text);
+}
+
+.nx-inspect-panel__remove {
+    border: 0;
+    background: transparent;
+    color: var(--nx-text-muted, inherit);
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px 8px;
+    border-radius: var(--nx-radius-full);
+    cursor: pointer;
+}
+
+.nx-inspect-panel__remove:hover {
+    background: var(--nx-surface, transparent);
+}
+
+.nx-inspect-panel__remove:focus-visible {
+    outline: 2px solid var(--nx-text);
+    outline-offset: 2px;
+}
+
+.nx-inspect-panel__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--nx-space-3, 12px);
+    margin: 0;
+}
+
+.nx-inspect-panel__facts dt {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--nx-text-muted, inherit);
+}
+
+.nx-inspect-panel__facts dd {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--nx-text);
+}
+
+.nx-inspect-panel__note {
+    margin: 0;
+    font-size: 12px;
+    color: var(--nx-text-muted, inherit);
+}
+
+.nx-inspect-panel__actions {
+    display: flex;
+    gap: var(--nx-space-2, 8px);
+    flex-wrap: wrap;
+}
+
+.nx-inspect-panel__appearance {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2, 8px);
+    flex-wrap: wrap;
+    border-block-start: 1px solid var(--nx-border, transparent);
+    padding-block-start: var(--nx-space-3, 12px);
+}
+
+.nx-inspect-panel__appearance-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nx-text-muted, inherit);
+}
+
+.nx-inspect-proposal {
+    border: 1px dashed var(--nx-border-strong);
+    border-radius: var(--nx-radius-md, 10px);
+    padding: var(--nx-space-3, 12px);
+    display: grid;
+    gap: var(--nx-space-3, 12px);
+}
+
+.nx-inspect-proposal__title {
+    font-size: 13px;
+}
+
+.nx-inspect-proposal__actions {
+    display: flex;
+    gap: var(--nx-space-2, 8px);
+}
+
+/* ── Density preferences (Phase I §I.9) ─────────────────────────────── */
+
+.nx-density--compact {
+    --nx-density-factor: 0.7;
+}
+
+.nx-density--spacious {
+    --nx-density-factor: 1.4;
+}
+
+.nx-density--compact .nx-stat-card,
+.nx-density--compact .nx-card,
+.nx-density--compact .nx-gate,
+.nx-density--compact .nx-section {
+    padding-block: calc(var(--nx-space-3, 12px) * var(--nx-density-factor, 0.7));
+    gap: calc(var(--nx-space-2, 8px) * var(--nx-density-factor, 0.7));
+}
+
+.nx-density--spacious .nx-stat-card,
+.nx-density--spacious .nx-card,
+.nx-density--spacious .nx-gate,
+.nx-density--spacious .nx-section {
+    padding-block: calc(var(--nx-space-4, 16px) * var(--nx-density-factor, 1.4));
+    gap: calc(var(--nx-space-3, 12px) * var(--nx-density-factor, 1.4));
+}
+
+/* Position preference for the overview progress card (§I.9 'position'). */
+.nx-overview-head {
+    display: grid;
+}
+
+.nx-order-progress-first .nx-overview-head__progress { order: -1; }
+.nx-order-progress-last .nx-overview-head__progress { order: 9; }
+
+/* ==========================================================================
+   0.4.0 Phase J — AI ACTION CARDS
+   A proposed mutation is never hidden inside chat text: it is its own card
+   with an explicit risk badge and an explicit decision.
+   ========================================================================== */
+
+.nx-action-card {
+    border: 1px solid var(--nx-border-strong);
+    border-inline-start: 3px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-md, 10px);
+    background: var(--nx-surface-raised);
+    padding: var(--nx-space-4, 16px);
+    margin-block: var(--nx-space-3, 12px);
+    display: grid;
+    gap: var(--nx-space-3, 12px);
+}
+
+.nx-action-card--moderate { border-inline-start-color: #b45309; }
+.nx-action-card--low { border-inline-start-color: #047857; }
+
+.nx-action-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3, 12px);
+    flex-wrap: wrap;
+}
+
+.nx-action-card__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 620;
+}
+
+.nx-risk {
+    padding: 2px 10px;
+    border-radius: var(--nx-radius-full);
+    border: 1px solid var(--nx-border-strong);
+    font-size: 11px;
+    font-weight: 620;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.nx-risk--low { color: #047857; }
+.nx-risk--moderate { color: #b45309; }
+.nx-risk--high { color: #b91c1c; }
+
+.nx-action-card__intent {
+    margin: 0;
+    font-size: 13px;
+}
+
+.nx-action-card__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--nx-space-3, 12px);
+    margin: 0;
+}
+
+.nx-action-card__facts dt {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--nx-text-muted, inherit);
+}
+
+.nx-action-card__facts dd {
+    margin: 2px 0 0;
+    font-size: 13px;
+}
+
+.nx-action-card__actions {
+    display: flex;
+    gap: var(--nx-space-2, 8px);
+    flex-wrap: wrap;
+}
+
+.nx-action-card__outcome {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 560;
+}
+
+.nx-action-card__outcome--verified { color: #047857; }
+.nx-action-card__outcome--verification_failed { color: #b45309; }
+.nx-action-card__outcome--failed,
+.nx-action-card__outcome--stale { color: #b91c1c; }
+.nx-action-card__outcome--rejected,
+.nx-action-card__outcome--expired { color: var(--nx-text-muted, inherit); }

@@ -6,7 +6,6 @@ use App\Models\AiModelProfile;
 use App\Models\AiProviderConfig;
 use App\Models\AiUsageRecord;
 use App\Models\Project;
-use Illuminate\Support\Facades\Http;
 
 /**
  * Phase 25F — provider-agnostic AI gateway.
@@ -73,8 +72,16 @@ class AiGateway
         return ['config' => $config, 'model' => $config->model, 'profile' => $purpose];
     }
 
-    /** Complete with usage recording. Messages must already be minimized/redacted. */
-    public function complete(Project $project, array $resolved, array $messages, array $options = []): array
+    /**
+     * Complete with usage recording. Messages must already be minimized/redacted.
+     *
+     * 0.4.0: `$project` is now NULLABLE. Nexus AI is opened at PLATFORM scope,
+     * where no project exists at all, and the previous signature forced callers
+     * to pass a non-persisted `new Project` — which then made the usage insert
+     * below fail on the `project_id` foreign key. `ai_usage_records.project_id`
+     * is already nullable, so an unscoped turn simply records no project.
+     */
+    public function complete(?Project $project, array $resolved, array $messages, array $options = []): array
     {
         /** @var AiProviderConfig $config */
         $config = $resolved['config'];
@@ -96,7 +103,7 @@ class AiGateway
         }
         AiUsageRecord::create([
             'ai_provider_config_id' => $config->id,
-            'project_id' => $project->id,
+            'project_id' => $project?->getKey(),
             'profile' => $resolved['profile'] ?? null,
             'input_tokens' => $usage['input_tokens'],
             'output_tokens' => $usage['output_tokens'],

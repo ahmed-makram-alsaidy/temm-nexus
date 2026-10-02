@@ -5,9 +5,11 @@ namespace App\Services\ControlPlane\Ai;
 use App\Models\AiPatchFile;
 use App\Models\AiPatchRun;
 use App\Models\ClientRepository;
+use App\Models\CopilotRun;
 use App\Models\Project;
 use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\Repository\ClientRepositoryService;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 
 /**
@@ -20,7 +22,7 @@ use Illuminate\Support\Str;
 class PatchWorkspace
 {
     /** Create a patch run from AI-proposed changes (validated, unapplied). */
-    public static function create(Project $project, ?\App\Models\CopilotRun $copilotRun, ?ClientRepository $repo, array $patches, string $targetRoot): AiPatchRun
+    public static function create(Project $project, ?CopilotRun $copilotRun, ?ClientRepository $repo, array $patches, string $targetRoot): AiPatchRun
     {
         abort_if($patches === [], 422, 'No patches proposed.');
         $targetRoot = rtrim(realpath($targetRoot) ?: $targetRoot, '\\/');
@@ -252,7 +254,7 @@ class PatchWorkspace
         if (! is_dir($root.'/.git')) {
             return null;
         }
-        $result = \Illuminate\Support\Facades\Process::path($root)->timeout(30)->run('git status --porcelain');
+        $result = Process::path($root)->timeout(30)->run('git status --porcelain');
         if (! $result->successful()) {
             return null;
         }

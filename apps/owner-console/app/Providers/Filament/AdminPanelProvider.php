@@ -28,18 +28,18 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandName('Backend Control Plane')
+            // 0.4.0 P2 fix: the panel must identify as the product, not as
+            // "Backend Control Plane". The brand is operator-configurable.
+            ->brandName(config('platform.brand'))
             ->colors([
                 'primary' => Color::Indigo,
             ])
             ->maxContentWidth('full')
             ->sidebarCollapsibleOnDesktop()
             ->sidebarWidth('250px')
-            ->navigationGroups([
-                'Projects',
-                'Infrastructure',
-                'Governance',
-            ])
+            // 0.4.0 Phase C: the fixed group list is gone. The navigation is
+            // built explicitly by ProductNavigation, so there are no empty
+            // groups and no group that holds a single link.
             ->navigation(fn () => ControlPlaneChrome::navigation())
             ->renderHook(
                 \Filament\View\PanelsRenderHook::HEAD_END,
@@ -47,11 +47,28 @@ class AdminPanelProvider extends PanelProvider
             )
             ->renderHook(
                 \Filament\View\PanelsRenderHook::BODY_END,
-                ControlPlaneChrome::searchShortcutHook(),
+                ControlPlaneChrome::bodyEndHook(),
             )
+            // 0.4.0 Phase C — the project workspace navigation renders AFTER the
+            // global product navigation (SIDEBAR_NAV_END), not before it.
+            //
+            // It used to hook SIDEBAR_NAV_START, which pushed the day-to-day
+            // project navigation above the sidebar and buried the product shell
+            // (Home, Projects, Clients & Workspaces, Connectors, Nexus AI)
+            // underneath forty technical links. In project context the project
+            // navigation is still the fuller surface, but the platform stays
+            // reachable and visible without scrolling.
             ->renderHook(
-                \Filament\View\PanelsRenderHook::SIDEBAR_NAV_START,
+                \Filament\View\PanelsRenderHook::SIDEBAR_NAV_END,
                 ControlPlaneChrome::workspaceHook(),
+            )
+            // 0.4.0 Phase C — project context chip in the topbar. Since the
+            // project workspace navigation now renders at the END of the
+            // sidebar, the topbar carries the always-visible answer to "which
+            // project am I in, and how do I get out".
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::TOPBAR_END,
+                ControlPlaneChrome::projectContextHook(),
             )
             // Phase 26K.2 — platform version is always visible in the console.
             ->renderHook(
