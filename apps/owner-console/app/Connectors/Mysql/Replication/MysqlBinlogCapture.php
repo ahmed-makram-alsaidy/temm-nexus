@@ -162,7 +162,17 @@ class MysqlBinlogCapture implements ChangeCaptureConnector, CdcPositionSource
         $pdo = $this->sourcePdo();
         try {
             $gtid = (string) $pdo->query('SELECT @@GLOBAL.gtid_executed AS g')->fetch()['g'];
-            $status = $pdo->query('SHOW MASTER STATUS')->fetch();
+
+            // MySQL 8.4 removed SHOW MASTER STATUS (renamed to SHOW BINARY
+            // LOG STATUS); 8.0 and older only know the old name. Found live
+            // by the Phase K CDC smoke against mysql:8 — try the new name
+            // first and fall back, so both server generations work.
+            try {
+                $status = $pdo->query('SHOW BINARY LOG STATUS')->fetch();
+            } catch (\PDOException) {
+                $status = $pdo->query('SHOW MASTER STATUS')->fetch();
+            }
+
             $file = is_array($status) ? (string) ($status['File'] ?? '') : '';
             $pos = is_array($status) ? (int) ($status['Position'] ?? 0) : 0;
 

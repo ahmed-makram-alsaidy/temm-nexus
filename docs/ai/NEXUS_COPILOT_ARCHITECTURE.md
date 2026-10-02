@@ -1,9 +1,10 @@
 # Nexus Copilot — Architecture
 
 **Status:** design of record for 0.4.0.
-**Scope:** Phases G and H are implemented. Phase I (Inspect Mode) and Phase J
-(action tools + approval) are **not built**; this document says so explicitly
-rather than describing them as if they exist.
+**Scope:** Phases G, H, I and J are implemented. Inspect Mode is documented
+in `NEXUS_INSPECT_MODE.md`; the action/approval layer in
+`NEXUS_ACTION_SAFETY.md`. This document describes the conversation engine
+and the read-tool layer it both sits on.
 
 ---
 
@@ -208,9 +209,9 @@ that a turn happened and what it touched, not the conversation.
 
 ---
 
-## 10. Inspect Mode (§25–§27) — NOT BUILT
+## 10. Inspect Mode (§25–§27) — BUILT in Phase I; see `NEXUS_INSPECT_MODE.md`
 
-Planned design, recorded here so it is not invented later:
+Implemented in Phase I as follows (full contract: `NEXUS_INSPECT_MODE.md`):
 
 - an eye toggle in the shell puts the UI into selection mode;
 - selecting a component attaches `{page, component, component_key, scope,
@@ -222,11 +223,11 @@ Planned design, recorded here so it is not invented later:
   assistant must never rewrite CSS.
 - code-level visual changes go through the existing isolated patch workflow.
 
-No part of this is implemented. The Nexus AI page says so in its own UI.
+The Nexus AI page states plainly what remains not enabled (action depth and integrations noted in the action-safety document).
 
 ---
 
-## 11. Action tools and the approval flow (§20–§22) — NOT BUILT
+## 11. Action tools and the approval flow (§20–§22) — BUILT in Phase J; see `NEXUS_ACTION_SAFETY.md`
 
 Planned design:
 
@@ -241,7 +242,7 @@ Planned design:
   never a direct write to live code, never arbitrary shell, never a secret to a
   model.
 
-No action tool exists in this release. `ToolRegistryTest` asserts that none of
+The action registry is separate from the read registry, and no planned-but-dangerous name is reachable from either. `ToolRegistryTest` asserts the read boundary; `ActionSafetyTest` asserts the action boundary.
 the planned action names is reachable from the read registry, and that every
 registered tool declares `read_only: true`.
 

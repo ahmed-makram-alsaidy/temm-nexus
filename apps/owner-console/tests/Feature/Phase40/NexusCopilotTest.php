@@ -419,4 +419,50 @@ class NexusCopilotTest extends TestCase
             ->assertOk()
             ->assertDontSee('Project — Beta CRM');
     }
+
+    // ── Phase K: the runaway budgets are enforced, not decorative ──────
+
+    public function test_the_four_round_trip_budget_is_enforced(): void
+    {
+        $this->fakeProvider();
+        // Six consecutive tool-request rounds: the engine must stop at four
+        // provider round-trips and answer with the honest fallback.
+        FakeAiDriver::$script = ['responses' => [
+            'TOOL_CALL {"tool": "get_platform_health", "arguments": {}}',
+            'TOOL_CALL {"tool": "get_platform_health", "arguments": {}}',
+            'TOOL_CALL {"tool": "get_platform_health", "arguments": {}}',
+            'TOOL_CALL {"tool": "get_platform_health", "arguments": {}}',
+            'TOOL_CALL {"tool": "get_platform_health", "arguments": {}}',
+            'TOOL_CALL {"tool": "get_platform_health", "arguments": {}}',
+            'I should never be reached.',
+        ]];
+
+        $engine = new ConversationEngine(AiContext::platform(Access::for($this->platformOwner)), new ModelRouter);
+        $result = $engine->turn('Loop forever.');
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame(4, FakeAiDriver::$completedCalls, 'The turn exceeded the 4-round-trip budget.');
+        $this->assertStringContainsString('ran out of tool budget', (string) $result['reply']);
+    }
+
+    public function test_the_twelve_tool_calls_per_turn_budget_is_enforced(): void
+    {
+        $this->fakeProvider();
+        // ONE reply asking for 14 tools: exactly 12 may run; the rest are
+        // dropped, and the turn still completes.
+        $calls = implode("\n", array_fill(0, 14, 'TOOL_CALL {"tool": "list_accessible_projects", "arguments": {}}'));
+        FakeAiDriver::$script = ['responses' => [
+            $calls,
+            'Done.',
+        ]];
+
+        $engine = new ConversationEngine(AiContext::platform(Access::for($this->platformOwner)), new ModelRouter);
+        $result = $engine->turn('List everything, fourteen times.');
+
+        $this->assertTrue($result['ok']);
+        $this->assertCount(12, $result['tools'], 'More than 12 tool calls ran in one turn.');
+
+        $entry = AdminAuditEntry::query()->where('action', 'AI_CONVERSATION_TURN')->first();
+        $this->assertCount(12, $entry->metadata['tools'] ?? [], 'The audit does not reflect the enforced budget.');
+    }
 }

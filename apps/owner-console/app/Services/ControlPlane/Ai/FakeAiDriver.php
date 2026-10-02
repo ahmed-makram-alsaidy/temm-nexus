@@ -55,13 +55,18 @@ class FakeAiDriver implements AiDriver
         self::$script = null;
         self::$lastComplete = null;
         self::$callCount = 0;
+        self::$completedCalls = 0;
     }
 
     private static int $callCount = 0;
 
+    /** Total complete() invocations — the runaway-budget assertions read this. */
+    public static int $completedCalls = 0;
+
     public function complete(AiProviderConfig $config, array $messages, array $options = []): array
     {
         self::$lastComplete = ['config' => $config, 'messages' => $messages, 'options' => $options];
+        self::$completedCalls++;
 
         // Local QA affordance: a script file lets a REAL browser session walk
         // the fake provider through a multi-round conversation without any
