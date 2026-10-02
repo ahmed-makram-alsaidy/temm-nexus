@@ -3,16 +3,22 @@
 namespace App\Services\ControlPlane\Ai;
 
 use App\Models\AiProviderConfig;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 /** Google Gemini generateContent driver (generativelanguage.googleapis.com). */
 class GeminiDriver implements AiDriver
 {
     public const RESULT_CONNECTED = 'CONNECTED';
+
     public const RESULT_AUTH_FAILED = 'AUTH_FAILED';
+
     public const RESULT_MODEL_NOT_FOUND = 'MODEL_NOT_FOUND';
+
     public const RESULT_RATE_LIMITED = 'RATE_LIMITED';
+
     public const RESULT_TIMEOUT = 'TIMEOUT';
+
     public const RESULT_PROVIDER_ERROR = 'PROVIDER_ERROR';
 
     public function id(): string
@@ -78,7 +84,7 @@ class GeminiDriver implements AiDriver
                 429 => self::RESULT_RATE_LIMITED,
                 default => self::RESULT_PROVIDER_ERROR,
             };
-        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+        } catch (ConnectionException $e) {
             return str_contains(strtolower($e->getMessage()), 'timed out') ? self::RESULT_TIMEOUT : self::RESULT_PROVIDER_ERROR;
         }
     }

@@ -42,7 +42,17 @@ final class Roles
 
     public const VIEWER = 'viewer';
 
-    /** Capabilities granted on ANY project or workspace, at every scope. */
+    /**
+     * Capabilities granted on ANY project or workspace, at every scope.
+     *
+     * DELIBERATELY NARROW. This is the floor a Viewer holds, so it must contain
+     * only reads of the user's OWN objects. Platform-wide telemetry is NOT here:
+     * a Viewer of one project must not be able to enumerate the installation's
+     * failed jobs (`OPERATIONS_VIEW`), its nodes (`INFRASTRUCTURE_VIEW`), or its
+     * audit ledger (`AUDIT_VIEW`). Those are added explicitly to the roles that
+     * need them, which also makes the AI tool boundary correct by construction:
+     * `NexusCopilotTest` asserts a project viewer is not offered them.
+     */
     public const READ_ONLY = [
         Capability::WORKSPACES_VIEW,
         Capability::PROJECTS_VIEW,
@@ -52,13 +62,16 @@ final class Roles
         Capability::CUTOVER_VIEW,
         Capability::BACKUPS_VIEW,
         Capability::DATA_VIEW,
-        Capability::INFRASTRUCTURE_VIEW,
         Capability::CONNECTORS_VIEW,
-        Capability::OPERATIONS_VIEW,
-        Capability::SECURITY_VIEW,
-        Capability::AUDIT_VIEW,
         Capability::LOGS_VIEW,
+        Capability::SECURITY_VIEW,
         Capability::AI_USE,
+    ];
+
+    /** Platform-wide telemetry. Explicit on admin roles only. */
+    private const PLATFORM_TELEMETRY = [
+        Capability::OPERATIONS_VIEW,
+        Capability::AUDIT_VIEW,
     ];
 
     /**
@@ -80,7 +93,8 @@ final class Roles
             ],
 
             'workspace' => [
-                self::WORKSPACE_OWNER => array_merge(self::READ_ONLY, [
+                self::WORKSPACE_OWNER => array_merge(self::READ_ONLY, self::PLATFORM_TELEMETRY, [
+                    Capability::INFRASTRUCTURE_VIEW,
                     Capability::WORKSPACES_MANAGE,
                     Capability::WORKSPACE_MEMBERS_VIEW,
                     Capability::WORKSPACE_MEMBERS_MANAGE,
@@ -117,7 +131,8 @@ final class Roles
                 ]),
 
                 // Runs day-to-day work but cannot approve cutover or see secrets.
-                self::WORKSPACE_ADMIN => array_merge(self::READ_ONLY, [
+                self::WORKSPACE_ADMIN => array_merge(self::READ_ONLY, self::PLATFORM_TELEMETRY, [
+                    Capability::INFRASTRUCTURE_VIEW,
                     Capability::WORKSPACE_MEMBERS_VIEW,
                     Capability::PROJECTS_CREATE,
                     Capability::PROJECTS_MANAGE,
@@ -150,7 +165,8 @@ final class Roles
             ],
 
             'project' => [
-                self::PROJECT_ADMIN => array_merge(self::READ_ONLY, [
+                self::PROJECT_ADMIN => array_merge(self::READ_ONLY, self::PLATFORM_TELEMETRY, [
+                    Capability::INFRASTRUCTURE_VIEW,
                     Capability::PROJECTS_MANAGE,
                     Capability::MIGRATIONS_PLAN,
                     Capability::MIGRATIONS_RUN,

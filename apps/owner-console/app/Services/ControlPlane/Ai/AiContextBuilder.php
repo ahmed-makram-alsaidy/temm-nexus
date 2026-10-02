@@ -4,6 +4,7 @@ namespace App\Services\ControlPlane\Ai;
 
 use App\Models\ClientRepository;
 use App\Models\MigrationAnalysis;
+use App\Services\ControlPlane\Repository\ClientDependencyScanner;
 use App\Services\ControlPlane\Repository\ClientRepositoryService;
 
 /**
@@ -108,7 +109,7 @@ TXT;
     /** Callsite manifest pack (already secret-free by construction). */
     public static function callsitePack(ClientRepository $repo, int $limit = 300): string
     {
-        $manifest = \App\Services\ControlPlane\Repository\ClientDependencyScanner::manifest($repo, $limit);
+        $manifest = ClientDependencyScanner::manifest($repo, $limit);
 
         return self::wrapUntrusted('callsite-manifest', json_encode($manifest, JSON_UNESCAPED_UNICODE), 20000);
     }

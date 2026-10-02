@@ -1837,6 +1837,154 @@ html:not(.dark) {
     color: var(--nx-text-subtle);
 }
 
+/* 10.23 Nexus AI conversation (§29). */
+.nx-chat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-4);
+    min-height: 120px;
+    max-height: 52vh;
+    overflow-y: auto;
+    padding: var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface-sunken);
+}
+
+.nx-chat__turn {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+    max-width: 78ch;
+    padding: var(--nx-space-3) var(--nx-space-4);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+    border: 1px solid var(--nx-border);
+}
+
+/* The user's own turn is aligned right so the two voices are distinct without
+   relying on colour alone. */
+.nx-chat__turn--user {
+    align-self: flex-end;
+    border-color: var(--nx-border-strong);
+}
+
+.nx-chat__turn--ai {
+    align-self: flex-start;
+    border-inline-start: 3px solid var(--nx-accent);
+}
+
+.nx-chat__who {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+.nx-chat__text {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--nx-text);
+    white-space: pre-wrap;
+}
+
+.nx-chat__tools {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.nx-tool-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--nx-text-muted);
+}
+
+.nx-tool-step svg { color: var(--nx-success); flex: 0 0 auto; }
+
+.nx-tool-step.is-denied svg { color: var(--nx-warning); }
+
+.nx-composer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+.nx-composer__input {
+    width: 100%;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface-raised);
+    color: var(--nx-text);
+    font-size: 13.5px;
+    font-family: inherit;
+    line-height: 1.55;
+}
+
+.nx-composer__input:focus-visible {
+    border-color: var(--nx-accent);
+    outline: 2px solid color-mix(in srgb, var(--nx-accent) 35%, transparent);
+    outline-offset: 1px;
+}
+
+.nx-composer__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3);
+    flex-wrap: wrap;
+}
+
+.nx-composer__role {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+.nx-composer__role select {
+    padding: 5px 8px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-sm);
+    background: var(--nx-surface-raised);
+    color: var(--nx-text);
+    font-size: 12.5px;
+    font-family: inherit;
+}
+
+.nx-composer__actions {
+    display: flex;
+    gap: var(--nx-space-2);
+    align-items: center;
+}
+
+/* Screen-reader-only label: the composer needs a real label, but a visible one
+   would crowd the control. */
+.nx-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* ── 11. Responsive ─────────────────────────────────────────────────────── */
 
 /* The journey needs ~180px per step to stay readable ("Validate", "Needs

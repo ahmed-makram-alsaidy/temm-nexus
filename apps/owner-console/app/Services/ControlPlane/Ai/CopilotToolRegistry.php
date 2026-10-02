@@ -2,6 +2,8 @@
 
 namespace App\Services\ControlPlane\Ai;
 
+use App\Models\CopilotRun;
+
 /**
  * Phase 25H — explicit AI tool / permission model.
  *
@@ -55,7 +57,7 @@ class CopilotToolRegistry
     ];
 
     /** Execute a tool dispatch. Unknown/forbidden → 422. Ledger appended. */
-    public static function dispatch(\App\Models\CopilotRun $run, string $tool, array $args = [], ?callable $handler = null): array
+    public static function dispatch(CopilotRun $run, string $tool, array $args = [], ?callable $handler = null): array
     {
         // 1. Forbidden names are rejected structurally.
         abort_if(in_array(strtolower($tool), self::FORBIDDEN, true), 422, "Tool '{$tool}' is forbidden for AI use.");

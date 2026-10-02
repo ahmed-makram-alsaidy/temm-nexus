@@ -66,6 +66,13 @@ class AdminAuditEntry extends Model
         // Phase 32/33 — CDC + AI client conversion surfaces.
         'CUTOVER_EVENT', 'CDC_CHECKPOINT_STORED', 'CDC_CHECKPOINT_REFUSED',
         'CLIENT_CONVERSION_GENERATED', 'CLIENT_CONVERSION_TEST_REFUSED',
+        // 0.4.0 — Nexus Copilot (mission §30). Every meaningful AI action is
+        // recorded, and an AI action must be distinguishable from a human one
+        // (the metadata carries `actor_kind = ai`).
+        'AI_CONVERSATION_TURN',
+        'AI_INSPECT_CONTEXT_ATTACHED',
+        'AI_ACTION_PROPOSED', 'AI_ACTION_APPROVED', 'AI_ACTION_REJECTED',
+        'AI_ACTION_APPLIED', 'AI_ACTION_VERIFIED',
     ];
 
     protected $fillable = [
