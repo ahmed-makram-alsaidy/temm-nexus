@@ -83,6 +83,22 @@ stays visible without faking green. Making this subset hermetic (or
 skip-clean) is standing accepted debt; PRs that do so remove files from
 this table.
 
+### C.1 `SetupWizardTest` — skip-clean inside the blocking suite (0.4.0 Phase K)
+
+`tests/Feature/Phase26/SetupWizardTest.php` stayed IN the blocking suite
+after Phase 36, where it reported a documented environment-only red set
+(10 failures + 1 error) on any host without the phpredis extension: the
+setup wizard's system check probes Redis, the probe fails, and the whole
+wizard cascade fails with it (`docs/product/BASELINE_0_4.md` §4 froze that
+set as the 0.4.0 baseline red).
+
+Since 0.4.0 Phase K the suite **skip-cleans when `phpredis` is absent**
+(`markTestSkipped` in `setUp`). The coverage is real where it matters: the
+CI blocking job runs on PHP 8.4 WITH phpredis AND a `redis:8` service
+container, so every test in the file executes there. On a phpredis-less
+workstation the blocking gate reports `0 failures / 0 errors` with the 19
+skips visible in the summary — an honest skip, not a fake green.
+
 ## D. External-provider optional tests (self-skipping)
 
 Guarded by environment variables and marked skipped when absent — safe to

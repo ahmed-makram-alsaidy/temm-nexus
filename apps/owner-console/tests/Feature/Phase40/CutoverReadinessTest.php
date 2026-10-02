@@ -392,4 +392,53 @@ class CutoverReadinessTest extends TestCase
             $this->assertNotContains($forbidden, $methods, "CutoverCenterService grew an executor method: {$forbidden}");
         }
     }
+
+// ── Phase K regression: a CDC stream must not 500 the Cutover screen ──
+
+/**
+ * Found by the Phase K UX review: CdcLagEvaluator documents its gate detail
+ * as array<string,mixed>, and CutoverReadiness cast it to (string) — a fatal
+ * "Array to string conversion" on ANY project with a CDC checkpoint. The
+ * screen must render, with the evidence readable.
+ */
+public function test_a_project_with_a_cdc_stream_renders_cutover_without_a_500(): void
+{
+    $source = \App\Models\MigrationSource::create([
+        'project_id' => $this->alphaWeb->id, 'type' => 'postgres',
+        'display_name' => 'k2', 'connection' => ['host' => 'localhost'],
+        'read_only' => true, 'status' => 'pending',
+    ]);
+    $analysis = \App\Models\MigrationAnalysis::create([
+        'project_id' => $this->alphaWeb->id, 'migration_source_id' => $source->id,
+        'run_id' => 'a-k2', 'status' => 'completed',
+    ]);
+    $plan = \App\Models\MigrationPlan::create([
+        'project_id' => $this->alphaWeb->id, 'migration_analysis_id' => $analysis->id,
+        'name' => 'K2 plan', 'status' => 'ready',
+    ]);
+    $run = \App\Models\MigrationRun::create([
+        'project_id' => $this->alphaWeb->id, 'migration_plan_id' => $plan->id,
+        'run_id' => 'r-k2', 'dry_run' => false, 'mode' => 'cdc', 'status' => 'streaming',
+    ]);
+    \App\Services\ControlPlane\Migration\Cdc\CdcCheckpoint::create([
+        'migration_run_id' => $run->id, 'source_type' => 'postgres',
+        'target_key' => 'k2', 'kind' => 'stream',
+        'position' => ['lsn' => '0/0'], 'signature' => 'k2',
+        'stream_status' => 'streaming',
+        'stream_telemetry' => ['status' => 'streaming', 'byte_lag' => 0],
+    ]);
+
+    // The service-level contract: a gate detail is ALWAYS a string or null.
+    foreach (CutoverReadiness::for($this->alphaWeb->fresh())->gates() as $gate) {
+        $this->assertTrue(
+            is_string($gate['detail']) || $gate['detail'] === null,
+            "Gate {$gate['gate']} detail is ".gettype($gate['detail']).', not a string.'
+        );
+    }
+
+    // And the screen renders 200 for a permitted user.
+    $this->actingAs($this->platformOwner)
+        ->get('/admin/projects/'.$this->alphaWeb->id.'/cutover')
+        ->assertOk();
+}
 }

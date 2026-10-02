@@ -149,13 +149,44 @@ final class CutoverReadiness
                 'tone' => $this->productTone($rawState),
                 'icon' => $this->productIcon($rawState),
                 'evidence' => (string) ($gate['evidence'] ?? ''),
-                'detail' => isset($gate['detail']) ? (string) $gate['detail'] : null,
+                'detail' => $this->detailToString($gate['detail'] ?? null),
                 'requires_approval' => in_array($name, CutoverCenterService::APPROVAL_REQUIRED, true),
                 'approval' => $plan ? $this->approvalFor($plan, $name) : null,
             ];
         }
 
         return $out;
+    }
+
+    /**
+     * A gate's `detail` may be a string OR a structured map — the CDC lag
+     * evaluator documents its detail as `array<string,mixed>`. Casting that
+     * to string fatals the whole Cutover screen (a real 500, found by the
+     * Phase K UX review on any project with a CDC stream). Render a readable
+     * line instead; the evidence is never lost.
+     */
+    private function detailToString(mixed $detail): ?string
+    {
+        if ($detail === null) {
+            return null;
+        }
+
+        if (is_string($detail)) {
+            return $detail;
+        }
+
+        if (is_array($detail)) {
+            $parts = [];
+            foreach ($detail as $key => $value) {
+                $parts[] = is_string($key)
+                    ? $key.': '.(is_scalar($value) ? (string) $value : json_encode($value))
+                    : (is_scalar($value) ? (string) $value : json_encode($value));
+            }
+
+            return implode('; ', array_filter($parts, fn ($p) => $p !== ''));
+        }
+
+        return (string) $detail;
     }
 
     /**
