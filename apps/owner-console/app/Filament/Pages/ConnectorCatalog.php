@@ -2,88 +2,176 @@
 
 namespace App\Filament\Pages;
 
-use App\Services\ControlPlane\CpAccess;
-use App\Services\ControlPlane\Connectors\ConnectorRegistry;
+use App\Filament\Resources\Projects\ProjectResource;
+use App\Filament\Support\PlatformAccess;
+use App\Services\Access\Capability;
+use App\Services\Product\ConnectorCatalogView;
 use BackedEnum;
 use Filament\Pages\Page;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Table;
 
 /**
- * Phase 35F — Connector Catalog.
+ * 0.4.0 Phase F (§11) — the Connector Catalog as a real product catalogue.
  *
- * Sections: Installed (registry), Official (first_party), Community
- * (trusted/community), Private/Unverified. Local/catalog-backed only —
- * no commercial billing, no remote marketplace calls (35F).
+ * v0.3.0 (UX audit finding P9) rendered this as six full-width unstyled boxes
+ * of debug text with no logos, descriptions, capability information, per-card
+ * action, or working filters. It is now a catalogue:
+ *
+ *   icon · provider name · short description · capabilities ·
+ *   migration support · Live Sync support · trust · status · version · CTA
+ *
+ * plus search and capability/trust filters.
+ *
+ * ACCESS
+ * Entry needs `connectors.view`, which a workspace or project role may hold —
+ * the previous gate required the legacy `projects.view` permission and so
+ * excluded roles that should legitimately browse connectors.
+ *
+ * The page is read-only: it lists what is installed and links into the project
+ * where a connection is actually made. It never connects to anything itself.
  */
-class ConnectorCatalog extends Page implements HasTable
+class ConnectorCatalog extends Page
 {
-    use InteractsWithTable;
-
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-puzzle-piece';
 
-    protected static ?string $navigationLabel = 'Connector catalog';
+    protected static ?string $navigationLabel = 'Connectors';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Migration center';
+    protected static ?string $title = 'Connectors';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?string $slug = 'connectors';
 
-    /**
-     * Phase 36.5 fix: render the page as a Filament panel page view. The
-     * previous render() override bypassed the panel page lifecycle —
-     * Livewire fell back to the missing default `layouts.app` and the
-     * whole page 500'd (found live on the rc.2 Azure soak). Filament
-     * renders this view inside the panel; public properties are shared.
-     */
     protected string $view = 'filament.pages.connector-catalog';
 
-    public string $activeSection = 'installed';
+    /** Live search box. */
+    public string $search = '';
+
+    /** @var list<string> capability keys that must all be present */
+    public array $featureFilters = [];
+
+    /** @var list<string> trust levels to include */
+    public array $trustFilters = [];
+
+    /** Show only connectors that are enabled. */
+    public bool $onlyReady = false;
 
     public function mount(): void
     {
-        abort_unless(CpAccess::allows(auth()->user(), 'projects.view'), 403, 'Missing projects.view permission.');
+        abort_unless(static::canAccess(), 403, 'Missing capability: '.Capability::CONNECTORS_VIEW);
     }
 
-    public function table(Table $table): Table
+    public static function canAccess(): bool
     {
-        // Phase 36.5 fix: Table::columns() takes an ARRAY on this Filament
-        // version — a closure here 500s the whole page (found live on the
-        // rc.2 Azure soak; every other page passes an array).
-        return $table
-            ->records(fn () => collect($this->catalogRows()))
-            ->columns([
-                TextColumn::make('key')->label('Key'),
-                TextColumn::make('name')->label('Name'),
-                TextColumn::make('version')->label('Version'),
-                TextColumn::make('trust')->label('Trust')->badge(),
-                TextColumn::make('enabled')->label('Enabled')->formatStateUsing(fn ($state) => $state ? 'yes' : 'no'),
-            ]);
+        return PlatformAccess::current()->allowsPlatform(Capability::CONNECTORS_VIEW);
     }
 
-    /** @return list<array{key: string, name: string, version: string, trust: string, enabled: bool, section: string}> */
-    public function catalogRows(): array
+    public static function shouldRegisterNavigation(): bool
     {
-        $registry = ConnectorRegistry::instance();
-        $rows = [];
-        foreach ($registry->connectors() as $connector) {
-            $manifest = $connector->manifest();
-            $trust = $manifest->trust();
-            $rows[] = [
-                'key' => $manifest->key(),
-                'name' => $connector->definition()->name,
-                'version' => $manifest->version(),
-                'trust' => $trust,
-                'enabled' => $registry->isEnabled($manifest->key()),
-                'section' => match ($trust) {
-                    'first_party' => 'official',
-                    'trusted', 'community' => 'community',
-                    default => 'private',
-                },
-            ];
+        return static::canAccess();
+    }
+
+    public function getSubheading(): ?string
+    {
+        return 'Everything you can migrate from, and what each one supports.';
+    }
+
+    // ── Data ───────────────────────────────────────────────────────────
+
+    /** @return list<array<string, mixed>> */
+    public function allCards(): array
+    {
+        return ConnectorCatalogView::cards();
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function visibleCards(): array
+    {
+        return ConnectorCatalogView::filter(
+            $this->allCards(),
+            $this->search,
+            $this->featureFilters,
+            $this->trustFilters,
+            $this->onlyReady,
+        );
+    }
+
+    /** @return list<array{key: string, label: string, group: string, count: int}> */
+    public function featureOptions(): array
+    {
+        return ConnectorCatalogView::availableFeatures($this->allCards());
+    }
+
+    /** @return list<array{key: string, label: string, count: int}> */
+    public function trustOptions(): array
+    {
+        return ConnectorCatalogView::availableTrusts($this->allCards());
+    }
+
+    public function totalCount(): int
+    {
+        return count($this->allCards());
+    }
+
+    public function hasActiveFilters(): bool
+    {
+        return $this->search !== '' || $this->featureFilters !== [] || $this->trustFilters !== [] || $this->onlyReady;
+    }
+
+    /**
+     * Where "Connect" should go.
+     *
+     * A connector is connected INSIDE a project, so the catalogue routes there
+     * rather than pretending it can connect from a platform-level page. With
+     * exactly one reachable project we can go straight to its Connect screen;
+     * otherwise the projects list is the honest destination.
+     *
+     * Returns null when the user has no project to connect into, so the view can
+     * say so instead of rendering a dead link.
+     */
+    public function connectUrl(): ?string
+    {
+        $projects = PlatformAccess::current()->access()->accessibleProjects();
+
+        try {
+            if ($projects->count() === 1) {
+                return ProjectResource::getUrl('connect', ['record' => $projects->first()]);
+            }
+
+            return ProjectResource::getUrl('index');
+        } catch (\Throwable) {
+            return null;
         }
+    }
 
-        return $rows;
+    /** True when the user has a project to connect into. */
+    public function hasConnectTarget(): bool
+    {
+        return PlatformAccess::current()->access()->accessibleProjects()->isNotEmpty();
+    }
+
+    // ── Filter actions (Livewire) ──────────────────────────────────────
+
+    public function toggleFeature(string $key): void
+    {
+        $this->featureFilters = $this->toggle($this->featureFilters, $key);
+    }
+
+    public function toggleTrust(string $key): void
+    {
+        $this->trustFilters = $this->toggle($this->trustFilters, $key);
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->featureFilters = [];
+        $this->trustFilters = [];
+        $this->onlyReady = false;
+    }
+
+    /** @param list<string> $list @return list<string> */
+    private function toggle(array $list, string $key): array
+    {
+        return in_array($key, $list, true)
+            ? array_values(array_diff($list, [$key]))
+            : array_values([...$list, $key]);
     }
 }

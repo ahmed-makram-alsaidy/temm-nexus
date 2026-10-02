@@ -1551,6 +1551,292 @@ html:not(.dark) {
     color: var(--nx-warning);
 }
 
+/* 10.22 Connector catalogue (§11). */
+.nx-catalog-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-4);
+    flex-wrap: wrap;
+}
+
+.nx-search {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    flex: 1 1 320px;
+    max-width: 520px;
+    padding: 8px 12px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+    color: var(--nx-text-subtle);
+}
+
+.nx-search:focus-within {
+    border-color: var(--nx-accent);
+    outline: 2px solid color-mix(in srgb, var(--nx-accent) 35%, transparent);
+    outline-offset: 1px;
+}
+
+.nx-search__input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--nx-text);
+    font-size: 13.5px;
+    font-family: inherit;
+}
+
+.nx-check {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    font-size: 13px;
+    color: var(--nx-text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.nx-filters {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+.nx-filters__group {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    flex-wrap: wrap;
+}
+
+.nx-filters__label {
+    flex: 0 0 84px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+.nx-filters__summary {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+.nx-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface);
+    color: var(--nx-text-muted);
+    font-size: 12px;
+    font-weight: 520;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.nx-chip:hover {
+    border-color: var(--nx-accent);
+    color: var(--nx-text);
+}
+
+/* Selected state carries a ring as well as colour, so it is not colour-only. */
+.nx-chip.is-on {
+    border-color: var(--nx-accent);
+    background: color-mix(in srgb, var(--nx-accent) 15%, transparent);
+    color: var(--nx-text);
+    font-weight: 620;
+}
+
+.nx-chip__count {
+    font-size: 10.5px;
+    color: var(--nx-text-subtle);
+    font-variant-numeric: tabular-nums;
+}
+
+.nx-grid--connectors {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+}
+
+.nx-connector {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+.nx-connector__head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--nx-space-3);
+}
+
+.nx-connector__icon {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+}
+
+.nx-connector__identity {
+    min-width: 0;
+    flex: 1;
+}
+
+.nx-connector__name {
+    font-size: 15px;
+    font-weight: 620;
+    color: var(--nx-text);
+    letter-spacing: -0.01em;
+}
+
+.nx-connector__vendor {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+    margin-top: 2px;
+}
+
+.nx-connector__description {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--nx-text-muted);
+    /* Long manifest descriptions are clamped so cards stay scannable; the
+       full text remains available via the title attribute. */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.nx-connector__flags {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--nx-space-3);
+    margin: 0;
+    padding: var(--nx-space-3) 0;
+    border-block: 1px solid var(--nx-border);
+}
+
+.nx-connector__flags > div {
+    min-width: 0;
+}
+
+.nx-connector__flags dt {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+    margin-bottom: 3px;
+}
+
+.nx-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12.5px;
+    font-weight: 560;
+    /* "Not supported" must stay on one line: wrapped, it reads as a broken
+       layout and pushes the three flags out of vertical alignment. */
+    white-space: nowrap;
+}
+
+.nx-flag svg {
+    flex: 0 0 auto;
+}
+
+.nx-flag.is-yes { color: var(--nx-success); }
+.nx-flag.is-no { color: var(--nx-text-subtle); }
+
+.nx-connector__features {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.nx-feature {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+    font-size: 11.5px;
+}
+
+.nx-feature svg { color: var(--nx-success); }
+
+.nx-connector__safety {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--nx-text-muted);
+}
+
+.nx-connector__safety svg { color: var(--nx-success); }
+
+.nx-connector__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3);
+    margin-top: auto;
+    padding-top: var(--nx-space-3);
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-connector__advanced summary {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+    cursor: pointer;
+}
+
+.nx-connector__meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px var(--nx-space-3);
+    margin: var(--nx-space-2) 0 0;
+    font-size: 11.5px;
+}
+
+.nx-connector__meta dt {
+    color: var(--nx-text-subtle);
+    white-space: nowrap;
+}
+
+.nx-connector__meta dd {
+    margin: 0;
+    color: var(--nx-text-muted);
+}
+
+.nx-connector__disabled {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+}
+
 /* ── 11. Responsive ─────────────────────────────────────────────────────── */
 
 /* The journey needs ~180px per step to stay readable ("Validate", "Needs
@@ -1587,8 +1873,16 @@ html:not(.dark) {
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     }
 
+    .nx-grid--connectors {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+
     .nx-overview-head {
         grid-template-columns: 1fr;
+    }
+
+    .nx-filters__label {
+        flex-basis: 100%;
     }
 }
 
