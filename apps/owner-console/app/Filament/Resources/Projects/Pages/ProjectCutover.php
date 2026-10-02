@@ -8,6 +8,7 @@ use App\Filament\Support\PlatformAccess;
 use App\Services\Access\Capability;
 use App\Services\ControlPlane\Cutover\CutoverCenterService;
 use App\Services\Product\CutoverReadiness;
+use App\Services\Product\UiPreferenceService;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
@@ -79,10 +80,12 @@ class ProjectCutover extends Page
 
     public function content(Schema $schema): Schema
     {
+        $project = $this->project();
+
         return $schema->extraAttributes(['class' => 'cp-reference cp-reference--cutover'])->components([
             $this->subnavSection('cutover'),
             Html::make(fn (): string => view('filament.projects.cutover', [
-                'project' => $this->project(),
+                'project' => $project,
                 'r' => $this->readiness(),
                 'overall' => $this->readiness()->overall(),
                 'gates' => $this->readiness()->gates(),
@@ -97,6 +100,13 @@ class ProjectCutover extends Page
                 'plan' => $this->readiness()->plan(),
                 'canApprove' => $this->canApprove(),
                 'canPreflight' => $this->canPreflight(),
+                // Phase I — this user's appearance preferences for the cutover
+                // components, resolved at project scope.
+                'ui' => UiPreferenceService::for(auth()->user())->effectiveForComponents(
+                    ['cutover.overall', 'cutover.gates', 'cutover.approvals', 'cutover.plan'],
+                    $project->workspace?->getKey(),
+                    $project->getKey(),
+                ),
             ])->render()),
         ]);
     }

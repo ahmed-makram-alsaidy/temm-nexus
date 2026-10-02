@@ -12,6 +12,10 @@ use App\Services\Ai\ModelRouter;
 use App\Services\Ai\Scope;
 use App\Services\Ai\ToolDispatcher;
 use App\Services\Ai\ToolRegistry;
+use App\Services\ControlPlane\AdminAudit;
+use App\Services\Product\ComponentRegistry;
+use App\Services\Product\InspectionContext;
+use App\Services\Product\UiPreferenceService;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 
@@ -29,10 +33,18 @@ use Filament\Support\Icons\Heroicon;
  *    as raw JSON (§29).
  *  - The permission-filtered tool inventory, produced by the enforcing
  *    dispatcher, so what is listed is exactly what the user may run.
+ *  - Inspect Mode (Phase I): a user-selected component is attached to the
+ *    conversation. The browser sends only a KEY; this class resolves it
+ *    against `ComponentRegistry` with the acting user's own authorisation,
+ *    so an unknown or unpermitted component never reaches a model.
+ *  - Structured UI preferences (Phase I): a whitelisted, typed appearance
+ *    change with an explicit preview step and an explicit apply. No free-form
+ *    CSS, no markup — that would be a code change and belongs to the isolated
+ *    patch workflow.
  *
  * WHAT IS NOT REAL HERE (stated plainly, and in the UI)
- *  - Inspect Mode (Phase I).
- *  - Action tools and the approval flow (Phase J). This page is read-only.
+ *  - Action tools and the approval flow (Phase J). This page cannot mutate
+ *    anything but the acting user's own UI preferences.
  */
 class NexusAi extends Page
 {
@@ -71,6 +83,457 @@ class NexusAi extends Page
 
     /** @var array{provider: ?string, model: ?string}|null */
     public ?array $lastRoute = null;
+
+    // ── Inspect Mode (Phase I) ─────────────────────────────────────────
+
+    /**
+     * The component selected in Inspect Mode, held as the validated KEY only.
+     *
+     * The browser never sends a description; `attachComponent()` resolves the
+     * key against `ComponentRegistry` and refuses anything unknown or
+     * unauthorised. Everything the UI later shows (label, page, data source)
+     * is re-derived from the registry, so client-supplied text can never
+     * reach the panel, the prompt, or the audit ledger.
+     */
+    public ?string $inspectComponentKey = null;
+
+    /**
+     * A proposed UI preference awaiting confirmation: the preview card shows
+     * current and proposed values and the affected scope, and NOTHING is
+     * persisted until `applyUiPreference()` is clicked.
+     *
+     * @var array{component: string, adjustment: string, value: mixed, current: mixed, scope: string}|null
+     */
+    public ?array $uiProposal = null;
+
+    /**
+     * The picker's `adjustment:value` choice from the Inspect panel. Parsed
+     * strictly server-side; a malformed or unpermitted choice is refused by
+     * the same validation every other path goes through.
+     */
+    public string $uiFormChoice = '';
+
+    /**
+     * The whitelisted choices for the ATTACHED component's appearance, with
+     * no-op options (things already in the proposed state) removed.
+     *
+     * @return array<string, string> `adjustment:value` => label
+     */
+    public function uiChoices(): array
+    {
+        $inspection = $this->inspection();
+        if ($inspection === null) {
+            return [];
+        }
+
+        $ids = $this->preferenceScopeIds($inspection);
+        $service = UiPreferenceService::for(auth()->user());
+        $choices = [];
+
+        foreach ($inspection->allowedAdjustments as $adjustment) {
+            $current = $service->value(
+                $inspection->componentKey,
+                $adjustment,
+                $ids['workspace_id'],
+                $ids['project_id'],
+            );
+
+            switch ($adjustment) {
+                case 'visibility':
+                    if ($current !== false) {
+                        $choices['visibility:0'] = 'Hide this component';
+                    }
+                    if ($current !== true) {
+                        $choices['visibility:1'] = 'Show this component';
+                    }
+                    break;
+                case 'density':
+                    foreach (['compact' => 'Compact density', 'comfortable' => 'Comfortable density', 'spacious' => 'Spacious density'] as $value => $label) {
+                        if ($current !== $value) {
+                            $choices['density:'.$value] = $label;
+                        }
+                    }
+                    break;
+                case 'expanded_by_default':
+                    if ($current !== true) {
+                        $choices['expanded_by_default:1'] = 'Start expanded';
+                    }
+                    if ($current !== false) {
+                        $choices['expanded_by_default:0'] = 'Start collapsed';
+                    }
+                    break;
+                case 'position':
+                    foreach (['first' => 'Move to first', 'last' => 'Move to last'] as $value => $label) {
+                        if ($current !== $value) {
+                            $choices['position:'.$value] = $label;
+                        }
+                    }
+                    break;
+            }
+        }
+
+        return $choices;
+    }
+
+    /** Entry point from the panel's picker: parse the choice and propose. */
+    public function previewUiAdjustment(): void
+    {
+        $inspection = $this->inspection();
+        $choice = $this->uiFormChoice;
+
+        $this->uiFormChoice = '';
+
+        if ($inspection === null || ! str_contains($choice, ':')) {
+            return;
+        }
+
+        [$adjustment, $rawValue] = explode(':', $choice, 2);
+
+        $this->proposeUiAdjustment($inspection->componentKey, $adjustment, $rawValue);
+    }
+
+    /**
+     * Effective appearance preferences for THIS page's own components, in one
+     * query. The view reads this to apply visibility and density — the same
+     * preferences the Inspect panel writes.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function aiPreferences(): array
+    {
+        $context = $this->context();
+
+        return UiPreferenceService::for(auth()->user())->effectiveForComponents(
+            ['ai.transcript', 'ai.tools', 'ai.scope_banner'],
+            $context->workspace?->getKey(),
+            $context->project?->getKey(),
+        );
+    }
+
+    /** Human wording for a preference value, per adjustment, for the preview. */
+    public function preferenceValueLabel(string $adjustment, mixed $value): string
+    {        if ($adjustment === 'expanded_by_default') {
+            return $value === true ? 'Starts expanded' : 'Starts collapsed';
+        }
+
+        if ($adjustment === 'visibility') {
+            return $value === true ? 'Shown' : 'Hidden';
+        }
+
+        if ($adjustment === 'density') {
+            return match ($value) {
+                'compact' => 'Compact',
+                'spacious' => 'Spacious',
+                default => 'Comfortable',
+            };
+        }
+
+        if ($adjustment === 'position') {
+            return match ($value) {
+                'first' => 'First',
+                'last' => 'Last',
+                default => 'Natural position',
+            };
+        }
+
+        return (string) $value;
+    }
+
+    protected ?InspectionContext $inspectionContext = null;
+
+    /**
+     * Accept a component selection from the client.
+     *
+     * The key is validated here, server-side, against the acting user's REAL
+     * authorisation. An unknown key, or a component whose capability the user
+     * does not hold at the current scope, is refused silently — the chip
+     * simply does not appear, and nothing reaches the model. Refusing without
+     * an error message also means probing this endpoint reveals nothing.
+     */
+    public function attachComponent(string $key): void
+    {
+        $resolved = $this->resolveInspection($key);
+
+        if ($resolved === null) {
+            $this->inspectComponentKey = null;
+            $this->inspectionContext = null;
+
+            return;
+        }
+
+        // Same component already attached: no-op, no duplicate audit rows.
+        if ($this->inspectComponentKey === $resolved->componentKey) {
+            return;
+        }
+
+        $this->inspectComponentKey = $resolved->componentKey;
+        $this->inspectionContext = $resolved;
+        // A new component invalidates any preview built against the old one.
+        $this->uiProposal = null;
+
+        // Attaching a component is a meaningful AI action, so it is recorded —
+        // including which component and at what scope.
+        try {
+            $context = $this->context();
+            AdminAudit::record(
+                'AI_INSPECT_CONTEXT_ATTACHED',
+                $context->project,
+                'ui_component',
+                $resolved->componentKey,
+                $resolved->auditPayload(),
+            );
+        } catch (\Throwable) {
+            // Auditing must not break the selection.
+        }
+    }
+
+    public function clearInspectedComponent(): void
+    {
+        $this->inspectComponentKey = null;
+        $this->inspectionContext = null;
+        $this->uiProposal = null;
+    }
+
+    /** Resolve the held key into a validated context, or null. */
+    public function inspection(): ?InspectionContext
+    {
+        if ($this->inspectComponentKey === null) {
+            return null;
+        }
+
+        return $this->inspectionContext ??= $this->resolveInspection($this->inspectComponentKey);
+    }
+
+    /** Components on THIS page/scope the user may inspect, for the picker hint. */
+    public function inspectableHere(): array
+    {
+        $out = [];
+        foreach (array_keys(ComponentRegistry::COMPONENTS) as $key) {
+            if (($resolved = $this->resolveInspection($key)) !== null) {
+                $out[] = ['key' => $key, 'label' => $resolved->label, 'page' => $resolved->page];
+            }
+        }
+
+        return $out;
+    }
+
+    /** Resolve a key under the CURRENT user, scope, and context — or null. */
+    protected function resolveInspection(string $key): ?InspectionContext
+    {
+        $context = $this->context();
+
+        return InspectionContext::resolve(
+            $key,
+            $context->access,
+            $context->workspace,
+            $context->project,
+        );
+    }
+
+    // ── Structured UI preferences (Phase I) ────────────────────────────
+
+    /**
+     * Propose a whitelisted appearance change and show the preview card.
+     *
+     * No write happens here. The proposal is validated against the registry
+     * whitelist AND the component must be one this user may inspect at the
+     * current scope — the same authorisation as attaching it.
+     */
+    public function proposeUiAdjustment(string $component, string $adjustment, string|int|bool $value): void
+    {
+        $this->uiProposal = null;
+
+        $resolved = $this->resolveInspection($component);
+        if ($resolved === null || ! in_array($adjustment, $resolved->allowedAdjustments, true)) {
+            return;
+        }
+
+        $normalised = $this->normalisePreferenceValue($adjustment, $value);
+        $check = UiPreferenceService::validate($component, $adjustment, $normalised);
+        if (! $check['ok']) {
+            return;
+        }
+
+        $this->uiProposal = [
+            'component' => $component,
+            'adjustment' => $adjustment,
+            'value' => $normalised,
+            'current' => $this->currentPreference($resolved, $adjustment),
+            'scope' => $this->preferenceScopeLabel($resolved),
+        ];
+
+        try {
+            $context = $this->context();
+            AdminAudit::record(
+                'AI_ACTION_PROPOSED',
+                $context->project,
+                'ui_preference',
+                $component,
+                [
+                    'kind' => 'ui_preference',
+                    'adjustment' => $adjustment,
+                    'value' => $normalised,
+                    'scope' => $resolved->scope->value,
+                    'actor_kind' => 'user',
+                ],
+            );
+        } catch (\Throwable) {
+            // Auditing must not block the preview.
+        }
+    }
+
+    /**
+     * Apply the pending proposal. Everything is re-validated and
+     * re-authorised HERE — the preview being visible is not authority
+     * (the same execution-time rule the tool layer follows).
+     */
+    public function applyUiPreference(): void
+    {
+        $proposal = $this->uiProposal;
+        if ($proposal === null) {
+            return;
+        }
+
+        $resolved = $this->resolveInspection($proposal['component']);
+        if ($resolved === null
+            || ! in_array($proposal['adjustment'], $resolved->allowedAdjustments, true)
+            || ! UiPreferenceService::validate($proposal['component'], $proposal['adjustment'], $proposal['value'])['ok']) {
+            $this->uiProposal = null;
+
+            return;
+        }
+
+        $ids = $this->preferenceScopeIds($resolved);
+        $result = UiPreferenceService::for(auth()->user())->apply(
+            $proposal['component'],
+            $proposal['adjustment'],
+            $proposal['value'],
+            $ids['workspace_id'],
+            $ids['project_id'],
+        );
+
+        $this->uiProposal = null;
+
+        if ($result['ok']) {
+            try {
+                $context = $this->context();
+                AdminAudit::record(
+                    'AI_ACTION_APPLIED',
+                    $context->project,
+                    'ui_preference',
+                    $proposal['component'],
+                    [
+                        'kind' => 'ui_preference',
+                        'adjustment' => $proposal['adjustment'],
+                        'value' => $proposal['value'],
+                        'scope' => $resolved->scope->value,
+                        'actor_kind' => 'user',
+                    ],
+                );
+            } catch (\Throwable) {
+                // Auditing must not break the apply.
+            }
+        }
+    }
+
+    /** Discard the pending proposal without writing anything. */
+    public function cancelUiPreference(): void
+    {
+        if ($this->uiProposal === null) {
+            return;
+        }
+
+        $proposal = $this->uiProposal;
+        $this->uiProposal = null;
+
+        try {
+            $context = $this->context();
+            AdminAudit::record(
+                'AI_ACTION_REJECTED',
+                $context->project,
+                'ui_preference',
+                $proposal['component'],
+                [
+                    'kind' => 'ui_preference',
+                    'adjustment' => $proposal['adjustment'],
+                    'scope' => $this->inspection()?->scope->value ?? 'platform',
+                    'actor_kind' => 'user',
+                ],
+            );
+        } catch (\Throwable) {
+            // Auditing must not break a cancel.
+        }
+    }
+
+    /** Coerce a form-supplied value into the adjustment's type. */
+    protected function normalisePreferenceValue(string $adjustment, string|int|bool $value): mixed
+    {
+        if (in_array($adjustment, ['visibility', 'expanded_by_default'], true)) {
+            if (is_bool($value)) {
+                return $value;
+            }
+
+            return in_array(strtolower((string) $value), ['1', 'true', 'on', 'yes'], true);
+        }
+
+        return is_int($value) ? (string) $value : (string) $value;
+    }
+
+    /** The effective current value, for the preview's "Current" line. */
+    protected function currentPreference(InspectionContext $resolved, string $adjustment): mixed
+    {
+        $ids = $this->preferenceScopeIds($resolved);
+
+        return UiPreferenceService::for(auth()->user())
+            ->value($resolved->componentKey, $adjustment, $ids['workspace_id'], $ids['project_id']);
+    }
+
+    /** Platform components adjust the user's global view; scoped ones their scope view. */
+    protected function preferenceScopeIds(InspectionContext $resolved): array
+    {
+        return match ($resolved->scope) {
+            Scope::PROJECT => ['workspace_id' => null, 'project_id' => $resolved->project?->getKey()],
+            Scope::WORKSPACE => ['workspace_id' => $resolved->workspace?->getKey(), 'project_id' => null],
+            Scope::PLATFORM => ['workspace_id' => null, 'project_id' => null],
+        };
+    }
+
+    protected function preferenceScopeLabel(InspectionContext $resolved): string
+    {
+        return match ($resolved->scope) {
+            Scope::PROJECT => 'You, in project '.($resolved->project?->name ?? 'unknown'),
+            Scope::WORKSPACE => 'You, in workspace '.($resolved->workspace?->name ?? 'unknown'),
+            Scope::PLATFORM => 'You, everywhere (personal preference)',
+        };
+    }
+
+    // ── Inspect quick actions (Phase I §I.6/§I.7) ──────────────────────
+
+    /** "Explain this component" — a grounded question about the selection. */
+    public function explainComponent(): void
+    {
+        $inspection = $this->inspection();
+        if ($inspection === null) {
+            return;
+        }
+
+        $this->message = 'Explain the "'.$inspection->label.'" component on the '
+            .$inspection->page.' page: what it represents, what data it draws from, and its current state here.';
+        $this->send();
+    }
+
+    /** "Diagnose this" — check the real state behind the selection. */
+    public function diagnoseComponent(): void
+    {
+        $inspection = $this->inspection();
+        if ($inspection === null) {
+            return;
+        }
+
+        $this->message = 'Diagnose the "'.$inspection->label.'" component: check its real underlying state '
+            .'with the read tools available at this scope and report what is normal, what is not, and what needs attention.';
+        $this->send();
+    }
 
     /**
      * Entry check.
@@ -231,7 +694,10 @@ class NexusAi extends Page
         $this->transcript[] = ['role' => 'user', 'text' => $text, 'tools' => []];
         $this->message = '';
 
-        $engine = new ConversationEngine($context, new ModelRouter);
+        // Phase I: a selected component travels with the turn as validated
+        // context. `inspection()` re-resolves the key under the CURRENT
+        // authorisation, so a revoked user's selection detaches itself.
+        $engine = new ConversationEngine($context, new ModelRouter, $this->inspection());
 
         // Only user/assistant TEXT is replayed; tool payloads are not carried
         // across turns, which keeps the prompt small and the history clean.

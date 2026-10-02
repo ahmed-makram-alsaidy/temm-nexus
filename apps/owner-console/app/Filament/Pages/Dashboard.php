@@ -6,6 +6,7 @@ use App\Filament\Support\PlatformAccess;
 use App\Services\Access\Capability;
 use App\Services\Product\JourneyState;
 use App\Services\Product\PlatformPulse;
+use App\Services\Product\UiPreferenceService;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -56,6 +57,24 @@ class Dashboard extends BaseDashboard
     public function pulse(): PlatformPulse
     {
         return $this->pulse ??= PlatformPulse::for(PlatformAccess::current()->access());
+    }
+
+    /**
+     * Phase I — this user's effective appearance preferences for the Home
+     * components, in one query. The view applies visibility and density from
+     * this; the Inspect panel writes them.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function uiPreferences(): array
+    {
+        return UiPreferenceService::for(auth()->user())->effectiveForComponents([
+            'home.hero',
+            'home.summary',
+            'home.attention',
+            'home.recent_projects',
+            'home.platform_health',
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────────

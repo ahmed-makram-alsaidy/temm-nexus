@@ -12,6 +12,8 @@
         $members = $this->members();
         $health = $this->healthSummary();
         $attention = $this->attentionItems();
+        // Phase I — this user's appearance preferences for the workspace page.
+        $ui = $this->uiPreferences();
     @endphp
 
     @if ($workspace)
@@ -70,7 +72,11 @@
             @endif
         </section>
 
-        <section class="nx-section">
+        <section
+            class="nx-section @if (($ui['workspace.projects']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['workspace.projects']['density'] }} @endif"
+            data-nx-inspect="workspace.projects"
+            data-nx-inspect-label="Workspace projects"
+        >
             <h2 class="nx-section__title">Projects</h2>
             @if ($projects->isEmpty())
                 <div class="nx-empty">
@@ -126,8 +132,9 @@
             @endif
         </section>
 
-        <section class="nx-section">
-            <h2 class="nx-section__title">Members</h2>
+        @if ($ui['workspace.members']['visibility'] ?? true)
+            <section class="nx-section" data-nx-inspect="workspace.members" data-nx-inspect-label="Workspace members">
+                <h2 class="nx-section__title">Members</h2>
             @if ($members->isEmpty())
                 <div class="nx-empty nx-empty--inline">
                     <p class="nx-empty__body">
@@ -152,6 +159,7 @@
                     @endforeach
                 </ul>
             @endif
-        </section>
+            </section>
+        @endif
     @endif
 </x-filament-panels::page>

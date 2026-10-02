@@ -13,12 +13,18 @@
 @php
     $dangerCount = count(array_filter($issues, fn ($i) => $i['severity'] === 'danger'));
     $warningCount = count(array_filter($issues, fn ($i) => $i['severity'] === 'warning'));
+    // Phase I — this user's appearance preferences for the cutover components.
+    $ui = $ui;
 @endphp
 
 <div class="nx-stack">
 
     {{-- 1. Overall readiness: the single answer. --}}
-    <header class="nx-overview-head">
+    <header
+        class="nx-overview-head @if (($ui['cutover.overall']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['cutover.overall']['density'] }} @endif"
+        data-nx-inspect="cutover.overall"
+        data-nx-inspect-label="Overall readiness"
+    >
         <div class="nx-overview-head__progress">
             <span class="nx-fact__label">Overall readiness</span>
             <span @class(['nx-cutover-state', 'nx-cutover-state--'.$overall['tone']])>
@@ -106,8 +112,13 @@
     @endif
 
     {{-- 3. Every gate, with its evidence. --}}
-    <section class="nx-section">
-        <h2 class="nx-section__title">Readiness gates</h2>
+    @if ($ui['cutover.gates']['visibility'] ?? true)
+        <section
+            class="nx-section @if (($ui['cutover.gates']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['cutover.gates']['density'] }} @endif"
+            data-nx-inspect="cutover.gates"
+            data-nx-inspect-label="Readiness gates"
+        >
+            <h2 class="nx-section__title">Readiness gates</h2>
         <p class="nx-section__description">
             A gate with no evidence reads “Not verified” rather than green. The platform never
             guesses readiness.
@@ -127,7 +138,8 @@
                 </li>
             @endforeach
         </ul>
-    </section>
+        </section>
+    @endif
 
     {{-- 4. The six named readiness dimensions. --}}
     <section class="nx-section">
@@ -172,8 +184,9 @@
     </section>
 
     {{-- 5. Human approvals. Nothing auto-approves. --}}
-    <section class="nx-section">
-        <h2 class="nx-section__title">Human approvals</h2>
+    @if ($ui['cutover.approvals']['visibility'] ?? true)
+        <section class="nx-section" data-nx-inspect="cutover.approvals" data-nx-inspect-label="Human approvals">
+            <h2 class="nx-section__title">Human approvals</h2>
         <p class="nx-section__description">
             Every production-affecting gate needs an explicit decision. A gate with no record is
             awaiting, never granted.
@@ -212,32 +225,35 @@
                 <code class="nx-code">cutover.approve</code>, so you cannot record decisions here.
             </p>
         @endunless
-    </section>
+        </section>
+    @endif
 
     {{-- 6. The ordered plan. --}}
-    <section class="nx-section">
-        <h2 class="nx-section__title">Ordered cutover plan</h2>
-        <p class="nx-section__description">
-            Steps marked as needing approval are gated. The platform records each step; it does not
-            execute DNS or endpoint changes.
-        </p>
-        <ol class="nx-steps">
-            @foreach ($steps as $step)
-                <li @class(['nx-step', 'nx-step--gated' => $step['approval_required'], 'nx-step--blocked' => $step['blocked']])>
-                    <span class="nx-step__num">{{ $step['step'] }}</span>
-                    <div class="nx-step__body">
-                        <span class="nx-step__label">
-                            {{ $step['label'] }}
-                            @if ($step['approval_required'])
-                                <span class="nx-tag nx-tag--approval">approval</span>
-                            @endif
-                        </span>
-                        <span class="nx-step__note">{{ $step['note'] }}</span>
-                    </div>
-                </li>
-            @endforeach
-        </ol>
-    </section>
+    @if ($ui['cutover.plan']['visibility'] ?? true)
+        <section class="nx-section" data-nx-inspect="cutover.plan" data-nx-inspect-label="Ordered cutover plan">
+            <h2 class="nx-section__title">Ordered cutover plan</h2>
+            <p class="nx-section__description">
+                Steps marked as needing approval are gated. The platform records each step; it does not
+                execute DNS or endpoint changes.
+            </p>
+            <ol class="nx-steps">
+                @foreach ($steps as $step)
+                    <li @class(['nx-step', 'nx-step--gated' => $step['approval_required'], 'nx-step--blocked' => $step['blocked']])>
+                        <span class="nx-step__num">{{ $step['step'] }}</span>
+                        <div class="nx-step__body">
+                            <span class="nx-step__label">
+                                {{ $step['label'] }}
+                                @if ($step['approval_required'])
+                                    <span class="nx-tag nx-tag--approval">approval</span>
+                                @endif
+                            </span>
+                            <span class="nx-step__note">{{ $step['note'] }}</span>
+                        </div>
+                    </li>
+                @endforeach
+            </ol>
+        </section>
+    @endif
 
     {{-- 7. Advanced: the raw gate states and rollback procedure (§14). --}}
     <details class="nx-advanced">

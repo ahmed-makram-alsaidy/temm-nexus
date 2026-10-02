@@ -2047,3 +2047,244 @@ html:not(.dark) {
     .nx-empty { padding-block: var(--nx-space-8); }
     .nx-section { gap: var(--nx-space-3); }
 }
+
+/* ==========================================================================
+   0.4.0 Phase I — INSPECT MODE
+   --------------------------------------------------------------------------
+   The toggle lives next to the AI launcher. While selecting, the document
+   root carries `.nx-inspecting`; registered components carry
+   `.nx-inspect-target` on hover and `.nx-inspect-selected` once chosen.
+
+   Non-color-only signalling: highlight is an OUTLINE plus an "Inspect"
+   badge, never a fill change alone.
+   ========================================================================== */
+
+.nx-inspect-toggle {
+    position: fixed;
+    inset-block-end: 20px;
+    inset-inline-end: 180px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 14px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-raised);
+    box-shadow: var(--nx-elev-2);
+    color: var(--nx-text);
+    font-size: 13px;
+    font-weight: 560;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.nx-inspect-toggle:hover {
+    border-color: var(--nx-accent, var(--nx-border-strong));
+}
+
+.nx-inspect-toggle:focus-visible {
+    outline: 2px solid var(--nx-text);
+    outline-offset: 2px;
+}
+
+.nx-inspect-toggle[aria-pressed="true"] {
+    background: var(--nx-text);
+    color: var(--nx-surface-raised);
+}
+
+/* While selecting: crosshair intent, and embedded controls do not steal
+   clicks — the capture-phase guard in nexus-inspect.js handles that. */
+.nx-inspecting,
+.nx-inspecting * {
+    cursor: crosshair !important;
+}
+
+.nx-inspect-target:hover {
+    outline: 2px dashed var(--nx-border-strong);
+    outline-offset: 2px;
+    border-radius: var(--nx-radius-sm, 6px);
+}
+
+/* The badge makes the highlight legible without colour and without JS. */
+.nx-inspect-target:hover::after,
+.nx-inspect-selected::after {
+    content: "Inspect";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    transform: translateY(-50%);
+    padding: 1px 8px;
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-raised);
+    color: var(--nx-text);
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.nx-inspect-target:hover,
+.nx-inspect-selected {
+    position: relative;
+}
+
+.nx-inspect-selected {
+    outline: 2px solid var(--nx-text);
+    outline-offset: 2px;
+    border-radius: var(--nx-radius-sm, 6px);
+}
+
+@media (max-width: 1439px) {
+    .nx-inspect-toggle { inset-inline-end: 160px; }
+}
+
+@media (max-width: 1279px) {
+    .nx-inspect-toggle { inset-inline-end: 12px; inset-block-end: 64px; }
+}
+
+/* ── The Inspect panel on the Nexus AI page ─────────────────────────── */
+
+.nx-inspect-panel {
+    border: 1px solid var(--nx-border-strong);
+    border-radius: var(--nx-radius-md, 10px);
+    background: var(--nx-surface-raised);
+    padding: var(--nx-space-4, 16px);
+    margin-block-end: var(--nx-space-4, 16px);
+    display: grid;
+    gap: var(--nx-space-3, 12px);
+}
+
+.nx-inspect-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3, 12px);
+}
+
+.nx-inspect-panel__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 620;
+    color: var(--nx-text);
+}
+
+.nx-inspect-panel__remove {
+    border: 0;
+    background: transparent;
+    color: var(--nx-text-muted, inherit);
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px 8px;
+    border-radius: var(--nx-radius-full);
+    cursor: pointer;
+}
+
+.nx-inspect-panel__remove:hover {
+    background: var(--nx-surface, transparent);
+}
+
+.nx-inspect-panel__remove:focus-visible {
+    outline: 2px solid var(--nx-text);
+    outline-offset: 2px;
+}
+
+.nx-inspect-panel__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--nx-space-3, 12px);
+    margin: 0;
+}
+
+.nx-inspect-panel__facts dt {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--nx-text-muted, inherit);
+}
+
+.nx-inspect-panel__facts dd {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--nx-text);
+}
+
+.nx-inspect-panel__note {
+    margin: 0;
+    font-size: 12px;
+    color: var(--nx-text-muted, inherit);
+}
+
+.nx-inspect-panel__actions {
+    display: flex;
+    gap: var(--nx-space-2, 8px);
+    flex-wrap: wrap;
+}
+
+.nx-inspect-panel__appearance {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2, 8px);
+    flex-wrap: wrap;
+    border-block-start: 1px solid var(--nx-border, transparent);
+    padding-block-start: var(--nx-space-3, 12px);
+}
+
+.nx-inspect-panel__appearance-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nx-text-muted, inherit);
+}
+
+.nx-inspect-proposal {
+    border: 1px dashed var(--nx-border-strong);
+    border-radius: var(--nx-radius-md, 10px);
+    padding: var(--nx-space-3, 12px);
+    display: grid;
+    gap: var(--nx-space-3, 12px);
+}
+
+.nx-inspect-proposal__title {
+    font-size: 13px;
+}
+
+.nx-inspect-proposal__actions {
+    display: flex;
+    gap: var(--nx-space-2, 8px);
+}
+
+/* ── Density preferences (Phase I §I.9) ─────────────────────────────── */
+
+.nx-density--compact {
+    --nx-density-factor: 0.7;
+}
+
+.nx-density--spacious {
+    --nx-density-factor: 1.4;
+}
+
+.nx-density--compact .nx-stat-card,
+.nx-density--compact .nx-card,
+.nx-density--compact .nx-gate,
+.nx-density--compact .nx-section {
+    padding-block: calc(var(--nx-space-3, 12px) * var(--nx-density-factor, 0.7));
+    gap: calc(var(--nx-space-2, 8px) * var(--nx-density-factor, 0.7));
+}
+
+.nx-density--spacious .nx-stat-card,
+.nx-density--spacious .nx-card,
+.nx-density--spacious .nx-gate,
+.nx-density--spacious .nx-section {
+    padding-block: calc(var(--nx-space-4, 16px) * var(--nx-density-factor, 1.4));
+    gap: calc(var(--nx-space-3, 12px) * var(--nx-density-factor, 1.4));
+}
+
+/* Position preference for the overview progress card (§I.9 'position'). */
+.nx-overview-head {
+    display: grid;
+}
+
+.nx-order-progress-first .nx-overview-head__progress { order: -1; }
+.nx-order-progress-last .nx-overview-head__progress { order: 9; }

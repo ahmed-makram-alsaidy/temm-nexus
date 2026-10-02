@@ -11,6 +11,7 @@ use App\Models\Workspace;
 use App\Models\WorkspaceMember;
 use App\Services\Access\Capability;
 use App\Services\Access\Roles;
+use App\Services\Product\UiPreferenceService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -111,6 +112,20 @@ class WorkspaceDetail extends Page
     }
 
     // ── Data ───────────────────────────────────────────────────────────
+
+    /**
+     * Phase I — this user's appearance preferences for the workspace page
+     * components, resolved at workspace scope.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function uiPreferences(): array
+    {
+        return UiPreferenceService::for(auth()->user())->effectiveForComponents(
+            ['workspace.projects', 'workspace.members'],
+            $this->workspace?->getKey(),
+        );
+    }
 
     /** @return Collection<int, Project> Projects in this workspace the user may see. */
     public function projects(): Collection

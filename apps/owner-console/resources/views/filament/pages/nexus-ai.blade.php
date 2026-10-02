@@ -3,24 +3,122 @@
 
     What is real: scope-bound context, working conversations through the
     provider the operator configured, model-role routing, tool activity in
-    product language, and a permission-filtered tool inventory.
+    product language, a permission-filtered tool inventory, and Inspect Mode
+    (Phase I): a server-validated selected component with Explain / Diagnose
+    actions and whitelisted appearance preferences behind an explicit
+    preview + apply step.
 
-    What is NOT here, stated plainly rather than implied: Inspect Mode and the
-    action/approval flow. This page is read-only.
+    What is NOT here, stated plainly rather than implied: action tools and
+    the approval flow (Phase J). This page cannot mutate anything but the
+    acting user's own UI preferences.
 --}}
 <x-filament-panels::page>
     @php
         $tools = $this->availableTools();
         $providerConfigured = $this->hasProvider();
+        $inspection = $this->inspection();
+        $aiPrefs = $this->aiPreferences();
     @endphp
 
+    {{-- Screen-reader announcements for Inspect Mode state changes (§I.12). --}}
+    <span class="nx-visually-hidden" data-nx-inspect-live role="status" aria-live="polite"></span>
+
     {{-- Scope is ALWAYS visible (§16). Never inferred, never hidden. --}}
-    <div class="nx-scope-banner nx-scope-banner--ai">
+    <div class="nx-scope-banner nx-scope-banner--ai" data-nx-inspect="ai.scope_banner" data-nx-inspect-label="Context banner">
         <span class="nx-scope-banner__label">Context</span>
         <span class="nx-scope-banner__value">{{ $this->contextLabel() }}</span>
         <span class="nx-scope-banner__note">
             The assistant inherits your permissions and cannot see beyond this scope.
         </span>
+    </div>
+
+    {{-- Phase I: the selected component, resolved and authorised SERVER-SIDE.
+         Everything shown here comes from the registry, never from the client. --}}
+    <div data-nx-attach-root>
+        @if ($inspection)
+            <section class="nx-inspect-panel" aria-label="Selected component">
+                <header class="nx-inspect-panel__head">
+                    <span class="nx-inspect-panel__title">
+                        <x-filament::icon icon="heroicon-o-eye" class="h-4 w-4" />
+                        Selected component
+                    </span>
+                    <button type="button" class="nx-inspect-panel__remove" wire:click="clearInspectedComponent"
+                            title="Detach this component from the conversation"
+                            aria-label="Detach selected component">×</button>
+                </header>
+
+                <dl class="nx-inspect-panel__facts">
+                    <div><dt>Selected</dt><dd>{{ $inspection->chipLabel() }}</dd></div>
+                    <div><dt>Context</dt><dd>{{ $this->contextLabel() }}</dd></div>
+                    <div><dt>Component</dt><dd><code class="nx-code">{{ $inspection->componentKey }}</code></dd></div>
+                    <div><dt>Reads from</dt><dd>{{ $inspection->dataSource }}</dd></div>
+                </dl>
+
+                <p class="nx-inspect-panel__note">
+                    The assistant treats this as context about what you are looking at — it will check the
+                    real state with its read tools, not from the card itself.
+                </p>
+
+                @if ($providerConfigured)
+                    <div class="nx-inspect-panel__actions">
+                        <x-filament::button type="button" size="sm" color="gray" wire:click="explainComponent"
+                                            icon="heroicon-o-question-mark-circle">
+                            Explain this
+                        </x-filament::button>
+                        <x-filament::button type="button" size="sm" color="gray" wire:click="diagnoseComponent"
+                                            icon="heroicon-o-wrench-screwdriver">
+                            Diagnose this
+                        </x-filament::button>
+                    </div>
+                @endif
+
+                @php $choices = $this->uiChoices(); @endphp
+                @if ($choices !== [])
+                    <form wire:submit="previewUiAdjustment" class="nx-inspect-panel__appearance">
+                        <label class="nx-inspect-panel__appearance-label" for="nx-ui-choice">
+                            Appearance
+                        </label>
+                        <select id="nx-ui-choice" wire:model="uiFormChoice" aria-label="Choose an appearance change">
+                            <option value="">Choose a change…</option>
+                            @foreach ($choices as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <x-filament::button type="submit" size="sm" color="gray">
+                            Preview
+                        </x-filament::button>
+                    </form>
+                @endif
+
+                {{-- Phase I §I.10: preview BEFORE apply. Nothing is persisted
+                     until this card's Apply is clicked. --}}
+                @if ($proposal = $this->uiProposal)
+                    <div class="nx-inspect-proposal" role="group" aria-label="Proposed appearance change">
+                        <strong class="nx-inspect-proposal__title">Proposed appearance change</strong>
+                        <dl class="nx-inspect-panel__facts">
+                            <div><dt>Component</dt><dd>{{ $proposal['component'] }}</dd></div>
+                            <div>
+                                <dt>Current</dt>
+                                <dd>{{ $this->preferenceValueLabel($proposal['adjustment'], $proposal['current']) }}</dd>
+                            </div>
+                            <div>
+                                <dt>Proposed</dt>
+                                <dd>{{ $this->preferenceValueLabel($proposal['adjustment'], $proposal['value']) }}</dd>
+                            </div>
+                            <div><dt>Applies to</dt><dd>{{ $proposal['scope'] }}</dd></div>
+                        </dl>
+                        <div class="nx-inspect-proposal__actions">
+                            <x-filament::button type="button" size="sm" wire:click="applyUiPreference">
+                                Apply
+                            </x-filament::button>
+                            <x-filament::button type="button" size="sm" color="gray" wire:click="cancelUiPreference">
+                                Cancel
+                            </x-filament::button>
+                        </div>
+                    </div>
+                @endif
+            </section>
+        @endif
     </div>
 
     @unless ($providerConfigured)
@@ -41,7 +139,8 @@
 
     {{-- Conversation --}}
     @if ($providerConfigured)
-        <section class="nx-section">
+        <section class="nx-section @if (($aiPrefs['ai.transcript']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $aiPrefs['ai.transcript']['density'] }} @endif"
+                 data-nx-inspect="ai.transcript" data-nx-inspect-label="Conversation">
             <div class="nx-chat" role="log" aria-live="polite" aria-label="Nexus AI conversation">
                 @if ($transcript === [])
                     <div class="nx-empty nx-empty--inline">
@@ -150,7 +249,8 @@
     @endif
 
     {{-- What the assistant may read, straight from the enforcing dispatcher. --}}
-    <section class="nx-section">
+    @if ($aiPrefs['ai.tools']['visibility'] ?? true)
+        <section class="nx-section" data-nx-inspect="ai.tools" data-nx-inspect-label="Available read tools">
         <h2 class="nx-section__title">What the assistant can read here</h2>
         <p class="nx-section__description">
             This list is produced by the permission-aware dispatcher: it contains exactly the
@@ -181,6 +281,7 @@
             </ul>
         @endif
     </section>
+    @endif
 
     {{-- §44: state plainly what is not built. --}}
     <details class="nx-advanced">
@@ -189,14 +290,16 @@
             <div class="nx-fact">
                 <span class="nx-fact__label">Inspect Mode</span>
                 <span class="nx-fact__detail">
-                    Selecting a UI component to attach it to the conversation is not built yet.
+                    On — use the Inspect control in the toolbar to attach any highlighted component
+                    to this conversation.
                 </span>
             </div>
             <div class="nx-fact">
                 <span class="nx-fact__label">Actions and approvals</span>
                 <span class="nx-fact__detail">
                     The assistant is read-only. It cannot change anything, and no action tool is
-                    reachable from this page.
+                    reachable from this page. Appearance preferences above are the only writes, and
+                    each one needs your explicit preview and apply.
                 </span>
             </div>
             <div class="nx-fact">

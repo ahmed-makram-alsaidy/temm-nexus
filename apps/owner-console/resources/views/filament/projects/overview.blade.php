@@ -16,6 +16,8 @@
     $primary = $primaryAction;
     $blockers = $blockers;
     $warnings = $warnings;
+    // Phase I — this user's appearance preferences for the overview.
+    $ui = $ui;
 @endphp
 
 <div class="nx-stack">
@@ -36,56 +38,70 @@
     </header>
 
     {{-- The facts a user needs in five seconds. --}}
-    <div class="nx-overview-head">
-        <div class="nx-overview-head__progress">
-            <span class="nx-fact__label">Migration progress</span>
-            <span class="nx-overview-head__pct">{{ $progress }}%</span>
-            <div class="nx-bar" role="progressbar" aria-valuenow="{{ $progress }}" aria-valuemin="0" aria-valuemax="100"
-                 aria-label="Migration progress">
-                <div class="nx-bar__fill" style="width: {{ $progress }}%"></div>
+    <div
+        class="nx-overview-head @if (($ui['project.overview.progress']['position'] ?? null) === 'first') nx-order-progress-first @elseif (($ui['project.overview.progress']['position'] ?? null) === 'last') nx-order-progress-last @endif"
+    >
+        @if ($ui['project.overview.progress']['visibility'] ?? true)
+            <div
+                class="nx-overview-head__progress"
+                data-nx-inspect="project.overview.progress"
+                data-nx-inspect-label="Migration progress card"
+            >
+                <span class="nx-fact__label">Migration progress</span>
+                <span class="nx-overview-head__pct">{{ $progress }}%</span>
+                <div class="nx-bar" role="progressbar" aria-valuenow="{{ $progress }}" aria-valuemin="0" aria-valuemax="100"
+                     aria-label="Migration progress">
+                    <div class="nx-bar__fill" style="width: {{ $progress }}%"></div>
+                </div>
+                <span class="nx-fact__detail">Current stage: {{ $current->label() }}</span>
             </div>
-            <span class="nx-fact__detail">Current stage: {{ $current->label() }}</span>
-        </div>
+        @endif
 
-        <div class="nx-overview-head__facts">
-            <div class="nx-fact">
-                <span class="nx-fact__label">Health</span>
-                <span class="nx-fact__value">{{ $project->healthLabel() }}</span>
+        @if ($ui['project.overview.facts']['visibility'] ?? true)
+            <div class="nx-overview-head__facts" data-nx-inspect="project.overview.facts" data-nx-inspect-label="Readiness facts">
+                <div class="nx-fact">
+                    <span class="nx-fact__label">Health</span>
+                    <span class="nx-fact__value">{{ $project->healthLabel() }}</span>
+                </div>
+                <div class="nx-fact">
+                    <span class="nx-fact__label">Live Sync</span>
+                    <span class="nx-fact__value">{{ $sync['label'] }}</span>
+                    <span class="nx-fact__detail">{{ $sync['detail'] }}</span>
+                </div>
+                <div class="nx-fact">
+                    <span class="nx-fact__label">Last backup</span>
+                    <span class="nx-fact__value">{{ $backup['label'] }}</span>
+                    <span class="nx-fact__detail">{{ $backup['detail'] }}</span>
+                </div>
+                <div class="nx-fact">
+                    <span class="nx-fact__label">Readiness</span>
+                    <span class="nx-fact__value">
+                        @if ($blockers !== [])
+                            {{ count($blockers) }} blocking
+                        @elseif ($warnings !== [])
+                            {{ count($warnings) }} to review
+                        @else
+                            No issues
+                        @endif
+                    </span>
+                </div>
             </div>
-            <div class="nx-fact">
-                <span class="nx-fact__label">Live Sync</span>
-                <span class="nx-fact__value">{{ $sync['label'] }}</span>
-                <span class="nx-fact__detail">{{ $sync['detail'] }}</span>
-            </div>
-            <div class="nx-fact">
-                <span class="nx-fact__label">Last backup</span>
-                <span class="nx-fact__value">{{ $backup['label'] }}</span>
-                <span class="nx-fact__detail">{{ $backup['detail'] }}</span>
-            </div>
-            <div class="nx-fact">
-                <span class="nx-fact__label">Readiness</span>
-                <span class="nx-fact__value">
-                    @if ($blockers !== [])
-                        {{ count($blockers) }} blocking
-                    @elseif ($warnings !== [])
-                        {{ count($warnings) }} to review
-                    @else
-                        No issues
-                    @endif
-                </span>
-            </div>
-        </div>
+        @endif
     </div>
 
     {{-- The journey: where am I, what is done, what is blocked, what is next. --}}
-    <section class="nx-section">
+    <section
+        class="nx-section @if (($ui['project.overview.journey']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['project.overview.journey']['density'] }} @endif"
+        data-nx-inspect="project.overview.journey"
+        data-nx-inspect-label="Migration journey"
+    >
         <h2 class="nx-section__title">Migration journey</h2>
         <x-nx.journey :journey="$journey" :current="$current" />
     </section>
 
     {{-- Why, not just that. §10. --}}
-    @if ($blockers !== [] || $warnings !== [])
-        <section class="nx-section">
+    @if (($blockers !== [] || $warnings !== []) && ($ui['project.overview.attention']['visibility'] ?? true))
+        <section class="nx-section" data-nx-inspect="project.overview.attention" data-nx-inspect-label="Project attention list">
             <h2 class="nx-section__title">Needs attention</h2>
             <ul class="nx-attention">
                 @foreach (array_merge($blockers, $warnings) as $item)
@@ -111,29 +127,32 @@
     @endif
 
     {{-- Recent activity. --}}
-    <section class="nx-section">
-        <h2 class="nx-section__title">Recent activity</h2>
-        @php $activity = $legacy['activity'] ?? []; @endphp
-        @if ($activity === [])
-            <div class="nx-empty nx-empty--inline">
-                <p class="nx-empty__body">
-                    No activity recorded yet. A quiet log does not by itself mean the system is healthy.
-                </p>
-            </div>
-        @else
-            <ul class="nx-timeline">
-                @foreach (array_slice($activity, 0, 8) as $a)
-                    <li class="nx-timeline__row">
-                        <span class="nx-timeline__time">{{ $a['time'] ?? '—' }}</span>
-                        <span class="nx-timeline__what">{{ $a['text'] ?? '' }}</span>
-                    </li>
-                @endforeach
-            </ul>
-        @endif
-    </section>
+    @if ($ui['project.overview.activity']['visibility'] ?? true)
+        <section class="nx-section" data-nx-inspect="project.overview.activity" data-nx-inspect-label="Recent activity">
+            <h2 class="nx-section__title">Recent activity</h2>
+            @php $activity = $legacy['activity'] ?? []; @endphp
+            @if ($activity === [])
+                <div class="nx-empty nx-empty--inline">
+                    <p class="nx-empty__body">
+                        No activity recorded yet. A quiet log does not by itself mean the system is healthy.
+                    </p>
+                </div>
+            @else
+                <ul class="nx-timeline">
+                    @foreach (array_slice($activity, 0, 8) as $a)
+                        <li class="nx-timeline__row">
+                            <span class="nx-timeline__time">{{ $a['time'] ?? '—' }}</span>
+                            <span class="nx-timeline__what">{{ $a['text'] ?? '' }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
+    @endif
 
     {{-- Progressive disclosure: everything technical, nothing removed. --}}
-    <details class="nx-advanced">
+    <details class="nx-advanced" @if ($ui['project.overview.advanced']['expanded_by_default'] ?? false) open @endif
+             data-nx-inspect="project.overview.advanced" data-nx-inspect-label="Advanced details">
         <summary>Advanced details</summary>
         <div class="nx-advanced__body">
             <div class="nx-fact">

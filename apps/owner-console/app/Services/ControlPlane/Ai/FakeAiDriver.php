@@ -41,10 +41,19 @@ class FakeAiDriver implements AiDriver
      */
     public static ?array $script = null;
 
+    /**
+     * The most recent `complete()` payload, captured for assertions about WHAT
+     * was actually sent to a provider (system prompt content, no secrets).
+     *
+     * @var array<string, mixed>|null
+     */
+    public static ?array $lastComplete = null;
+
     /** Reset between tests. */
     public static function reset(): void
     {
         self::$script = null;
+        self::$lastComplete = null;
         self::$callCount = 0;
     }
 
@@ -52,6 +61,8 @@ class FakeAiDriver implements AiDriver
 
     public function complete(AiProviderConfig $config, array $messages, array $options = []): array
     {
+        self::$lastComplete = ['config' => $config, 'messages' => $messages, 'options' => $options];
+
         if (! empty($options['fake_error'])) {
             throw new \RuntimeException('Fake AI error: '.$options['fake_error']);
         }

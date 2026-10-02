@@ -14,6 +14,7 @@ use App\Services\ControlPlane\ProjectHealthService;
 use App\Services\ControlPlane\ProjectOverviewData;
 use App\Services\Product\JourneyStage;
 use App\Services\Product\ProjectPulse;
+use App\Services\Product\UiPreferenceService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
@@ -118,9 +119,10 @@ class ViewProject extends Page
     protected function overviewViewData(): array
     {
         $pulse = $this->pulse();
+        $project = $this->project();
 
         return [
-            'project' => $this->project(),
+            'project' => $project,
             'pulse' => $pulse,
             'journey' => $pulse->journey(),
             'current' => $pulse->currentStage(),
@@ -133,6 +135,21 @@ class ViewProject extends Page
             'primaryAction' => $this->primaryAction(),
             'legacy' => $this->legacyTelemetry(),
             'advancedUrl' => $this->projectAdvancedUrl(),
+            // Phase I — this user's appearance preferences for the overview
+            // components, resolved at project scope (falling back to their
+            // global preference).
+            'ui' => UiPreferenceService::for(auth()->user())->effectiveForComponents(
+                [
+                    'project.overview.progress',
+                    'project.overview.facts',
+                    'project.overview.journey',
+                    'project.overview.attention',
+                    'project.overview.activity',
+                    'project.overview.advanced',
+                ],
+                $project->workspace?->getKey(),
+                $project->getKey(),
+            ),
         ];
     }
 

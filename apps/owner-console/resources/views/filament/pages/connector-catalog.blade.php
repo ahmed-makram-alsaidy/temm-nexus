@@ -15,6 +15,7 @@
         $total = $this->totalCount();
         $features = $this->featureOptions();
         $trusts = $this->trustOptions();
+        $gridDensity = ($this->uiPreferences()['connectors.grid']['density'] ?? 'comfortable');
     @endphp
 
     {{-- Filters: a real control surface, not a line of text. --}}
@@ -95,7 +96,11 @@
             @endif
         </div>
     @else
-        <div class="nx-grid nx-grid--connectors">
+        <div
+            class="nx-grid nx-grid--connectors @if ($gridDensity !== 'comfortable') nx-density--{{ $gridDensity }} @endif"
+            data-nx-inspect="connectors.grid"
+            data-nx-inspect-label="Connector catalogue"
+        >
             @foreach ($cards as $card)
                 <article class="nx-connector">
                     <header class="nx-connector__head">

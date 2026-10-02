@@ -22,7 +22,54 @@ class ControlPlaneChrome
     public const CSS_VERSION = '20.8.0';
 
     /** Bump when public/css/nexus.css changes (0.4.0 product design system). */
-    public const NEXUS_CSS_VERSION = '40.0.0';
+    public const NEXUS_CSS_VERSION = '40.1.0';
+
+    /** Bump when public/js/nexus-inspect.js changes (0.4.0 Phase I). */
+    public const INSPECT_JS_VERSION = '40.1.0';
+
+    /**
+     * 0.4.0 Phase I — the Inspect Mode toggle.
+     *
+     * Rendered only for someone who can actually use the assistant, so the
+     * control never appears where it would do nothing. The button is inert on
+     * its own: it toggles a client class, and the SELECTION it produces is
+     * validated server-side against `ComponentRegistry` before it can reach a
+     * model. The client never sends a component description.
+     */
+    public static function inspectToggleHook(): \Closure
+    {
+        return function (): HtmlString {
+            try {
+                if (! \App\Filament\Pages\NexusAi::canAccess()) {
+                    return new HtmlString('');
+                }
+
+                return new HtmlString(
+                    '<button type="button" class="nx-inspect-toggle" data-nx-inspect-toggle'
+                    .' aria-pressed="false"'
+                    .' title="Inspect Mode — click a component to attach it to Nexus AI (Esc to exit)">'
+                    .'<span class="nx-inspect-toggle__glyph" aria-hidden="true">'
+                    // Inline eye glyph: no icon-component dependency in the shell.
+                    .'<svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15" aria-hidden="true">'
+                    .'<path d="M10 4c-3.6 0-6.6 2.3-8 6 1.4 3.7 4.4 6 8 6s6.6-2.3 8-6c-1.4-3.7-4.4-6-8-6Zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>'
+                    .'</svg></span>'
+                    .'<span class="nx-inspect-toggle__text">Inspect</span>'
+                    .'</button>'
+                );
+            } catch (\Throwable) {
+                // Chrome must never break a page render.
+                return new HtmlString('');
+            }
+        };
+    }
+
+    /** The Inspect Mode client script. */
+    public static function inspectScriptHook(): \Closure
+    {
+        return fn (): HtmlString => new HtmlString(
+            '<script src="/js/nexus-inspect.js?v='.self::INSPECT_JS_VERSION.'" defer></script>'
+        );
+    }
 
     public static function navigation(): bool|NavigationBuilder
     {
@@ -71,7 +118,16 @@ class ControlPlaneChrome
                 }
 
                 $label = NexusAi::currentContextLabel();
-                $url = NexusAi::pageUrl();
+
+                // The launcher LINKS to the context it displays. Opening the
+                // assistant inside a project must arrive at project scope,
+                // which is also what makes a selected project component
+                // attachable (Inspect Mode, Phase I). A deep link can only
+                // NARROW scope: the page re-checks reachability server-side.
+                $project = self::currentProject();
+                $url = $project instanceof Project
+                    ? NexusAi::urlFor($project)
+                    : NexusAi::pageUrl();
 
                 return new HtmlString(
                     '<a class="nx-ai-launcher" href="'.e($url).'" title="Open Nexus AI — context: '.e($label).'">'
@@ -147,8 +203,12 @@ class ControlPlaneChrome
         return function (): HtmlString {
             $search = self::searchShortcutHook()();
             $launcher = self::aiLauncherHook()();
+            $inspect = self::inspectToggleHook()();
+            $script = self::inspectScriptHook()();
 
-            return new HtmlString($search->toHtml().$launcher->toHtml());
+            return new HtmlString(
+                $search->toHtml().$launcher->toHtml().$inspect->toHtml().$script->toHtml()
+            );
         };
     }
 

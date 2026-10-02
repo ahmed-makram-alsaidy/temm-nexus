@@ -6,6 +6,7 @@ use App\Filament\Resources\Projects\ProjectResource;
 use App\Filament\Support\PlatformAccess;
 use App\Services\Access\Capability;
 use App\Services\Product\ConnectorCatalogView;
+use App\Services\Product\UiPreferenceService;
 use BackedEnum;
 use Filament\Pages\Page;
 
@@ -74,6 +75,16 @@ class ConnectorCatalog extends Page
     }
 
     // ── Data ───────────────────────────────────────────────────────────
+
+    /**
+     * Phase I — this user's appearance preference for the catalogue grid.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function uiPreferences(): array
+    {
+        return UiPreferenceService::for(auth()->user())->effectiveForComponents(['connectors.grid']);
+    }
 
     /** @return list<array<string, mixed>> */
     public function allCards(): array

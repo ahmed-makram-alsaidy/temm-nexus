@@ -16,10 +16,16 @@
         $backups = $pulse->backupSummary();
         $activity = $pulse->recentActivity(8);
         $projects = $pulse->projects();
+        // Phase I — this user's appearance preferences (visibility, density).
+        $ui = $this->uiPreferences();
     @endphp
 
     {{-- 1. Greeting, platform state, and the one primary action. --}}
-    <header class="nx-hero">
+    <header
+        class="nx-hero @if (($ui['home.hero']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['home.hero']['density'] }} @endif"
+        data-nx-inspect="home.hero"
+        data-nx-inspect-label="Home header"
+    >
         <div class="nx-hero__text">
             <h1 class="nx-hero__greeting">{{ $this->greeting() }}, {{ $this->userName() }}.</h1>
             <p class="nx-hero__state">{{ $this->stateSentence() }}</p>
@@ -85,21 +91,28 @@
         </div>
     @else
         {{-- 2. Summary. Five figures, each with context, never a bare number. --}}
-        <div class="nx-grid nx-grid--stats">
-            @foreach ($summary as $item)
-                <div class="nx-stat-card">
-                    <span class="nx-stat-card__label">{{ $item['label'] }}</span>
-                    <span @class(['nx-stat-card__value', $this->toneClass($item['tone'])])>
-                        {{ $item['value'] }}
-                    </span>
-                    <span class="nx-stat-card__hint">{{ $item['hint'] }}</span>
-                </div>
-            @endforeach
-        </div>
+        @if ($ui['home.summary']['visibility'] ?? true)
+            <div
+                class="nx-grid nx-grid--stats @if (($ui['home.summary']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['home.summary']['density'] }} @endif"
+                data-nx-inspect="home.summary"
+                data-nx-inspect-label="Summary figures"
+            >
+                @foreach ($summary as $item)
+                    <div class="nx-stat-card">
+                        <span class="nx-stat-card__label">{{ $item['label'] }}</span>
+                        <span @class(['nx-stat-card__value', $this->toneClass($item['tone'])])>
+                            {{ $item['value'] }}
+                        </span>
+                        <span class="nx-stat-card__hint">{{ $item['hint'] }}</span>
+                    </div>
+                @endforeach
+            </div>
+        @endif
 
         {{-- 3. What requires attention — before anything that is merely running. --}}
-        <section class="nx-section">
-            <h2 class="nx-section__title">Needs attention</h2>
+        @if ($ui['home.attention']['visibility'] ?? true)
+            <section class="nx-section" data-nx-inspect="home.attention" data-nx-inspect-label="Needs attention">
+                <h2 class="nx-section__title">Needs attention</h2>
 
             @if ($attention->isEmpty())
                 <div class="nx-empty nx-empty--inline">
@@ -126,7 +139,8 @@
                     @endforeach
                 </ul>
             @endif
-        </section>
+            </section>
+        @endif
 
         {{-- 4. What is running. --}}
         @if ($pulse->activeMigrationCount() > 0 || $readyForCutover->isNotEmpty())
@@ -160,29 +174,36 @@
         @endif
 
         {{-- 5. Recent projects. --}}
-        <section class="nx-section">
-            <h2 class="nx-section__title">Recent projects</h2>
-            <ul class="nx-list">
-                @foreach ($projects->take(6) as $project)
-                    @php $p = \App\Services\Product\ProjectPulse::for($project); @endphp
-                    <li>
-                        <a href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $project]) }}">
-                            <span class="nx-list__name">{{ $project->name }}</span>
-                            <span class="nx-tag">{{ strtoupper($project->environment ?? 'local') }}</span>
-                            <span @class(['nx-status', $this->statusClass($p->overallState())])>
-                                <x-filament::icon :icon="$p->overallState()->icon()" class="h-3.5 w-3.5" />
-                                {{ $p->overallState()->label() }}
-                            </span>
-                            <span class="nx-list__hint">{{ $p->progressPercent() }}%</span>
-                        </a>
-                    </li>
-                @endforeach
-            </ul>
-        </section>
+        @if ($ui['home.recent_projects']['visibility'] ?? true)
+            <section
+                class="nx-section @if (($ui['home.recent_projects']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['home.recent_projects']['density'] }} @endif"
+                data-nx-inspect="home.recent_projects"
+                data-nx-inspect-label="Recent projects"
+            >
+                <h2 class="nx-section__title">Recent projects</h2>
+                <ul class="nx-list">
+                    @foreach ($projects->take(6) as $project)
+                        @php $p = \App\Services\Product\ProjectPulse::for($project); @endphp
+                        <li>
+                            <a href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $project]) }}">
+                                <span class="nx-list__name">{{ $project->name }}</span>
+                                <span class="nx-tag">{{ strtoupper($project->environment ?? 'local') }}</span>
+                                <span @class(['nx-status', $this->statusClass($p->overallState())])>
+                                    <x-filament::icon :icon="$p->overallState()->icon()" class="h-3.5 w-3.5" />
+                                    {{ $p->overallState()->label() }}
+                                </span>
+                                <span class="nx-list__hint">{{ $p->progressPercent() }}%</span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
 
         {{-- 6. Infrastructure LAST, and in product language (§7/§14). --}}
-        <section class="nx-section">
-            <h2 class="nx-section__title">Platform health</h2>
+        @if ($ui['home.platform_health']['visibility'] ?? true)
+            <section class="nx-section" data-nx-inspect="home.platform_health" data-nx-inspect-label="Platform health">
+                <h2 class="nx-section__title">Platform health</h2>
             <div class="nx-grid nx-grid--stats">
                 <div class="nx-stat-card">
                     <span class="nx-stat-card__label">Backups taken</span>
@@ -205,7 +226,8 @@
                     </span>
                 </div>
             </div>
-        </section>
+            </section>
+        @endif
 
         {{-- 7. Activity. --}}
         <section class="nx-section">
