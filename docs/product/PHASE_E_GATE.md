@@ -221,7 +221,7 @@ ASSERTIONS: 26 pass · 0 fail
 | --- | --- |
 | Base | `ad693fc` (`v0.3.0`) |
 | Preceding | `cd9bd33` (Phase D) |
-| **Phase E commit** | `e7a2ef2` — `feat(0.4.0): Phase E — dedicated Cutover readiness experience` |
+| **Phase E commit** | `160a5bf` — `feat(0.4.0): Phase E — dedicated Cutover readiness experience` |
 | `v0.3.0` tag | still `ad693fc` — **not moved, not replaced, not retagged** |
 | New tags published | **none** |
 | `v0.4.0` published | **no** |
