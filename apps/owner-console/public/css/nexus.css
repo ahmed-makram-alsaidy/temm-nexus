@@ -1343,6 +1343,214 @@ html:not(.dark) {
     gap: var(--nx-space-6);
 }
 
+/* 10.21 Cutover readiness (§10) — the critical product moment.
+   The answer must be legible from across the room, and the action must be
+   visibly unavailable while anything blocks. */
+.nx-cutover-state {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    font-size: 34px;
+    font-weight: 660;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.nx-cutover-state--success { color: var(--nx-success); }
+.nx-cutover-state--warning { color: var(--nx-warning); }
+.nx-cutover-state--danger { color: var(--nx-danger); }
+
+.nx-cutover-action {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-4);
+    flex-wrap: wrap;
+    padding: var(--nx-space-4) var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+}
+
+/* Gates: state icon + section + evidence + state label. Never colour-only. */
+.nx-gates {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    overflow: hidden;
+}
+
+.nx-gate {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3) var(--nx-space-4);
+}
+
+.nx-gate + .nx-gate {
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-gate--success > svg { color: var(--nx-success); }
+.nx-gate--warning > svg { color: var(--nx-warning); }
+.nx-gate--danger > svg { color: var(--nx-danger); }
+.nx-gate--neutral > svg { color: var(--nx-text-subtle); }
+
+.nx-gate__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.nx-gate__section {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--nx-text);
+}
+
+.nx-gate__evidence {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+.nx-gate__detail {
+    font-size: 12px;
+    color: var(--nx-text-subtle);
+}
+
+.nx-gate__state {
+    margin-inline-start: auto;
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nx-text-muted);
+}
+
+/* Approvals. */
+.nx-approvals {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+}
+
+.nx-approval {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    border: 1px solid var(--nx-border);
+    border-inline-start: 3px solid var(--nx-text-subtle);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-approval--approved { border-inline-start-color: var(--nx-success); }
+.nx-approval--approved > svg { color: var(--nx-success); }
+.nx-approval--rejected { border-inline-start-color: var(--nx-danger); }
+.nx-approval--rejected > svg { color: var(--nx-danger); }
+
+.nx-approval strong {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--nx-text);
+}
+
+.nx-approval p {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+    margin-top: 2px;
+}
+
+.nx-approval__state {
+    margin-inline-start: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nx-text-muted);
+    white-space: nowrap;
+}
+
+/* Ordered plan steps. */
+.nx-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-lg);
+    background: var(--nx-surface);
+    overflow: hidden;
+}
+
+.nx-step {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-3) var(--nx-space-4);
+}
+
+.nx-step + .nx-step {
+    border-top: 1px solid var(--nx-border);
+}
+
+.nx-step__num {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-muted);
+    font-size: 11.5px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+
+.nx-step--gated .nx-step__num {
+    background: var(--nx-warning-soft);
+    color: var(--nx-warning);
+}
+
+.nx-step--blocked {
+    opacity: 0.62;
+}
+
+.nx-step__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.nx-step__label {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    font-size: 13.5px;
+    font-weight: 560;
+    color: var(--nx-text);
+}
+
+.nx-step__note {
+    font-size: 12.5px;
+    color: var(--nx-text-muted);
+}
+
+.nx-tag--approval {
+    background: var(--nx-warning-soft);
+    color: var(--nx-warning);
+}
+
 /* ── 11. Responsive ─────────────────────────────────────────────────────── */
 
 /* The journey needs ~180px per step to stay readable ("Validate", "Needs

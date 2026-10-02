@@ -8,43 +8,44 @@ use App\Filament\Resources\Projects\Pages\ListProjects;
 use App\Filament\Resources\Projects\Pages\ManageProjectPermissions;
 use App\Filament\Resources\Projects\Pages\ManageProjectRoles;
 use App\Filament\Resources\Projects\Pages\ManageProjectUsers;
-use App\Filament\Resources\Projects\Pages\ProjectAuthSecurity;
 use App\Filament\Resources\Projects\Pages\ProjectApi;
 use App\Filament\Resources\Projects\Pages\ProjectApiKeys;
+use App\Filament\Resources\Projects\Pages\ProjectAuthSecurity;
+use App\Filament\Resources\Projects\Pages\ProjectBackups;
+use App\Filament\Resources\Projects\Pages\ProjectClientRepository;
 use App\Filament\Resources\Projects\Pages\ProjectConnect;
+use App\Filament\Resources\Projects\Pages\ProjectConnections;
+use App\Filament\Resources\Projects\Pages\ProjectCopilot;
+use App\Filament\Resources\Projects\Pages\ProjectCutover;
+use App\Filament\Resources\Projects\Pages\ProjectDatabase;
+use App\Filament\Resources\Projects\Pages\ProjectDbAdvanced;
+use App\Filament\Resources\Projects\Pages\ProjectDbFunctions;
+use App\Filament\Resources\Projects\Pages\ProjectDbHealth;
+use App\Filament\Resources\Projects\Pages\ProjectEnvironments;
+use App\Filament\Resources\Projects\Pages\ProjectErd;
 use App\Filament\Resources\Projects\Pages\ProjectFunctionEditor;
 use App\Filament\Resources\Projects\Pages\ProjectFunctions;
 use App\Filament\Resources\Projects\Pages\ProjectFunctionTester;
 use App\Filament\Resources\Projects\Pages\ProjectInfrastructure;
-use App\Filament\Resources\Projects\Pages\ProjectSecrets;
-use App\Filament\Resources\Projects\Pages\ProjectWebhooks;
-use App\Filament\Resources\Projects\Pages\ProjectBackups;
-use App\Filament\Resources\Projects\Pages\ProjectDatabase;
-use App\Filament\Resources\Projects\Pages\ProjectConnections;
-use App\Filament\Resources\Projects\Pages\ProjectDbAdvanced;
-use App\Filament\Resources\Projects\Pages\ProjectDbFunctions;
-use App\Filament\Resources\Projects\Pages\ProjectDbHealth;
-use App\Filament\Resources\Projects\Pages\ProjectErd;
 use App\Filament\Resources\Projects\Pages\ProjectLogs;
+use App\Filament\Resources\Projects\Pages\ProjectMigrationCenter;
 use App\Filament\Resources\Projects\Pages\ProjectMigrations;
 use App\Filament\Resources\Projects\Pages\ProjectMonitoring;
 use App\Filament\Resources\Projects\Pages\ProjectQueues;
+use App\Filament\Resources\Projects\Pages\ProjectReadiness;
 use App\Filament\Resources\Projects\Pages\ProjectRealtime;
+use App\Filament\Resources\Projects\Pages\ProjectResources;
 use App\Filament\Resources\Projects\Pages\ProjectScheduler;
+use App\Filament\Resources\Projects\Pages\ProjectSchemaDiff;
+use App\Filament\Resources\Projects\Pages\ProjectSecrets;
 use App\Filament\Resources\Projects\Pages\ProjectSessions;
 use App\Filament\Resources\Projects\Pages\ProjectSettings;
 use App\Filament\Resources\Projects\Pages\ProjectSqlEditor;
 use App\Filament\Resources\Projects\Pages\ProjectStorage;
 use App\Filament\Resources\Projects\Pages\ProjectTableRecords;
 use App\Filament\Resources\Projects\Pages\ProjectTableSchema;
-use App\Filament\Resources\Projects\Pages\ProjectClientRepository;
-use App\Filament\Resources\Projects\Pages\ProjectCopilot;
+use App\Filament\Resources\Projects\Pages\ProjectWebhooks;
 use App\Filament\Resources\Projects\Pages\ViewProject;
-use App\Filament\Resources\Projects\Pages\ProjectEnvironments;
-use App\Filament\Resources\Projects\Pages\ProjectMigrationCenter;
-use App\Filament\Resources\Projects\Pages\ProjectReadiness;
-use App\Filament\Resources\Projects\Pages\ProjectResources;
-use App\Filament\Resources\Projects\Pages\ProjectSchemaDiff;
 use App\Filament\Resources\Projects\Schemas\ProjectForm;
 use App\Filament\Resources\Projects\Tables\ProjectsTable;
 use App\Models\Project;
@@ -135,6 +136,10 @@ class ProjectResource extends Resource
             // Phase 25 — Supabase + AI Migration Copilot.
             'client-repository' => ProjectClientRepository::route('/{record}/client-repository'),
             'copilot' => ProjectCopilot::route('/{record}/copilot'),
+
+            // 0.4.0 Phase E — Cutover is a first-class destination rather than a
+            // section of the generic Readiness page (mission §5/§10).
+            'cutover' => ProjectCutover::route('/{record}/cutover'),
         ];
     }
 }

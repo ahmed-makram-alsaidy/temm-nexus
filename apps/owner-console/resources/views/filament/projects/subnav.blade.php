@@ -43,6 +43,7 @@
         'Project' => [
             'environments' => ['label' => 'Environments', 'icon' => 'heroicon-o-squares-2x2'],
             'migration-center' => ['label' => 'Migration Center', 'icon' => 'heroicon-o-paper-airplane'],
+            'cutover' => ['label' => 'Cutover', 'icon' => 'heroicon-o-rocket-launch'],
             'client-repository' => ['label' => 'Client Repository', 'icon' => 'heroicon-o-folder-open'],
             'copilot' => ['label' => 'AI Copilot', 'icon' => 'heroicon-o-sparkles'],
         ],

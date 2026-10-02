@@ -2,13 +2,14 @@
 
 namespace App\Services\ControlPlane\Cutover;
 
+use App\Models\BackupRecord;
+use App\Models\ClientCallsite;
 use App\Models\CutoverApproval;
 use App\Models\CutoverEvent;
 use App\Models\CutoverPlan;
 use App\Models\MigrationRun;
 use App\Models\Project;
 use App\Services\ControlPlane\AdminAudit;
-use App\Services\ControlPlane\Connectors\Contracts\CdcCaptureProvider;
 use App\Services\ControlPlane\Migration\Cdc\CdcPositionSource;
 use App\Services\ControlPlane\Migration\Cdc\CdcRunContext;
 use Illuminate\Support\Facades\Auth;
@@ -36,8 +37,6 @@ class CutoverCenterService
 
     /**
      * Build the preflight + plan for a project from its latest migration run.
-     *
-     * @return CutoverPlan
      */
     public function createPlan(Project $project, ?MigrationRun $run = null): CutoverPlan
     {
@@ -79,7 +78,7 @@ class CutoverCenterService
 
         // Backup gate: a VERIFIED + restore-drilled backup is REQUIRED for a
         // PASS — without proof this gate BLOCKS the plan (34A: no fake green).
-        $verifiedBackup = \App\Models\BackupRecord::query()
+        $verifiedBackup = BackupRecord::query()
             ->where('db_name', $project->db_name)
             ->where('status', 'ok')
             ->where('restore_test_status', 'ok')
@@ -114,7 +113,7 @@ class CutoverCenterService
         }
 
         // Client readiness: remaining legacy callsites on linked repositories.
-        $legacy = \App\Models\ClientCallsite::query()
+        $legacy = ClientCallsite::query()
             ->whereHas('repository', fn ($q) => $q->where('project_id', $project->id))
             ->where('status', 'DISCOVERED')->count();
         $gates[] = ['gate' => 'client_readiness', 'section' => 'Client readiness',
@@ -130,6 +129,21 @@ class CutoverCenterService
             'state' => 'PASS', 'evidence' => 'rollback plan generated with a 14-day expiry window'];
 
         return $gates;
+    }
+
+    /**
+     * 0.4.0 — preview the ordered steps WITHOUT creating a plan.
+     *
+     * The Cutover screen must be able to show the plan before an operator
+     * commits to one. `createPlan()` writes a row and an audit event, so it
+     * cannot be used for a read-only page render; this returns the same ordered
+     * step list from the same source (`orderedSteps`) with no side effects.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function createPlanStepsPreview(Project $project, ?MigrationRun $run = null): array
+    {
+        return $this->orderedSteps($this->preflight($project, $run));
     }
 
     /** 34C — the ordered plan; steps gated on the approval matrix. */
@@ -270,6 +284,7 @@ class CutoverCenterService
                 $consecutiveDrains++;
                 if ($consecutiveDrains >= 2) {
                     $appliedThrough = true;
+
                     continue;
                 }
                 sleep(1); // straggler window between the two drains

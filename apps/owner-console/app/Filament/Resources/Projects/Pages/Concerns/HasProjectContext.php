@@ -4,11 +4,13 @@ namespace App\Filament\Resources\Projects\Pages\Concerns;
 
 use App\Filament\Resources\Projects\ProjectResource;
 use App\Models\Project;
+use App\Services\Access\Access;
+use App\Services\Access\Capability;
 use App\Services\ControlPlane\AdminAudit;
-use App\Services\ControlPlane\ProjectConnectionManager;
 use App\Services\ControlPlane\ProjectDatabaseExplorer;
-use Filament\Schemas\Components\Html;
 use Filament\Schemas\Components\Section;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 
 /**
  * Shared context for every project-scoped control-plane page.
@@ -48,9 +50,54 @@ trait HasProjectContext
         return $this->subnav($active);
     }
 
+    /**
+     * 0.4.0 — entry to a project page.
+     *
+     * This used to be `auth()->check() && auth()->user()->is_admin`, which gated
+     * EVERY one of the ~45 project-scoped pages on the legacy global admin flag.
+     * Once 0.4.0 introduced scoped roles that had two consequences:
+     *
+     *   1. A user granted a workspace or project role — the entire point of the
+     *      Workspace layer — could not open any project page at all.
+     *   2. It sat *above* every per-page capability check, so the capability
+     *      model underneath it was unreachable for non-admins.
+     *
+     * It now asks the capability question and, when the route names a record,
+     * additionally requires that the record is one this user can actually reach.
+     * Reach is checked here as well as in `mount()` so a crafted URL still cannot
+     * open another tenant's project.
+     *
+     * NOTE: when no record is resolvable at this point — Filament does not
+     * guarantee the parameter — we do not guess at reach. The per-record check in
+     * `project()` and `mount()` remains the authority; this method only decides
+     * whether the user may use project pages at all.
+     */
     public static function canAccess(array $parameters = []): bool
     {
-        return auth()->check() && (bool) auth()->user()->is_admin;
+        if (! auth()->check()) {
+            return false;
+        }
+
+        $access = Access::for(auth()->user());
+
+        if (! $access->allows(Capability::PROJECTS_VIEW, 'platform')
+            && $access->accessibleProjects()->isEmpty()
+        ) {
+            return false;
+        }
+
+        $record = $parameters['record'] ?? null;
+        $project = $record instanceof Project ? $record : null;
+
+        if ($project === null && (is_int($record) || (is_string($record) && $record !== ''))) {
+            $project = Project::query()->find($record);
+        }
+
+        if ($project !== null && ! $access->canReachProject($project)) {
+            return false;
+        }
+
+        return true;
     }
 
     protected static function connectionError(\Throwable $e): Section
@@ -72,13 +119,13 @@ trait HasProjectContext
      * renders the empty state correctly.
      */
     protected function emptyTable(
-        \Filament\Tables\Table $table,
+        Table $table,
         string $heading,
         string $description = ''
-    ): \Filament\Tables\Table {
+    ): Table {
         return $table
             ->query(fn () => Project::query()->whereRaw('1 = 0'))
-            ->columns([\Filament\Tables\Columns\TextColumn::make('name')->label('—')])
+            ->columns([TextColumn::make('name')->label('—')])
             ->paginated(false)
             ->emptyStateHeading($heading)
             ->emptyStateDescription($description);

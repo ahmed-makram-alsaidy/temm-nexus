@@ -220,8 +220,13 @@ class ViewProject extends Page
             JourneyStage::ANALYZE, JourneyStage::PLAN, JourneyStage::MIGRATE => 'migration-center',
             JourneyStage::SYNC => 'monitoring',
             JourneyStage::VALIDATE => 'readiness',
-            JourneyStage::CUTOVER => 'readiness',
+            // 0.4.0 Phase E — the journey's final step is its own screen.
+            JourneyStage::CUTOVER => 'cutover',
         };
+
+        if (! ProjectResource::hasPage($page)) {
+            $page = 'overview';
+        }
 
         $label = match ($stage) {
             JourneyStage::CONNECT => 'Connect a source',

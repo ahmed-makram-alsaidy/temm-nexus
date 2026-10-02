@@ -153,10 +153,19 @@ final class ProjectPulse
             JourneyStage::CONNECT => 'connect',
             JourneyStage::ANALYZE, JourneyStage::PLAN, JourneyStage::MIGRATE => 'migration-center',
             JourneyStage::SYNC => 'monitoring',
-            JourneyStage::VALIDATE, JourneyStage::CUTOVER => 'readiness',
+            // 0.4.0 Phase E: Cutover is its own destination now. Validation still
+            // points at Readiness; Cutover no longer does.
+            JourneyStage::VALIDATE => 'readiness',
+            JourneyStage::CUTOVER => 'cutover',
         };
 
         try {
+            // Fall back to the overview rather than emit a dead link if the
+            // destination is not registered in this build.
+            if (! ProjectResource::hasPage($page)) {
+                $page = 'overview';
+            }
+
             return ProjectResource::getUrl($page, ['record' => $this->project]);
         } catch (\Throwable) {
             return null;
