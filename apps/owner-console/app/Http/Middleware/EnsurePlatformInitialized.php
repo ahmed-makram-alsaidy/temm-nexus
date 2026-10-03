@@ -28,6 +28,11 @@ class EnsurePlatformInitialized
         'setup/*',
         'up',
         'api/health',
+        // 0.4.0-rc.5 (C.4): the language switch must work BEFORE a user or
+        // platform default exists — the setup wizard and login screen are
+        // exactly the surfaces that need it. The locale endpoint validates
+        // its input and only touches session/cookie/user preference.
+        'locale',
         // Local webhook test fixture: token-authenticated machine endpoint
         // (throttled), independent of platform bootstrap state.
         'cp-webhook-fixture/*',

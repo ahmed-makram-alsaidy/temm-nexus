@@ -157,10 +157,11 @@ class ProjectCopilot extends Page
         return array_filter([
             Action::make('add_provider')->label('Add AI provider')->icon('heroicon-o-plus')
                 ->schema([
-                    Select::make('provider')->options([
-                        'openai' => 'OpenAI', 'gemini' => 'Gemini', 'anthropic' => 'Anthropic',
-                        'openrouter' => 'OpenRouter', 'openai_compatible' => 'OpenAI-compatible (custom URL)', 'fake' => 'Fake (testing)',
-                    ])->required(),
+                    // 0.4.0-rc.5 (A.7): fake/test providers never appear in a
+                    // production UI — NexusAiConfig filters them.
+                    Select::make('provider')->options(collect(\App\Services\Ai\NexusAiConfig::selectableProviders())
+                        ->map(fn ($label, $key) => $key === 'openai_compatible' ? $label.' (custom URL)' : $label)
+                        ->all())->required(),
                     TextInput::make('display_name')->required(),
                     TextInput::make('base_url')->url()->helperText('Required for openai_compatible (HTTPS only).'),
                     TextInput::make('model')->required(),

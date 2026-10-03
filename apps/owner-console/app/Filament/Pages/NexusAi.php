@@ -566,7 +566,7 @@ class NexusAi extends Page
 
     public function getSubheading(): ?string
     {
-        return 'Ask about your platform, a client workspace, or one project. The assistant can only see and do what you can.';
+        return __('ai.subtitle');
     }
 
     public function mount(): void
@@ -576,6 +576,14 @@ class NexusAi extends Page
             ? (int) request()->query('project')
             : null;
         $this->requestedWorkspaceSlug = request()->query('workspace');
+
+        // 0.4.0-rc.5 (B.9) — wizard "Ask Nexus AI" deep links prefill the
+        // question. The user still presses send; the assistant can never
+        // change connection settings from a link.
+        $topic = request()->query('topic');
+        if (is_string($topic) && $topic !== '' && $this->requestedScope === null && $this->requestedProjectId === null) {
+            $this->message = mb_substr($topic, 0, 500);
+        }
     }
 
     // ── Context ────────────────────────────────────────────────────────
@@ -685,7 +693,7 @@ class NexusAi extends Page
         // Opening the page is not authority to use it (§17).
         $context = $this->context();
         if (! $context->isOpenable()) {
-            $this->error = 'You do not have permission to use Nexus AI at this scope.';
+            $this->error = __('ai.no_permission_scope');
 
             return;
         }

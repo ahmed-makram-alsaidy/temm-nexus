@@ -1,0 +1,128 @@
+<?php
+
+// ── Nexus AI (assistant + settings + copilot) — 0.4.0-rc.5 (Phase 41) ─
+
+return [
+
+    'title' => 'Nexus AI',
+    'subtitle' => 'Ask about your platform, a client workspace, or one project. The assistant can only see and do what you can.',
+
+    // Assistant surface.
+    'your_question' => 'Your question',
+    'send' => 'Send',
+    'quick_actions' => 'Quick actions',
+    'model_routing' => 'Model routing',
+    'answer_with' => 'Answer with',
+    'context' => 'Context',
+    'inspect_mode' => 'Inspect Mode',
+    'actions_and_approvals' => 'Actions and approvals',
+    'affected' => 'Affected',
+    'applies_to' => 'Applies to',
+    'choose_a_change' => 'Choose a change…',
+    'component' => 'Component',
+    'current' => 'Current',
+    'proposed' => 'Proposed',
+    'plan' => 'Plan',
+    'proposed_appearance_change' => 'Proposed appearance change',
+    'what_it_does' => 'What it does',
+    'what_the_assistant_can_read_here' => 'What the assistant can read here',
+    'selected' => 'Selected',
+    'not_enabled_in_this_build' => 'Not enabled in this build',
+    'not_configured_yet' => 'Nexus AI is not configured yet.',
+    'not_configured_body' => 'An operator can connect a provider under Settings → Nexus AI Settings. Until then, the assistant stays available for navigation only.',
+    'no_permission_scope' => 'You do not have permission to use Nexus AI at this scope.',
+
+    // Model routing roles (A.5 — normal product language).
+    'role_default' => 'Default assistant',
+    'role_reasoning' => 'Deep diagnosis',
+    'role_code' => 'Code changes',
+
+    // UI-preference proposal strings (Inspect Mode).
+    'hide_this_component' => 'Hide this component',
+    'show_this_component' => 'Show this component',
+    'density_compact' => 'Compact density',
+    'density_comfortable' => 'Comfortable density',
+    'density_spacious' => 'Spacious density',
+    'start_expanded' => 'Start expanded',
+    'start_collapsed' => 'Start collapsed',
+    'move_to_first' => 'Move to first',
+    'move_to_last' => 'Move to last',
+    'value_starts_expanded' => 'Starts expanded',
+    'value_starts_collapsed' => 'Starts collapsed',
+    'value_shown' => 'Shown',
+    'value_hidden' => 'Hidden',
+    'density_label_compact' => 'Compact',
+    'density_label_comfortable' => 'Comfortable',
+    'density_label_spacious' => 'Spacious',
+    'position_first' => 'First',
+    'position_last' => 'Last',
+    'position_natural' => 'Natural position',
+
+    'scope_you_in_project' => 'You, in project :name',
+    'scope_you_in_workspace' => 'You, in workspace :name',
+
+    // ── Settings → Nexus AI (A.1–A.8) ────────────────────────────────
+    'settings_title' => 'Nexus AI Settings',
+    'settings_subtitle' => 'Configure the AI provider the assistant uses. Keys are encrypted at rest and never displayed again.',
+    'nav_settings' => 'Nexus AI Settings',
+
+    'ai_master_enabled' => 'AI enabled',
+    'ai_master_helper' => 'Master switch for the assistant across the whole platform. Off hides Nexus AI everywhere until it is turned back on.',
+
+    'status_title' => 'Current status',
+    'status_provider' => 'Provider',
+    'status_model' => 'Model',
+    'status_last_test' => 'Last successful test',
+    'status_last_test_never' => 'Never tested',
+    'status_last_error' => 'Last safe error',
+    'status_none_recorded' => 'None recorded',
+    'status_scope' => 'Configuration scope',
+    'status_scope_platform' => 'Using platform default',
+    'status_scope_project' => 'A project has its own provider configured (:count total). Project users inherit the platform default unless the project defines its own.',
+
+    'provider_section_title' => 'Provider',
+    'provider_section_help' => 'One provider and one model are enough. Advanced model roles are optional.',
+    'provider' => 'Provider',
+    'display_name' => 'Display name',
+    'base_url' => 'Base URL',
+    'base_url_helper' => 'Required for OpenAI-compatible endpoints. HTTPS only.',
+    'default_model' => 'Default model',
+    'api_key' => 'API key',
+    'api_key_helper' => 'Stored encrypted in the platform vault. After saving, only a masked hint is shown — the full key is never displayed again.',
+    'api_key_saved_mask' => 'Saved key: :mask — leave blank to keep it.',
+    'api_key_required' => 'Enter an API key to save this provider.',
+    'timeout' => 'Request timeout (seconds)',
+    'max_output_tokens' => 'Max output tokens',
+
+    'routing_section_title' => 'Model roles',
+    'routing_section_help' => 'Optional. Leave a role empty to inherit the provider\'s default model. One provider and one model still work for everything.',
+    'routing_inherit' => 'Inherit provider default',
+    'routing_source_provider_default' => 'Provider default',
+    'routing_source_profile' => 'Role override',
+    'routing_source_fallback' => 'Fallback provider',
+    'routing_source_unconfigured' => 'Unconfigured',
+
+    'test_section_title' => 'Test connection',
+    'test_button' => 'Test connection',
+    'test_running' => 'Testing…',
+    'test_ok' => 'Connected successfully',
+    'test_result_provider' => 'Provider: :provider',
+    'test_result_model' => 'Model: :model',
+
+    'save_provider' => 'Save provider',
+    'provider_saved' => 'Provider saved. The API key is stored encrypted.',
+    'enabled_toggled' => 'AI preference saved.',
+    'routing_saved' => 'Model roles saved.',
+    'routing_section' => 'Model roles',
+
+    // Safe test-connection result messages (A.6 — no stack traces, no secrets).
+    'test_connected' => 'Connected successfully. The provider accepted the key and model.',
+    'test_auth_failed' => 'The provider rejected the API key. Check the key and try again.',
+    'test_model_not_found' => 'The provider rejected the model name. Check the model identifier.',
+    'test_rate_limited' => 'The provider is rate limiting this key. Try again shortly.',
+    'test_timeout' => 'The provider did not respond in time. Check the network or base URL.',
+    'test_provider_error' => 'The provider returned an error. The key was accepted or the service is degraded — try again later.',
+    'test_disabled' => 'This provider is disabled.',
+
+    'fake_provider_note' => 'Test/development mode is active: fake providers are visible. They are hidden in production.',
+];

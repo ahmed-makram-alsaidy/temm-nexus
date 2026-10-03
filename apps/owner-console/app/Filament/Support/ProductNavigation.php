@@ -61,14 +61,14 @@ class ProductNavigation
         // ── Ungrouped primary entries ──────────────────────────────────
 
         $builder->item(
-            NavigationItem::make('Home')
+            NavigationItem::make(__('nav.home'))
                 ->icon('heroicon-o-home')
                 ->url(fn (): string => Dashboard::getUrl())
                 ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.dashboard'))
         );
 
         $builder->item(
-            NavigationItem::make('Projects')
+            NavigationItem::make(__('nav.projects'))
                 ->icon('heroicon-o-square-3-stack-3d')
                 ->url(fn (): string => ProjectResource::getUrl('index'))
                 ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.projects.index')
@@ -77,7 +77,7 @@ class ProductNavigation
 
         if ($access->allowsPlatform(Capability::WORKSPACES_VIEW)) {
             $builder->item(
-                NavigationItem::make('Clients & Workspaces')
+                NavigationItem::make(__('nav.workspaces'))
                     ->icon('heroicon-o-building-office-2')
                     ->url(fn (): string => Workspaces::getUrl())
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.workspaces*'))
@@ -86,7 +86,7 @@ class ProductNavigation
 
         if ($access->allowsPlatform(Capability::CONNECTORS_VIEW)) {
             $builder->item(
-                NavigationItem::make('Connectors')
+                NavigationItem::make(__('nav.connectors'))
                     ->icon('heroicon-o-puzzle-piece')
                     ->url(fn (): string => ConnectorCatalog::getUrl())
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.connector-catalog'))
@@ -95,7 +95,7 @@ class ProductNavigation
 
         if ($access->allowsPlatform(Capability::AI_USE)) {
             $builder->item(
-                NavigationItem::make('Nexus AI')
+                NavigationItem::make(__('nav.nexus_ai'))
                     ->icon('heroicon-o-sparkles')
                     ->url(fn (): string => NexusAi::urlFor($project))
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.nexus-ai')
@@ -111,12 +111,12 @@ class ProductNavigation
         $operations = [];
         if ($project) {
             foreach ([
-                ['Queues', 'heroicon-o-queue-list', 'queues'],
-                ['Logs', 'heroicon-o-document-text', 'logs'],
-                ['Monitoring', 'heroicon-o-chart-bar', 'monitoring'],
-                ['Scheduler', 'heroicon-o-calendar-days', 'scheduler'],
-                ['Webhooks', 'heroicon-o-link', 'webhooks'],
-                ['Realtime', 'heroicon-o-signal', 'realtime'],
+                [__('nav.queues'), 'heroicon-o-queue-list', 'queues'],
+                [__('nav.logs'), 'heroicon-o-document-text', 'logs'],
+                [__('nav.monitoring'), 'heroicon-o-chart-bar', 'monitoring'],
+                [__('nav.scheduler'), 'heroicon-o-calendar-days', 'scheduler'],
+                [__('nav.webhooks'), 'heroicon-o-link', 'webhooks'],
+                [__('nav.realtime'), 'heroicon-o-signal', 'realtime'],
             ] as [$label, $icon, $page]) {
                 $operations[] = NavigationItem::make($label)
                     ->icon($icon)
@@ -125,25 +125,25 @@ class ProductNavigation
             }
         }
         if ($operations !== []) {
-            $builder->group('Operations', $operations);
+            $builder->group(__('nav.operations'), $operations);
         }
 
         // ── Infrastructure ─────────────────────────────────────────────
         if ($access->allowsPlatform(Capability::INFRASTRUCTURE_VIEW)) {
-            $builder->group('Infrastructure', [
-                NavigationItem::make('Nodes')
+            $builder->group(__('nav.infrastructure'), [
+                NavigationItem::make(__('nav.nodes'))
                     ->icon('heroicon-o-server-stack')
                     ->url(fn (): string => InfraNodes::getUrl())
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.infra-nodes')),
-                NavigationItem::make('Services')
+                NavigationItem::make(__('nav.services'))
                     ->icon('heroicon-o-wrench-screwdriver')
                     ->url(fn (): string => InfraServices::getUrl())
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.infra-services')),
-                NavigationItem::make('Health')
+                NavigationItem::make(__('nav.health'))
                     ->icon('heroicon-o-heart')
                     ->url(fn (): string => InfraHealth::getUrl())
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.infra-health')),
-                NavigationItem::make('Topology')
+                NavigationItem::make(__('nav.topology'))
                     ->icon('heroicon-o-share')
                     ->url(fn (): string => InfraTopology::getUrl())
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.infra-topology')),
@@ -154,32 +154,44 @@ class ProductNavigation
         // v0.3.0 called this "Governance" — internal-audit vocabulary.
         $security = [];
         if ($access->allowsPlatform(Capability::TEAM_VIEW)) {
-            $security[] = NavigationItem::make('Members')
+            $security[] = NavigationItem::make(__('nav.members'))
                 ->icon('heroicon-o-user-group')
                 ->url(fn (): string => TeamManagement::getUrl())
                 ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.team'));
         }
         if ($access->allowsPlatform(Capability::AUDIT_VIEW)) {
-            $security[] = NavigationItem::make('Audit log')
+            $security[] = NavigationItem::make(__('nav.audit_log'))
                 ->icon('heroicon-o-clipboard-document-list')
                 ->url(fn (): string => AuditLogResource::getUrl())
                 ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.audit-logs.*'));
         }
         if ($security !== []) {
-            $builder->group('Security', $security);
+            $builder->group(__('nav.security'), $security);
         }
 
         // ── Settings ───────────────────────────────────────────────────
-        $builder->group('Settings', [
-            NavigationItem::make('Get started')
+        $settings = [
+            NavigationItem::make(__('nav.get_started'))
                 ->icon('heroicon-o-academic-cap')
                 ->url(fn (): string => OnboardingWizard::getUrl())
                 ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.onboarding')),
-            NavigationItem::make('Search')
+            NavigationItem::make(__('nav.search'))
                 ->icon('heroicon-o-magnifying-glass')
                 ->url(fn (): string => GlobalSearch::getUrl())
                 ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.search')),
-        ]);
+        ];
+
+        // 0.4.0-rc.5 (Phase 41, Part A) — a real, reachable AI settings page.
+        if ($access->allowsPlatform(Capability::AI_CONFIGURE)) {
+            array_unshift($settings,
+                NavigationItem::make(__('nav.nexus_ai_settings'))
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->url(fn (): string => \App\Filament\Pages\NexusAiSettings::getUrl())
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.nexus-ai-settings')),
+            );
+        }
+
+        $builder->group(__('nav.settings'), $settings);
 
         return $builder;
     }

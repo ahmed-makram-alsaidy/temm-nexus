@@ -39,13 +39,13 @@ enum JourneyStage: string
     public function label(): string
     {
         return match ($this) {
-            self::CONNECT => 'Connect',
-            self::ANALYZE => 'Analyze',
-            self::PLAN => 'Plan',
-            self::MIGRATE => 'Migrate',
-            self::SYNC => 'Sync',
-            self::VALIDATE => 'Validate',
-            self::CUTOVER => 'Cutover',
+            self::CONNECT => __('journey.stage_connect'),
+            self::ANALYZE => __('journey.stage_analyze'),
+            self::PLAN => __('journey.stage_plan'),
+            self::MIGRATE => __('journey.stage_migrate'),
+            self::SYNC => __('journey.stage_sync'),
+            self::VALIDATE => __('journey.stage_validate'),
+            self::CUTOVER => __('journey.stage_cutover'),
         };
     }
 
@@ -53,13 +53,13 @@ enum JourneyStage: string
     public function description(): string
     {
         return match ($this) {
-            self::CONNECT => 'Link the source you are migrating from.',
-            self::ANALYZE => 'Inventory tables, rows, and compatibility.',
-            self::PLAN => 'Review the plan and the changes it will make.',
-            self::MIGRATE => 'Move the initial dataset.',
-            self::SYNC => 'Keep changes flowing while you prepare to switch.',
-            self::VALIDATE => 'Confirm the data matches.',
-            self::CUTOVER => 'Switch production over, with a rollback ready.',
+            self::CONNECT => __('journey.desc_connect'),
+            self::ANALYZE => __('journey.desc_analyze'),
+            self::PLAN => __('journey.desc_plan'),
+            self::MIGRATE => __('journey.desc_migrate'),
+            self::SYNC => __('journey.desc_sync'),
+            self::VALIDATE => __('journey.desc_validate'),
+            self::CUTOVER => __('journey.desc_cutover'),
         };
     }
 

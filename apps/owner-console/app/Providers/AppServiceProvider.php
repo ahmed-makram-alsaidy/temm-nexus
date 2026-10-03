@@ -26,6 +26,16 @@ class AppServiceProvider extends ServiceProvider
     {
         // Phase 27J.1 — discover first-party connector packages once per boot.
         ConnectorDiscovery::discover();
+
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Failed::class, function ($e) {
+            \Illuminate\Support\Facades\Log::warning('AUTH_FAILED', ['user' => $e->user?->id, 'email' => is_string($e->credentials['email'] ?? null) ? $e->credentials['email'] : 'MISSING']);
+        });
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Validated::class, function ($e) {
+            \Illuminate\Support\Facades\Log::warning('AUTH_VALIDATED', ['user' => $e->user?->id]);
+        });
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Login::class, function ($e) {
+            \Illuminate\Support\Facades\Log::warning('AUTH_LOGIN_OK', ['user' => $e->user?->id]);
+        });
         // General API throttle: 60 req/min per IP (routes reference 'throttle:api').
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->ip());

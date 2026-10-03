@@ -25,15 +25,15 @@
             <input
                 type="search"
                 class="nx-search__input"
-                placeholder="Search connectors by name, capability, or vendor…"
-                aria-label="Search connectors"
+                placeholder="{{ __('connectors.search_placeholder') }}"
+                aria-label="{{ __('connectors.search_placeholder') }}"
                 wire:model.live.debounce.300ms="search"
             />
         </div>
 
         <label class="nx-check">
             <input type="checkbox" wire:model.live="onlyReady" />
-            <span>Ready to use only</span>
+            <span>{{ __('connectors.ready_only') }}</span>
         </label>
     </div>
 
@@ -63,12 +63,12 @@
         </div>
 
         @if ($this->hasActiveFilters())
-            <button type="button" class="nx-link" wire:click="clearFilters">Clear filters</button>
+            <button type="button" class="nx-link" wire:click="clearFilters">{{ __('connectors.clear_filters') }}</button>
         @endif
     </div>
 
     <p class="nx-filters__summary" role="status" aria-live="polite">
-        Showing {{ count($cards) }} of {{ $total }} connector{{ $total === 1 ? '' : 's' }}.
+        {{ trans_choice('connectors.showing', $total, ['shown' => count($cards), 'total' => $total]) }}
     </p>
 
     @if ($cards === [])
@@ -78,20 +78,17 @@
                 <x-filament::icon icon="heroicon-o-puzzle-piece" class="h-6 w-6" />
             </div>
             @if ($total === 0)
-                <h2 class="nx-empty__title">No connectors installed</h2>
+                <h2 class="nx-empty__title">{{ __('connectors.empty_none') }}</h2>
                 <p class="nx-empty__body">
-                    A connector is what lets the platform read from a source system — a
-                    database, a Firebase project, a MongoDB cluster. Without one there is
-                    nothing to migrate from.
+                    {{ __('connectors.empty_none_body') }}
                 </p>
             @else
-                <h2 class="nx-empty__title">No connectors match those filters</h2>
+                <h2 class="nx-empty__title">{{ __('connectors.empty_filter') }}</h2>
                 <p class="nx-empty__body">
-                    {{ $total }} connector(s) are installed, but none satisfy every filter
-                    you selected. Try removing one.
+                    {{ __('connectors.empty_filter_body', ['total' => $total]) }}
                 </p>
                 <x-filament::button color="gray" wire:click="clearFilters">
-                    Clear filters
+                    {{ __('connectors.clear_filters') }}
                 </x-filament::button>
             @endif
         </div>
@@ -126,25 +123,25 @@
                     {{-- The two headline capabilities the mission asks for. --}}
                     <dl class="nx-connector__flags">
                         <div>
-                            <dt>Migration</dt>
+                            <dt>{{ __('wizard.source_migration') }}</dt>
                             <dd @class(['nx-flag', 'is-yes' => $card['migration'], 'is-no' => ! $card['migration']])>
                                 <x-filament::icon
                                     icon="{{ $card['migration'] ? 'heroicon-o-check' : 'heroicon-o-x-mark' }}"
                                     class="h-3.5 w-3.5" />
-                                {{ $card['migration'] ? 'Supported' : 'Not supported' }}
+                                {{ $card['migration'] ? __('common.status_supported') : __('common.status_not_supported') }}
                             </dd>
                         </div>
                         <div>
-                            <dt>Live Sync</dt>
+                            <dt>{{ __('common.live_sync') }}</dt>
                             <dd @class(['nx-flag', 'is-yes' => $card['live_sync'], 'is-no' => ! $card['live_sync']])>
                                 <x-filament::icon
                                     icon="{{ $card['live_sync'] ? 'heroicon-o-check' : 'heroicon-o-x-mark' }}"
                                     class="h-3.5 w-3.5" />
-                                {{ $card['live_sync'] ? 'Supported' : 'Not supported' }}
+                                {{ $card['live_sync'] ? __('common.status_supported') : __('common.status_not_supported') }}
                             </dd>
                         </div>
                         <div>
-                            <dt>Trust</dt>
+                            <dt>{{ __('connectors.trust') }}</dt>
                             <dd @class(['nx-status', 'nx-status--'.$card['trust_tone']])
                                 title="{{ $card['trust_hint'] }}">
                                 {{ $card['trust_label'] }}
@@ -166,23 +163,23 @@
                     @if ($card['read_only'])
                         <p class="nx-connector__safety">
                             <x-filament::icon icon="heroicon-o-lock-closed" class="h-3.5 w-3.5" />
-                            Reads only. The platform never writes to the source.
+                            {{ __('connectors.reads_only') }}
                         </p>
                     @endif
 
                     <footer class="nx-connector__foot">
                         <details class="nx-connector__advanced">
-                            <summary>Advanced</summary>
+                            <summary>{{ __('common.advanced') }}</summary>
                             <dl class="nx-connector__meta">
-                                <dt>Key</dt><dd class="nx-code">{{ $card['key'] }}</dd>
-                                <dt>Import flow</dt><dd class="nx-code">{{ $card['import_flow'] }}</dd>
-                                <dt>Category</dt><dd class="nx-code">{{ $card['category'] }}</dd>
-                                <dt>Capabilities</dt>
+                                <dt>{{ __('connectors.key') }}</dt><dd class="nx-code">{{ $card['key'] }}</dd>
+                                <dt>{{ __('connectors.import_flow') }}</dt><dd class="nx-code">{{ $card['import_flow'] }}</dd>
+                                <dt>{{ __('connectors.category') }}</dt><dd class="nx-code">{{ $card['category'] }}</dd>
+                                <dt>{{ __('connectors.capabilities') }}</dt>
                                 <dd class="nx-code">{{ implode(', ', $card['raw_capabilities']) }}</dd>
                             </dl>
                             @if ($card['docs_url'])
                                 <a class="nx-link" href="{{ $card['docs_url'] }}" rel="noopener noreferrer" target="_blank">
-                                    Documentation ↗
+                                    {{ __('connectors.view_docs') }} ↗
                                 </a>
                             @endif
                         </details>
@@ -191,13 +188,13 @@
                              routes into one rather than pretending it can
                              connect from here. --}}
                         @if (! $card['enabled'])
-                            <span class="nx-connector__disabled">Not available on this platform</span>
+                            <span class="nx-connector__disabled">{{ __('connectors.not_available') }}</span>
                         @elseif ($this->hasConnectTarget() && $this->connectUrl())
                             <a class="nx-link" href="{{ $this->connectUrl() }}">
-                                Connect in a project →
+                                {{ __('connectors.connect_in_project') }} →
                             </a>
                         @else
-                            <span class="nx-connector__disabled">Create a project to connect</span>
+                            <span class="nx-connector__disabled">{{ __('connectors.create_project_to_connect') }}</span>
                         @endif
                     </footer>
                 </article>

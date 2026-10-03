@@ -60,6 +60,12 @@ final class ModelRouter
     {
         $role = in_array($role, self::ROLES, true) ? $role : self::ROLE_DEFAULT;
 
+        // 0.4.0-rc.5: the platform master switch (Settings → Nexus AI) wins.
+        // Off = nothing resolves, the UI shows the "AI disabled" state.
+        if (! NexusAiConfig::aiEnabled()) {
+            return null;
+        }
+
         $provider = $this->preferredProvider();
 
         // 1 — an explicit profile for this role.
@@ -120,11 +126,13 @@ final class ModelRouter
         foreach (self::ROLES as $role) {
             $route = $this->resolve($role);
 
+            // Null route = nothing configured at all (rc.5: the settings
+            // page renders this table BEFORE any provider exists).
             $out[] = [
                 'role' => $role,
                 'label' => self::label($role),
-                'provider' => $route['provider']->display_name ?? $route['provider']->provider ?? null,
-                'model' => $route['model'],
+                'provider' => $route === null ? null : ($route['provider']->display_name ?? $route['provider']->provider ?? null),
+                'model' => $route['model'] ?? null,
                 'source' => $route['source'] ?? 'unconfigured',
             ];
         }
@@ -135,9 +143,9 @@ final class ModelRouter
     public static function label(string $role): string
     {
         return match ($role) {
-            self::ROLE_DEFAULT => 'Default assistant',
-            self::ROLE_REASONING => 'Deep diagnosis',
-            self::ROLE_CODE => 'Code changes',
+            self::ROLE_DEFAULT => __('ai.role_default'),
+            self::ROLE_REASONING => __('ai.role_reasoning'),
+            self::ROLE_CODE => __('ai.role_code'),
             default => ucfirst($role),
         };
     }
@@ -158,9 +166,11 @@ final class ModelRouter
             }
 
             // Anthropic/Gemini/OpenAI/OpenRouter/openai-compatible are all just
-            // rows here; nothing in this class names a vendor.
-            return AiProviderConfig::query()
-                ->where('enabled', true)
+            // rows here; nothing in this class names a vendor. The fake/test
+            // provider never routes in production UIs (rc.5, A.7).
+            return NexusAiConfig::scopeVisible(
+                AiProviderConfig::query()->where('enabled', true)
+            )
                 ->orderByDesc('id')
                 ->first();
         } catch (\Throwable) {
@@ -183,10 +193,12 @@ final class ModelRouter
     private function anyEnabledWithModel(): ?AiProviderConfig
     {
         try {
-            return AiProviderConfig::query()
-                ->where('enabled', true)
-                ->whereNotNull('model')
-                ->where('model', '!=', '')
+            return NexusAiConfig::scopeVisible(
+                AiProviderConfig::query()
+                    ->where('enabled', true)
+                    ->whereNotNull('model')
+                    ->where('model', '!=', '')
+            )
                 ->orderByDesc('id')
                 ->first();
         } catch (\Throwable) {

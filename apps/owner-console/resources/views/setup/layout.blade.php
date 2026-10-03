@@ -1,14 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}" dir="{{ \App\Services\Localization\LocaleManager::direction() }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Setup — {{ $settings['brand'] }} · Step {{ $step }}/{{ $total }}</title>
+<title>{{ __('setup.page_title', ['brand' => $settings['brand'], 'step' => $step, 'total' => $total]) }}</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
          background:#0f172a; color:#e2e8f0; min-height:100vh; }
+  [dir="rtl"] body { font-family: "Segoe UI", Tahoma, "Noto Naskh Arabic UI", "Noto Sans Arabic", sans-serif; }
+  [dir="rtl"] .actions { flex-direction: row-reverse; }
+  [dir="rtl"] ul.summary { padding-left:0; padding-right:18px; }
   .wrap { max-width:860px; margin:0 auto; padding:48px 24px 96px; }
   .brand { font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:#818cf8; margin-bottom:6px; }
   h1 { font-size:26px; margin:0 0 20px; color:#f8fafc; }
@@ -40,8 +43,8 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">{{ $settings['brand'] }} — first-run setup</div>
-  <h1>{{ $label }}</h1>
+  <div class="brand">{{ __('setup.brand_line', ['brand' => $settings['brand']]) }}</div>
+  <h1>{{ __('setup.steps.'.$step) }}</h1>
   <ol class="steps">
     @foreach(range(1, $total) as $i)
       <li class="{{ $i == $step ? 'now' : (($progress[$i] ?? '') === 'done' ? 'done' : '') }}">{{ $i }}</li>
@@ -49,6 +52,14 @@
   </ol>
   @if(!empty($error))<div class="err">{{ $error }}</div>@endif
   <div class="card">@yield('content')</div>
+  <div style="margin-top:18px;display:flex;gap:8px;justify-content:flex-end">
+    @foreach(\App\Services\Localization\LocaleManager::available() as $code => $name)
+      <form method="POST" action="{{ route('locale.update') }}">@csrf
+        <input type="hidden" name="locale" value="{{ $code }}">
+        <button type="submit" style="background:transparent;border:1px solid #475569;color:{{ app()->getLocale() === $code ? '#a5b4fc' : '#64748b' }};border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px">{{ $name }}</button>
+      </form>
+    @endforeach
+  </div>
 </div>
 </body>
 </html>

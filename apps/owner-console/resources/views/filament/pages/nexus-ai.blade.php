@@ -125,13 +125,12 @@
         <div class="nx-notice nx-notice--warning">
             <x-filament::icon icon="heroicon-o-sparkles" class="h-5 w-5" />
             <div>
-                <strong>Nexus AI is not configured yet.</strong>
+                <strong>{{ __('ai.not_configured_yet') }}</strong>
                 <p>
-                    Add a provider and model to enable conversations. The platform works fully
-                    without AI; nothing else depends on it.
+                    {{ __('ai.not_configured_body') }}
                 </p>
                 @if ($this->canConfigureAi())
-                    <p class="nx-notice__action">Configure a provider under Settings → Nexus AI.</p>
+                    <p class="nx-notice__action"><a class="nx-link" href="{{ \App\Filament\Pages\NexusAiSettings::getUrl() }}">{{ __('ai.nav_settings') }}</a></p>
                 @endif
             </div>
         </div>
@@ -271,7 +270,7 @@
 
             {{-- Composer --}}
             <form wire:submit="send" class="nx-composer">
-                <label class="nx-visually-hidden" for="nexus-ai-message">Your question</label>
+                <label class="nx-visually-hidden" for="nexus-ai-message">{{ __('ai.your_question') }}</label>
                 <textarea
                     id="nexus-ai-message"
                     class="nx-composer__input"
@@ -282,7 +281,7 @@
 
                 <div class="nx-composer__row">
                     <label class="nx-composer__role">
-                        <span>Answer with</span>
+                        <span>{{ __('ai.answer_with') }}</span>
                         <select wire:model="role" aria-label="Model role">
                             @foreach ($this->routingTable() as $route)
                                 <option value="{{ $route['role'] }}">
@@ -314,7 +313,7 @@
 
         {{-- Quick actions --}}
         <section class="nx-section">
-            <h2 class="nx-section__title">Quick actions</h2>
+            <h2 class="nx-section__title">{{ __('ai.quick_actions') }}</h2>
             <p class="nx-section__description">Convenience starters — they use the same tools and permissions listed below.</p>
             <div class="nx-grid nx-grid--actions">
                 @foreach ($this->quickActions() as $action)
@@ -330,7 +329,7 @@
     {{-- What the assistant may read, straight from the enforcing dispatcher. --}}
     @if ($aiPrefs['ai.tools']['visibility'] ?? true)
         <section class="nx-section" data-nx-inspect="ai.tools" data-nx-inspect-label="Available read tools">
-        <h2 class="nx-section__title">What the assistant can read here</h2>
+        <h2 class="nx-section__title">{{ __('ai.what_the_assistant_can_read_here') }}</h2>
         <p class="nx-section__description">
             This list is produced by the permission-aware dispatcher: it contains exactly the
             tools <strong>{{ auth()->user()?->name }}</strong> may run at
@@ -367,14 +366,14 @@
         <summary>Not enabled in this build</summary>
         <div class="nx-advanced__body">
             <div class="nx-fact">
-                <span class="nx-fact__label">Inspect Mode</span>
+                <span class="nx-fact__label">{{ __('ai.inspect_mode') }}</span>
                 <span class="nx-fact__detail">
                     On — use the Inspect control in the toolbar to attach any highlighted component
                     to this conversation.
                 </span>
             </div>
             <div class="nx-fact">
-                <span class="nx-fact__label">Actions and approvals</span>
+                <span class="nx-fact__label">{{ __('ai.actions_and_approvals') }}</span>
                 <span class="nx-fact__detail">
                     Limited, permissioned actions exist: pause/resume Live Sync, create a backup,
                     re-run validation, retry one failed job, and record a cutover preflight. The
@@ -385,7 +384,7 @@
                 </span>
             </div>
             <div class="nx-fact">
-                <span class="nx-fact__label">Model routing</span>
+                <span class="nx-fact__label">{{ __('ai.model_routing') }}</span>
                 <span class="nx-fact__detail">
                     A role is a hint, never a requirement. With one provider configured, every
                     role resolves to it.

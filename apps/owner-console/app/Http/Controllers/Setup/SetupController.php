@@ -54,7 +54,7 @@ class SetupController extends Controller
 
         if ($step > 1 && $this->gatingChecksFailed($step)) {
             return redirect()->to('/setup/step/1')
-                ->with('setup_error', 'Blocking system checks must pass before continuing.');
+                ->with('setup_error', __('setup.gate_error'));
         }
 
         $view = [
@@ -78,7 +78,7 @@ class SetupController extends Controller
 
         if ($step > 1 && $this->gatingChecksFailed($step)) {
             return redirect()->to('/setup/step/1')
-                ->with('setup_error', 'Blocking system checks must pass before continuing.');
+                ->with('setup_error', __('setup.gate_error'));
         }
 
         $progress = SetupState::progress();
@@ -89,12 +89,16 @@ class SetupController extends Controller
                     'platform_name' => ['required', 'string', 'max:80'],
                     'brand_name' => ['nullable', 'string', 'max:80'],
                     'support_url' => ['nullable', 'url', 'max:255'],
+                    // 0.4.0-rc.5 (C.4/C.5): the default platform language is
+                    // chosen during first setup; every new user inherits it.
+                    'platform_locale' => ['nullable', 'string', 'in:'.implode(',', \App\Services\Localization\LocaleManager::AVAILABLE)],
                 ]);
                 SetupState::set('platform.name', $data['platform_name']);
                 SetupState::set('platform.brand', $data['brand_name'] ?: $data['platform_name']);
                 if (($data['support_url'] ?? null) !== null) {
                     SetupState::set('platform.support_url', $data['support_url']);
                 }
+                SetupState::set(\App\Services\Localization\LocaleManager::PLATFORM_DEFAULT_KEY, $data['platform_locale'] ?? 'en');
                 $progress[2] = 'done';
                 break;
 

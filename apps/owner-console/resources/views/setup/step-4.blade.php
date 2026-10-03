@@ -1,6 +1,6 @@
 @extends('setup.layout')
 @section('content')
-<p class="lead">Redis backs cache, queues, sessions and rate limiting.</p>
+<p class="lead">{{ __('setup.s4_lead') }}</p>
 <table class="checks">
 @foreach($checks as $c)
   @if($c['key'] === 'redis')
@@ -9,6 +9,6 @@
   @endif
 @endforeach
 </table>
-<div class="actions"><a class="btn ghost" href="{{ url('/setup/step/3') }}">Back</a>
-<form method="post" action="{{ url('/setup/step/4') }}">@csrf<button class="btn">Continue</button></form></div>
+<div class="actions"><a class="btn ghost" href="{{ url('/setup/step/3') }}">{{ __('setup.back') }}</a>
+<form method="post" action="{{ url('/setup/step/4') }}">@csrf<button class="btn">{{ __('setup.continue') }}</button></form></div>
 @endsection

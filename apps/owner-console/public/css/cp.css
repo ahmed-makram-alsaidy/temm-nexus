@@ -843,3 +843,13 @@ a.cp-dash__row:hover { color: var(--cp-text); background: var(--cp-surface-2); }
   .cp-kv { grid-template-columns: 1fr; }
   .cp-reference__action-grid { grid-template-columns: 1fr; }
 }
+
+/* ============ 0.4.0-rc.5 (Phase 41, C.6) — RTL corrections for physical rules ============ */
+html[dir="rtl"] .cp-toolbar__count,
+html[dir="rtl"] .cp-dbwork__rows,
+html[dir="rtl"] .cp-dash__health,
+html[dir="rtl"] .cp-reference__mode,
+html[dir="rtl"] .cp-sqlwork__status .cp-btn--sm { margin-left: 0; margin-right: auto; }
+
+html[dir="rtl"] .cp-grid td.cp-num, html[dir="rtl"] .cp-grid th.cp-num { text-align: left; }
+html[dir="rtl"] .cp-grid th { text-align: right; }

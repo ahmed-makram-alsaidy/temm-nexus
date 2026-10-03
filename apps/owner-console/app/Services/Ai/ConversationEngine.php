@@ -294,6 +294,17 @@ final class ConversationEngine
             '7. Be concise and specific. Prefer concrete numbers and names over adjectives.',
         ]);
 
+        // 0.4.0-rc.5 (C.14) — the assistant follows the user's UI locale by
+        // default. The user may still write in another language; an explicit
+        // request in that language wins over this default.
+        if (app()->getLocale() === 'ar') {
+            $lines[] = '';
+            $lines[] = 'LANGUAGE: The user\'s interface is in Arabic. Reply in Arabic (Modern Standard Arabic) by default, unless the user explicitly writes in another language. Keep technical identifiers (PostgreSQL, WAL, LSN, API, tool names) unchanged.';
+        } else {
+            $lines[] = '';
+            $lines[] = 'LANGUAGE: The user\'s interface is in English. Reply in English by default, unless the user explicitly writes in another language.';
+        }
+
         if ($availableTools === []) {
             $lines[] = '';
             $lines[] = 'You currently have NO tools available at this scope. Tell the user you cannot inspect anything here and suggest they ask someone with more access, or open Nexus AI from a project.';

@@ -70,6 +70,11 @@ class AdminPanelProvider extends PanelProvider
                 \Filament\View\PanelsRenderHook::TOPBAR_END,
                 ControlPlaneChrome::projectContextHook(),
             )
+            // 0.4.0-rc.5 (Phase 41) — the visible language switcher.
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::TOPBAR_END,
+                ControlPlaneChrome::localeSwitcherHook(),
+            )
             // Phase 26K.2 — platform version is always visible in the console.
             ->renderHook(
                 \Filament\View\PanelsRenderHook::BODY_END,
@@ -90,6 +95,9 @@ class AdminPanelProvider extends PanelProvider
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
+                // 0.4.0-rc.5 (Phase 41): locale resolves AFTER the session
+                // starts, BEFORE anything renders.
+                \App\Http\Middleware\SetRequestLocale::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 PreventRequestForgery::class,

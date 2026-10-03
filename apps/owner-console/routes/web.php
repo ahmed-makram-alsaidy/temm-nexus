@@ -20,6 +20,13 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// ── 0.4.0-rc.5 (Phase 41) — language switcher ────────────────────────
+// Public on purpose: setup and login must be usable in Arabic before any
+// account exists. Persists session + cookie (+ user preference when authed).
+Route::post('/locale', [App\Http\Controllers\LocaleController::class, 'update'])
+    ->middleware(['web'])
+    ->name('locale.update');
+
 // Phase 20P local webhook test fixture (local env, throttled).
 Route::post('/cp-webhook-fixture/{token}', WebhookFixtureController::class)
     ->middleware(['web', 'throttle:30,1'])

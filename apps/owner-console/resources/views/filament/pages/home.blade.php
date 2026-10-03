@@ -38,7 +38,7 @@
                     href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('create') }}"
                     icon="heroicon-o-plus"
                 >
-                    Start a migration
+                    {{ __('home.start_a_migration') }}
                 </x-filament::button>
             @endif
             @if ($this->canViewWorkspaces())
@@ -48,7 +48,7 @@
                     href="{{ \App\Filament\Pages\Workspaces::getUrl() }}"
                     icon="heroicon-o-building-office-2"
                 >
-                    Clients &amp; workspaces
+                    {{ __('home.clients_and_workspaces') }}
                 </x-filament::button>
             @endif
         </div>
@@ -63,11 +63,9 @@
             <div class="nx-empty__icon">
                 <x-filament::icon icon="heroicon-o-square-3-stack-3d" class="h-6 w-6" />
             </div>
-            <h2 class="nx-empty__title">No projects yet</h2>
+            <h2 class="nx-empty__title">{{ __('home.empty_title') }}</h2>
             <p class="nx-empty__body">
-                A project is one backend you migrate — a website, an API, a CRM. Each project
-                connects to a source, moves its data, keeps it in sync, and switches over when
-                you are ready. Create one to begin.
+                {{ __('home.empty_body') }}
             </p>
             @if ($this->canCreateProject())
                 <div class="nx-empty__actions">
@@ -76,7 +74,7 @@
                         href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('create') }}"
                         icon="heroicon-o-plus"
                     >
-                        Create new project
+                        {{ __('home.create_new_project') }}
                     </x-filament::button>
                     <x-filament::button
                         tag="a"
@@ -84,7 +82,7 @@
                         href="{{ \App\Filament\Pages\OnboardingWizard::getUrl(['start' => 'import']) }}"
                         icon="heroicon-o-arrow-down-tray"
                     >
-                        Import existing project
+                        {{ __('home.import_existing_project') }}
                     </x-filament::button>
                 </div>
             @endif
@@ -112,12 +110,12 @@
         {{-- 3. What requires attention — before anything that is merely running. --}}
         @if ($ui['home.attention']['visibility'] ?? true)
             <section class="nx-section" data-nx-inspect="home.attention" data-nx-inspect-label="Needs attention">
-                <h2 class="nx-section__title">Needs attention</h2>
+                <h2 class="nx-section__title">{{ __('home.needs_attention') }}</h2>
 
             @if ($attention->isEmpty())
                 <div class="nx-empty nx-empty--inline">
                     <x-filament::icon icon="heroicon-o-check-circle" class="h-5 w-5" />
-                    <p class="nx-empty__body">Nothing needs you right now.</p>
+                    <p class="nx-empty__body">{{ __('home.attention_empty') }}</p>
                 </div>
             @else
                 <ul class="nx-attention">
@@ -133,7 +131,7 @@
                                 <p>{{ $row['state']->label() }}</p>
                             </div>
                             @if ($row['url'])
-                                <a class="nx-link" href="{{ $row['url'] }}">Open →</a>
+                                <a class="nx-link" href="{{ $row['url'] }}">{{ __('home.open') }} →</a>
                             @endif
                         </li>
                     @endforeach
@@ -145,11 +143,11 @@
         {{-- 4. What is running. --}}
         @if ($pulse->activeMigrationCount() > 0 || $readyForCutover->isNotEmpty())
             <section class="nx-section">
-                <h2 class="nx-section__title">In flight</h2>
+                <h2 class="nx-section__title">{{ __('home.in_flight') }}</h2>
 
                 @if ($pulse->activeMigrationCount() > 0)
                     <p class="nx-section__description">
-                        {{ $pulse->activeMigrationCount() }} transfer(s) running right now.
+                        {{ trans_choice('home.transfers_running', $pulse->activeMigrationCount(), ['count' => $pulse->activeMigrationCount()]) }}
                     </p>
                 @endif
 
@@ -159,12 +157,12 @@
                             <li class="nx-attention__item nx-attention__item--info">
                                 <x-filament::icon icon="heroicon-o-check-circle" class="h-4 w-4" />
                                 <div>
-                                    <strong>{{ $project->name }} is ready for cutover</strong>
-                                    <p>All gates pass and nothing is blocking.</p>
+                                    <strong>{{ __('home.ready_for_cutover_line', ['name' => $project->name]) }}</strong>
+                                    <p>{{ __('home.ready_for_cutover_body') }}</p>
                                 </div>
                                 <a class="nx-link"
                                    href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('readiness', ['record' => $project]) }}">
-                                    Review cutover →
+                                    {{ __('home.review_cutover') }} →
                                 </a>
                             </li>
                         @endforeach
@@ -180,7 +178,7 @@
                 data-nx-inspect="home.recent_projects"
                 data-nx-inspect-label="Recent projects"
             >
-                <h2 class="nx-section__title">Recent projects</h2>
+                <h2 class="nx-section__title">{{ __('home.recent_projects') }}</h2>
                 <ul class="nx-list">
                     @foreach ($projects->take(6) as $project)
                         @php $p = \App\Services\Product\ProjectPulse::for($project); @endphp
@@ -203,26 +201,26 @@
         {{-- 6. Infrastructure LAST, and in product language (§7/§14). --}}
         @if ($ui['home.platform_health']['visibility'] ?? true)
             <section class="nx-section" data-nx-inspect="home.platform_health" data-nx-inspect-label="Platform health">
-                <h2 class="nx-section__title">Platform health</h2>
+                <h2 class="nx-section__title">{{ __('home.platform_health') }}</h2>
             <div class="nx-grid nx-grid--stats">
                 <div class="nx-stat-card">
-                    <span class="nx-stat-card__label">Backups taken</span>
+                    <span class="nx-stat-card__label">{{ __('home.backups_taken') }}</span>
                     <span class="nx-stat-card__value">{{ $backups['taken'] }}</span>
                     <span class="nx-stat-card__hint">
                         @if ($backups['never'] > 0)
-                            {{ $backups['never'] }} project(s) never backed up
+                            {{ trans_choice('home.backups_never', $backups['never'], ['count' => $backups['never']]) }}
                         @else
-                            {{ $backups['last'] ? 'last '.$backups['last'] : 'no runs recorded' }}
+                            {{ $backups['last'] ? __('home.backups_last', ['when' => $backups['last']]) : __('home.backups_no_runs') }}
                         @endif
                     </span>
                 </div>
                 <div class="nx-stat-card">
-                    <span class="nx-stat-card__label">Backups needing review</span>
+                    <span class="nx-stat-card__label">{{ __('home.backups_needing_review') }}</span>
                     <span @class(['nx-stat-card__value', 'nx-stat-card__value--warning' => $backups['stale'] + $backups['unverified'] > 0])>
                         {{ $backups['stale'] + $backups['unverified'] }}
                     </span>
                     <span class="nx-stat-card__hint">
-                        {{ $backups['stale'] }} old · {{ $backups['unverified'] }} not restore-tested
+                        {{ __('home.backups_old', ['count' => $backups['stale']]) }} · {{ __('home.backups_not_restore_tested', ['count' => $backups['unverified']]) }}
                     </span>
                 </div>
             </div>
@@ -231,11 +229,11 @@
 
         {{-- 7. Activity. --}}
         <section class="nx-section">
-            <h2 class="nx-section__title">Recent activity</h2>
+            <h2 class="nx-section__title">{{ __('home.recent_activity') }}</h2>
             @if ($activity->isEmpty())
                 <div class="nx-empty nx-empty--inline">
                     <p class="nx-empty__body">
-                        No activity recorded yet. Actions taken in your projects will appear here.
+                        {{ __('home.activity_empty') }}
                     </p>
                 </div>
             @else

@@ -34,6 +34,11 @@ class TeamManagement extends Page implements HasTable
 
     protected static ?string $navigationLabel = 'Team';
 
+    public static function getNavigationLabel(): string
+    {
+        return __('nav.team');
+    }
+
     protected static string|\UnitEnum|null $navigationGroup = 'Governance';
 
     protected static ?int $navigationSort = 95;

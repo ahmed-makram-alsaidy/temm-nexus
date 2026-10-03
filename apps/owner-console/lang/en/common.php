@@ -1,0 +1,95 @@
+<?php
+
+// ── Common product strings (0.4.0-rc.5, Phase 41) ────────────────────
+// Buttons, statuses, counters, environment labels — shared across pages.
+
+return [
+
+    // Buttons / actions.
+    'save' => 'Save',
+    'cancel' => 'Cancel',
+    'continue' => 'Continue',
+    'back' => 'Back',
+    'next' => 'Next',
+    'previous' => 'Previous',
+    'close' => 'Close',
+    'create' => 'Create',
+    'delete' => 'Delete',
+    'edit' => 'Edit',
+    'retry' => 'Retry',
+    'refresh' => 'Refresh',
+    'start' => 'Start',
+    'stop' => 'Stop',
+    'open' => 'Open',
+    'done' => 'Done',
+    'enabled' => 'Enabled',
+    'disabled' => 'Disabled',
+    'advanced' => 'Advanced',
+    'advanced_options' => 'Advanced options',
+    'show_advanced' => 'Show advanced',
+    'hide_advanced' => 'Hide advanced',
+    'ask_nexus_ai' => 'Ask Nexus AI',
+    'not_sure_ask_nexus_ai' => 'Not sure what to choose? Ask Nexus AI',
+    'test_connection' => 'Test connection',
+
+    // Status vocabulary (C.11 — Arabic gets product equivalents; internal
+    // enum names stay untouched in code).
+    'status_ready' => 'Ready',
+    'status_healthy' => 'Healthy',
+    'status_blocked' => 'Blocked',
+    'status_needs_attention' => 'Needs attention',
+    'status_needs_review' => 'Needs review',
+    'status_in_progress' => 'In progress',
+    'status_completed' => 'Completed',
+    'status_failed' => 'Failed',
+    'status_paused' => 'Paused',
+    'status_streaming' => 'Streaming',
+    'status_pending' => 'Pending',
+    'status_running' => 'Running',
+    'status_unknown' => 'Unknown',
+    'status_supported' => 'Supported',
+    'status_not_supported' => 'Not supported',
+    'status_connected' => 'Connected',
+    'status_error' => 'Error',
+    'status_not_configured' => 'Not configured',
+
+    // Environments (C.2/B.2 vocabulary).
+    'env_production' => 'Production',
+    'env_staging' => 'Staging',
+    'env_development' => 'Development',
+    'env_local' => 'Local',
+
+    // Generic nouns.
+    'workspace' => 'Workspace',
+    'workspaces' => 'Workspaces',
+    'project' => 'Project',
+    'name' => 'Name',
+    'description' => 'Description',
+    'status' => 'Status',
+    'model' => 'Model',
+    'provider' => 'Provider',
+    'api_key' => 'API key',
+    'language' => 'Language',
+    'english' => 'English',
+    'arabic' => 'العربية',
+    'last_synced' => 'Last synced',
+    'live_sync' => 'Live Sync',
+    'none' => 'None',
+    'yes' => 'Yes',
+    'no' => 'No',
+    'optional' => 'Optional',
+    'required' => 'Required',
+    'password' => 'Password',
+    'username' => 'Username',
+    'host' => 'Host',
+    'port' => 'Port',
+    'database' => 'Database',
+    'ssl' => 'SSL',
+    'schema' => 'Schema',
+
+    // Result feedback.
+    'saved_successfully' => 'Saved successfully.',
+    'connection_successful' => 'Connection successful',
+    'connection_failed' => 'Connection failed',
+    'ai_not_configured' => 'Nexus AI is not configured yet. An operator can add a provider under Settings → Nexus AI Settings.',
+];

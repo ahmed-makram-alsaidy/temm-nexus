@@ -63,6 +63,11 @@ class ProjectResource extends Resource
 
     protected static ?string $navigationLabel = 'Projects';
 
+    public static function getNavigationLabel(): string
+    {
+        return __('nav.projects');
+    }
+
     protected static string|\UnitEnum|null $navigationGroup = 'Projects';
 
     protected static ?int $navigationSort = 10;

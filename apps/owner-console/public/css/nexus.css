@@ -2398,3 +2398,288 @@ html:not(.dark) {
 .nx-action-card__outcome--stale { color: #b91c1c; }
 .nx-action-card__outcome--rejected,
 .nx-action-card__outcome--expired { color: var(--nx-text-muted, inherit); }
+
+/* ==========================================================================
+   0.4.0-rc.5 (Phase 41) — LOCALIZATION: RTL, Arabic typography, the language
+   switcher, and the new wizard/settings components.
+
+   Directional chrome (floating controls, context menus, launcher) already
+   uses logical properties and flips automatically. What needs help:
+   Arabic typography (cursive script — letter-spacing MUST be neutralized),
+   the locale switcher, and the rc.5 surfaces (wizard, AI settings).
+   ========================================================================== */
+
+/* ── C.8 — Arabic typography ─────────────────────────────────────────── */
+html[dir="rtl"] body,
+html[dir="rtl"] input,
+html[dir="rtl"] select,
+html[dir="rtl"] textarea,
+html[dir="rtl"] button {
+    font-family: "Segoe UI", Tahoma, "Noto Naskh Arabic UI", "Noto Sans Arabic",
+                 "Geeza Pro", "Dubai", Arial, sans-serif;
+}
+
+/* Arabic is cursive: letter-spacing breaks ligature joining. Neutralize it
+   everywhere inside an RTL document (labels, tags, badges, headings). */
+html[dir="rtl"] body,
+html[dir="rtl"] body * {
+    letter-spacing: normal;
+}
+
+/* Code/technical values stay LTR inside an RTL page (C.10/C.13). */
+[dir="rtl"] .nx-code,
+[dir="rtl"] code,
+[dir="rtl"] pre,
+[dir="rtl"] .cp-pill__env,
+[dir="rtl"] .nx-context__env {
+    direction: ltr;
+    unicode-bidi: embed;
+}
+
+/* ── C.7 — directional glyphs mirror in RTL ──────────────────────────── */
+[dir="rtl"] .nx-context__footer a span[aria-hidden="true"] {
+    display: inline-block;
+    transform: scaleX(-1);
+}
+
+/* ── C.3 — the language switcher ─────────────────────────────────────── */
+.nx-locale {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--nx-border, rgb(255 255 255 / 0.08));
+    border-radius: var(--nx-radius-full, 999px);
+    background: var(--nx-surface-raised, rgb(255 255 255 / 0.04));
+}
+
+.nx-locale__form { display: inline-flex; margin: 0; }
+
+.nx-locale__option {
+    border: 0;
+    background: transparent;
+    color: var(--nx-text-muted, inherit);
+    font: inherit;
+    font-size: 12.5px;
+    line-height: 1.4;
+    padding: 6px 12px;
+    border-radius: var(--nx-radius-full, 999px);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.nx-locale__option:hover { color: var(--nx-text, inherit); }
+
+.nx-locale__option.is-active {
+    background: color-mix(in oklab, var(--nx-accent, #6366f1) 18%, transparent);
+    color: var(--nx-accent, #a5b4fc);
+    font-weight: 620;
+}
+
+/* Guest floating switcher (login screen has no topbar) — logical props so
+   it hugs the inline-end corner in both directions. */
+.nx-locale--compact {
+    position: fixed;
+    top: 14px;
+    inset-inline-end: 18px;
+    z-index: 60;
+    background: var(--nx-surface-raised, #1e293b);
+    box-shadow: var(--nx-elev-2, 0 6px 20px rgb(0 0 0 / 0.35));
+}
+
+/* ── rc.5 surfaces — settings page ───────────────────────────────────── */
+.nx-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-block-end: 16px;
+}
+
+.nx-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-block: 10px;
+}
+
+.nx-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+
+.nx-field__label {
+    font-size: 12px;
+    font-weight: 620;
+    color: var(--nx-text-muted, inherit);
+}
+
+.nx-field__input {
+    inline-size: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--nx-border-strong, #475569);
+    border-radius: var(--nx-radius, 10px);
+    background: var(--nx-surface-sunken, #0f172a);
+    color: var(--nx-text, inherit);
+    font-size: 14px;
+}
+
+.nx-field__input:focus-visible {
+    outline: 2px solid var(--nx-accent, #6366f1);
+    outline-offset: 1px;
+}
+
+.nx-field__hint { font-size: 11.5px; color: var(--nx-text-muted, #94a3b8); line-height: 1.5; }
+.nx-field__error { font-size: 11.5px; color: #f87171; }
+
+.nx-check--wide { margin-block: 6px; white-space: normal; }
+
+.nx-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border: 1px solid var(--nx-border-strong, #475569);
+    border-radius: var(--nx-radius, 10px);
+    background: transparent;
+    color: var(--nx-text, inherit);
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.nx-btn:hover { border-color: var(--nx-accent, #6366f1); }
+.nx-btn[disabled] { opacity: 0.55; cursor: progress; }
+
+.nx-btn--primary {
+    background: var(--nx-accent, #4f46e5);
+    border-color: var(--nx-accent, #4f46e5);
+    color: #fff;
+}
+
+.nx-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-block-start: 14px;
+}
+
+.nx-card__subtitle { font-size: 14px; font-weight: 620; margin-block: 14px 6px; }
+
+.nx-status-list { margin: 0; }
+.nx-status-list__row {
+    display: flex;
+    gap: 12px;
+    padding-block: 7px;
+    border-block-end: 1px solid var(--nx-border, rgb(255 255 255 / 0.06));
+    align-items: baseline;
+}
+.nx-status-list__row dt {
+    flex: 0 0 170px;
+    font-size: 12.5px;
+    color: var(--nx-text-muted, #94a3b8);
+}
+.nx-status-list__row dd { margin: 0; min-width: 0; font-size: 13.5px; }
+
+.nx-note {
+    margin-block-start: 12px;
+    padding: 11px 14px;
+    border-radius: var(--nx-radius, 10px);
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.nx-note--success { background: rgb(22 163 74 / 0.12); border: 1px solid rgb(22 163 74 / 0.45); }
+.nx-note--danger { background: rgb(220 38 38 / 0.12); border: 1px solid rgb(220 38 38 / 0.45); }
+
+.nx-hint { font-size: 12px; color: var(--nx-text-muted, #94a3b8); }
+
+.nx-table { inline-size: 100%; border-collapse: collapse; font-size: 13px; margin-block: 10px; }
+.nx-table th, .nx-table td { text-align: start; padding: 8px 10px; border-block-end: 1px solid var(--nx-border, rgb(255 255 255 / 0.06)); }
+.nx-table th { font-size: 11.5px; text-transform: uppercase; color: var(--nx-text-muted, #94a3b8); letter-spacing: 0.04em; }
+
+/* ── rc.5 surfaces — the New Project wizard ──────────────────────────── */
+.nxw-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+    margin: 0 0 10px;
+    padding: 0;
+}
+
+.nxw-steps__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border: 1px solid var(--nx-border, #334155);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--nx-text-muted, #64748b);
+}
+
+.nxw-steps__n {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 18px;
+    block-size: 18px;
+    border-radius: 999px;
+    background: var(--nx-surface-sunken, #0f172a);
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+.nxw-steps__item.is-now {
+    background: var(--nx-accent, #4338ca);
+    border-color: var(--nx-accent, #4338ca);
+    color: #fff;
+}
+
+.nxw-steps__item.is-done { color: var(--nx-accent, #a5b4fc); border-color: var(--nx-accent, #4338ca); }
+
+.nxw-cards { display: grid; gap: 10px; margin-block: 12px; }
+.nxw-cards--sources { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.nxw-cards--choices { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+.nxw-card--source,
+.nxw-card--choice {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: start;
+    padding: 14px;
+    border: 1px solid var(--nx-border, #334155);
+    border-radius: var(--nx-radius-lg, 14px);
+    background: var(--nx-surface-raised, #1e293b);
+    color: var(--nx-text, inherit);
+    font: inherit;
+    font-size: 12.5px;
+    line-height: 1.55;
+    cursor: pointer;
+}
+
+.nxw-card--source:hover,
+.nxw-card--choice:hover { border-color: var(--nx-accent, #6366f1); }
+
+.nxw-card--source.is-selected,
+.nxw-card--choice.is-selected {
+    border-color: var(--nx-accent, #6366f1);
+    box-shadow: 0 0 0 1px var(--nx-accent, #6366f1);
+}
+
+.nxw-card--source__name { font-size: 14px; }
+.nxw-card--source__desc { color: var(--nx-text-muted, #94a3b8); }
+.nxw-card--source__caps { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.nx-wizard-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-block: 18px 40px;
+}
+
+.nx-ai-help { margin-inline-start: auto; }

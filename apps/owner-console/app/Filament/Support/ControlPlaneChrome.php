@@ -5,6 +5,7 @@ namespace App\Filament\Support;
 use App\Filament\Pages\WorkspaceDetail;
 use App\Filament\Resources\Projects\ProjectResource;
 use App\Models\Project;
+use App\Services\Localization\LocaleManager;
 use Filament\Navigation\NavigationBuilder;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Support\HtmlString;
@@ -19,10 +20,10 @@ use Illuminate\Support\HtmlString;
 class ControlPlaneChrome
 {
     /** Bump when public/css/cp.css changes (static-asset cache buster). */
-    public const CSS_VERSION = '20.8.0';
+    public const CSS_VERSION = '41.0.0';
 
     /** Bump when public/css/nexus.css changes (0.4.0 product design system). */
-    public const NEXUS_CSS_VERSION = '40.2.0';
+    public const NEXUS_CSS_VERSION = '41.0.0';
 
     /** Bump when public/js/nexus-inspect.js changes (0.4.0 Phase I). */
     public const INSPECT_JS_VERSION = '40.1.0';
@@ -47,13 +48,15 @@ class ControlPlaneChrome
                 return new HtmlString(
                     '<button type="button" class="nx-inspect-toggle" data-nx-inspect-toggle'
                     .' aria-pressed="false"'
-                    .' title="Inspect Mode — click a component to attach it to Nexus AI (Esc to exit)">'
+                    .' data-nx-inspect-selected-format="'.e(__('chrome.inspect_selected_format')).'"'
+                    .' data-nx-inspect-fallback="'.e(__('chrome.inspect_fallback_component')).'"'
+                    .' title="'.e(__('chrome.inspect_title')).'">'
                     .'<span class="nx-inspect-toggle__glyph" aria-hidden="true">'
                     // Inline eye glyph: no icon-component dependency in the shell.
                     .'<svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15" aria-hidden="true">'
                     .'<path d="M10 4c-3.6 0-6.6 2.3-8 6 1.4 3.7 4.4 6 8 6s6.6-2.3 8-6c-1.4-3.7-4.4-6-8-6Zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>'
                     .'</svg></span>'
-                    .'<span class="nx-inspect-toggle__text">Inspect</span>'
+                    .'<span class="nx-inspect-toggle__text">'.e(__('chrome.inspect')).'</span>'
                     .'</button>'
                 );
             } catch (\Throwable) {
@@ -130,9 +133,9 @@ class ControlPlaneChrome
                     : NexusAi::pageUrl();
 
                 return new HtmlString(
-                    '<a class="nx-ai-launcher" href="'.e($url).'" title="Open Nexus AI — context: '.e($label).'">'
+                    '<a class="nx-ai-launcher" href="'.e($url).'" title="'.e(__('chrome.open_nexus_ai', ['context' => $label])).'">'
                     .'<span class="nx-ai-launcher__icon" aria-hidden="true">✦</span>'
-                    .'<span class="nx-ai-launcher__text">Nexus AI</span>'
+                    .'<span class="nx-ai-launcher__text">'.e(__('chrome.nexus_ai')).'</span>'
                     .'<span class="nx-ai-launcher__scope">'.e($label).'</span>'
                     .'</a>'
                 );
@@ -159,13 +162,67 @@ class ControlPlaneChrome
             };
 
             return new HtmlString(
-                '<a class="cp-pill" href="'.e(ProjectResource::getUrl('overview', ['record' => $project])).'" title="Active project workspace">'
+                '<a class="cp-pill" href="'.e(ProjectResource::getUrl('overview', ['record' => $project])).'" title="'.e(__('chrome.active_project_workspace')).'">'
                 .'<span class="cp-dot '.$dot.'"></span>'
                 .'<span class="cp-pill__name">'.e($project->name).'</span>'
                 .'<span class="cp-pill__env">'.e((string) ($project->environment ?? 'local')).'</span>'
                 .'</a>'
             );
         };
+    }
+
+    /**
+     * 0.4.0-rc.5 (Phase 41) — the visible language selector.
+     *
+     * Plain POST forms (no Livewire) so it works on EVERY surface the panel
+     * renders, including the login screen. Persisting is server-side
+     * (LocaleController): session + cookie, and the user's preference when
+     * authenticated.
+     */
+    public static function localeSwitcherHtml(bool $compact = false): string
+    {
+        try {
+            $current = app()->getLocale();
+            $items = '';
+
+            foreach (LocaleManager::available() as $code => $label) {
+                $active = $code === $current;
+                $items .= '<form method="POST" action="'.e(route('locale.update')).'" class="nx-locale__form">'
+                    .'<input type="hidden" name="_token" value="'.e(csrf_token()).'">'
+                    .'<input type="hidden" name="locale" value="'.e($code).'">'
+                    .'<button type="submit" class="nx-locale__option'.($active ? ' is-active' : '').'"'
+                    .' lang="'.e($code).'" dir="'.LocaleManager::direction($code).'"'
+                    .($active ? ' aria-current="true"' : '').'>'.e($label).'</button>'
+                    .'</form>';
+            }
+
+            return '<div class="nx-locale'.($compact ? ' nx-locale--compact' : '').'"'
+                .' title="'.e(__('chrome.language')).'" aria-label="'.e(__('chrome.language')).'">'
+                .$items.'</div>';
+        } catch (\Throwable) {
+            // Chrome must never break a page render.
+            return '';
+        }
+    }
+
+    /** Language switcher for the panel topbar (authenticated pages). */
+    public static function localeSwitcherHook(): \Closure
+    {
+        return fn (): HtmlString => new HtmlString(self::localeSwitcherHtml());
+    }
+
+    /** Floating switcher for guest surfaces (login screen has no topbar). */
+    public static function guestLocaleSwitcherHtml(): string
+    {
+        try {
+            if (auth()->check()) {
+                return '';
+            }
+        } catch (\Throwable) {
+            return '';
+        }
+
+        return self::localeSwitcherHtml(compact: true);
     }
 
     public static function currentProject(): ?Project
@@ -210,8 +267,11 @@ class ControlPlaneChrome
             // container (flex row) so they can never overlap, whatever the
             // scope label's length — previously each control was absolutely
             // positioned and the launcher grew leftward under the toggle.
+            // rc.5: guests (login/setup) also get the language switcher here,
+            // floating where the topbar chip would normally live.
             return new HtmlString(
-                '<div class="nx-floating-controls">'
+                self::guestLocaleSwitcherHtml()
+                .'<div class="nx-floating-controls">'
                 .$launcher->toHtml().$inspect->toHtml()
                 .'</div>'
                 .$search->toHtml().$script->toHtml()
@@ -262,17 +322,17 @@ class ControlPlaneChrome
 
                 return new HtmlString(
                     '<details class="nx-context">'
-                    .'<summary class="nx-context__chip" title="Active project — open to switch">'
+                    .'<summary class="nx-context__chip" title="'.e(__('chrome.active_project_open_to_switch')).'">'
                     .'<span class="nx-dot '.$dot.'" aria-hidden="true"></span>'
                     .'<span class="nx-context__name">'.e($project->name).'</span>'
                     .'<span class="nx-context__env">'.e(strtoupper((string) ($project->environment ?? 'local'))).'</span>'
                     .'</summary>'
-                    .'<nav class="nx-context__menu" aria-label="Switch project">'
+                    .'<nav class="nx-context__menu" aria-label="'.e(__('chrome.switch_project')).'">'
                     .$items
                     .'<div class="nx-context__footer">'
-                    .'<a href="'.e(ProjectResource::getUrl('index')).'"><span>All projects</span><span aria-hidden="true">→</span></a>'
+                    .'<a href="'.e(ProjectResource::getUrl('index')).'"><span>'.e(__('chrome.all_projects')).'</span><span aria-hidden="true">→</span></a>'
                     .($project->workspace
-                        ? '<a href="'.e(WorkspaceDetail::urlFor($project->workspace)).'"><span>'.e($project->workspace->name).' workspace</span><span aria-hidden="true">→</span></a>'
+                        ? '<a href="'.e(WorkspaceDetail::urlFor($project->workspace)).'"><span>'.e($project->workspace->name.' '.__('chrome.workspace_suffix')).'</span><span aria-hidden="true">→</span></a>'
                         : '')
                     .'</div>'
                     .'</nav>'

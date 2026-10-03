@@ -1,3 +1,84 @@
+## [0.4.0-rc.5] — 2026-10-03
+
+**PRE-RELEASE — release candidate.** Product UX closure on top of the
+accepted v0.4.0-rc.4 (which stays frozen and published): Nexus AI settings,
+a guided New Project wizard, and first-class Arabic/English localization.
+No unrelated features; rc.4 is not modified.
+
+### Added
+
+- **Settings → Nexus AI** (`/admin/nexus-ai-settings`) — a real,
+  production-facing AI configuration page: current status (enabled,
+  provider, model, last test, last safe error), provider configuration for
+  OpenAI / Anthropic / Gemini / OpenRouter / OpenAI-compatible, encrypted
+  API keys with masked display (never re-displayed), an optional model-role
+  override section (default assistant / deep diagnosis / code changes —
+  one provider + one model still works), a safe "Test connection" action,
+  and a visible platform-default vs project-scoped scope statement.
+  Gated to `ai.configure` (Platform Owner/Admin) and audited.
+- **New Project wizard** (`/admin/new-project`) — six guided steps
+  (Project → Source → Connection → Destination → Analyze → Review) with
+  visual source cards from the connector registry, connector-schema-driven
+  connection fields with Test Connection, TEMM-managed destination as the
+  obvious default (external PostgreSQL under Advanced), read-only source
+  analysis summarized in product language, a plain-language readiness
+  review, and a dry-run Start Migration. Replaces "New project" entry
+  points on Projects and Workspace pages; the classic create form stays
+  reachable for power users. Projects created through the wizard now
+  actually receive their `workspace_id` (a known 0.4.0 gap).
+- **Arabic + English as first-class languages** — a runtime localization
+  layer (`lang/en`, `lang/ar`) across the product shell, navigation, Home,
+  Workspaces, connector catalog, Nexus AI, the setup wizard, the New
+  Project wizard, error pages, and the landing page. Arabic gets real RTL:
+  the panel direction flips via locale, Arabic typography rules (no
+  letter-spacing on cursive text, Arabic font stack), LTR-preserving code
+  values, and mirrored directional glyphs. English remains LTR.
+- **Language switcher + persistence** — a visible selector in the product
+  shell (and on the login/setup/landing surfaces for guests). Resolution
+  order: user preference (`users.locale`, additive migration) → session →
+  cookie → platform default (`platform.locale`, chosen during first-run
+  setup step 2) → English. No rebuild, no logout.
+- **Nexus AI follows the UI locale** (C.14) — the assistant's system
+  prompt carries a LANGUAGE directive derived from the active locale;
+  tool outputs stay canonical (presentation-only translation).
+- **Translation completeness gate** (Part G) —
+  `tests/Feature/Phase41/TranslationCompletenessTest.php` fails the build
+  on any key present in one language but missing in the other, asserts the
+  two file sets match, and verifies Arabic pluralization across all six
+  Arabic plural forms.
+
+### Fixed
+
+- **Fake/test providers can no longer surface in a production UI** (A.7) —
+  the `fake` provider is hidden from the AI settings page, the project
+  Copilot provider picker, and ModelRouter routing unless
+  `AI_ALLOW_FAKE_PROVIDERS` explicitly allows it (default: allowed outside
+  production). Regression-covered in `FakeProviderVisibilityTest`.
+- **The `env` core-container binding was depended on at config-load time**
+  — `config/nexus-ai.php` reads `APP_ENV` via `env()` because this
+  framework version no longer registers `env` as a container alias and
+  `app()->isProduction()` in a config file fatals `artisan`/tests with
+  "Target class [env] does not exist".
+- **`ModelRouter::routingTable()` fatals when no provider is configured**
+  ("Trying to access array offset on null") — the Settings page renders
+  the routing table before any provider exists; the table now degrades to
+  an "Unconfigured" row.
+- **`POST /locale` was trapped by the first-run gate** — the language
+  switch must work before a user or platform default exists, so the gate
+  allowlists the locale endpoint.
+- **Guest surfaces (setup wizard, login, landing) get localized
+  `<html lang dir>`, Arabic font stacks, and a language switcher.**
+
+### Tests
+
+- `tests/Feature/Phase41/` — 48 new tests: locale resolution order,
+  RTL/LTR direction on the panel, session/cookie/user persistence,
+  platform default, Arabic pluralization, translation-key parity,
+  AI settings authorization + API-key encryption/masking + safe test
+  results + role routing + master switch, fake-provider visibility,
+  wizard flow/validation/tenant isolation/vault handling, and AI locale
+  propagation without authorization changes.
+
 ## [0.4.0-rc.4] — 2026-10-02
 
 **PRE-RELEASE — release candidate.** Two hotfixes on top of the published

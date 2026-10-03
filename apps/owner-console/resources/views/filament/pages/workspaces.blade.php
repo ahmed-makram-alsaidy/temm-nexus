@@ -18,15 +18,13 @@
             <div class="nx-empty__icon">
                 <x-filament::icon icon="heroicon-o-building-office-2" class="h-6 w-6" />
             </div>
-            <h2 class="nx-empty__title">No workspaces yet</h2>
+            <h2 class="nx-empty__title">{{ __('workspaces.empty_title') }}</h2>
             <p class="nx-empty__body">
-                A workspace is one client, company, or internal team. It groups the projects
-                that belong to them, and it is what keeps one client's data separate from
-                another's.
+                {{ __('workspaces.subtitle') }}
             </p>
             @if ($this->canCreate())
                 <x-filament::button wire:click="mountAction('createWorkspace')" icon="heroicon-o-plus">
-                    Create your first workspace
+                    {{ __('workspaces.new_workspace') }}
                 </x-filament::button>
             @endif
         </div>
@@ -54,7 +52,7 @@
                                 <p class="nx-card__meta">
                                     {{ $workspace->displayKind() }}
                                     @if ($workspace->is_default)
-                                        · <span class="nx-tag">Default</span>
+                                        · <span class="nx-tag">{{ __('workspaces.default') }}</span>
                                     @endif
                                 </p>
                             </div>
@@ -86,15 +84,15 @@
 
                     <dl class="nx-stats">
                         <div class="nx-stat">
-                            <dt>Projects</dt>
+                            <dt>{{ __('workspaces.projects') }}</dt>
                             <dd>{{ $stats['projects'] }}</dd>
                         </div>
                         <div class="nx-stat">
-                            <dt>Members</dt>
+                            <dt>{{ __('workspaces.members') }}</dt>
                             <dd>{{ $stats['members'] }}</dd>
                         </div>
                         <div class="nx-stat">
-                            <dt>Needs attention</dt>
+                            <dt>{{ __('home.needs_attention') }}</dt>
                             <dd @class(['nx-stat__value--warning' => $stats['attention'] > 0])>
                                 {{ $stats['attention'] }}
                             </dd>
@@ -125,7 +123,7 @@
                             @endif
                         </ul>
                     @else
-                        <p class="nx-card__hint">No projects in this workspace yet.</p>
+                        <p class="nx-card__hint">{{ __('workspaces.no_projects_body') }}</p>
                     @endif
 
                     <footer class="nx-card__footer">
@@ -143,11 +141,8 @@
             <div class="nx-notice nx-notice--info">
                 <x-filament::icon icon="heroicon-o-information-circle" class="h-5 w-5" />
                 <div>
-                    <strong>{{ $ungrouped }} project(s) are not in a workspace yet.</strong>
-                    <p>
-                        These predate workspaces. They keep working exactly as before, but they are
-                        not covered by any client boundary until you assign them.
-                    </p>
+                    <strong>{{ trans_choice('workspaces.ungrouped_count', $ungrouped, ['count' => $ungrouped]) }}</strong>
+                    <p>{{ __('workspaces.ungrouped_body') }}</p>
                 </div>
             </div>
         @endif

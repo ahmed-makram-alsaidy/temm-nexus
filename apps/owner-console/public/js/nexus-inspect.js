@@ -96,7 +96,12 @@
         var key = el.getAttribute('data-nx-inspect') || '';
         var label = (el.getAttribute('data-nx-inspect-label') || '').trim();
 
-        announce('Selected ' + (label || 'component') + '. Open Nexus AI to continue.');
+        // 0.4.0-rc.5 (C.1): the announcement text is provided by the server
+        // shell in the user's locale; the JS never hard-codes English.
+        var toggle = document.querySelector('[data-nx-inspect-toggle]');
+        var template = (toggle && toggle.getAttribute('data-nx-inspect-selected-format'))
+            || 'Selected :label. Open Nexus AI to continue.';
+        announce(template.replace(':label', label || (toggle && toggle.getAttribute('data-nx-inspect-fallback')) || 'component'));
 
         remember({ key: key });
     }

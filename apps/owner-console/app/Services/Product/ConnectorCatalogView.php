@@ -37,7 +37,6 @@ final class ConnectorCatalogView
      * @var array<string, array{label: string, group: string, hint: string}>
      */
     public const FEATURES = [
-        // ── Migration ──────────────────────────────────────────────────
         ConnectorCapability::DATABASE_METADATA => [
             'label' => 'Schema inspection',
             'group' => 'migration',
@@ -63,8 +62,6 @@ final class ConnectorCatalogView
             'group' => 'migration',
             'hint' => 'Continues from where a run stopped instead of starting over.',
         ],
-
-        // ── Live Sync ──────────────────────────────────────────────────
         ConnectorCapability::CHANGE_CAPTURE => [
             'label' => 'Live Sync',
             'group' => 'live_sync',
@@ -75,8 +72,6 @@ final class ConnectorCatalogView
             'group' => 'live_sync',
             'hint' => 'Records a verifiable position so sync can resume after a restart.',
         ],
-
-        // ── Other capability families ──────────────────────────────────
         ConnectorCapability::ACCOUNT_DISCOVERY => [
             'label' => 'Account discovery',
             'group' => 'discovery',
@@ -131,16 +126,54 @@ final class ConnectorCatalogView
             'label' => 'Read-only guarantee',
             'group' => 'safety',
             'hint' => 'Enforces a read-only session against the source; the platform never writes to it.',
-        ],
+        ]
     ];
 
-    /** Trust level → product label + tone. */
+    /** Trust level → product label + tone (values are translation keys). */
     public const TRUST = [
         'first_party' => ['label' => 'First-party', 'tone' => 'success', 'hint' => 'Built and maintained by the platform team.'],
         'trusted' => ['label' => 'Trusted', 'tone' => 'info', 'hint' => 'Reviewed third-party connector.'],
         'community' => ['label' => 'Community', 'tone' => 'warning', 'hint' => 'Community-contributed; review before use.'],
-        'unverified' => ['label' => 'Unverified', 'tone' => 'danger', 'hint' => 'Not reviewed. Treat with caution.'],
+        'unverified' => ['label' => 'Unverified', 'tone' => 'danger', 'hint' => 'Not reviewed. Treat with caution.']
     ];
+
+    /** Feature metadata, labels/hints resolved at CALL time (locale-aware). */
+    public static function features(): array
+    {
+        $out = [];
+        foreach (self::FEATURES as $key => $feature) {
+            $out[$key] = [
+                'label' => self::translated("features.{$key}_label", $feature['label']),
+                'group' => $feature['group'],
+                'hint' => self::translated("features.{$key}_hint", $feature['hint']),
+            ];
+        }
+
+        return $out;
+    }
+
+    /** Trust metadata, labels/hints resolved at CALL time (locale-aware). */
+    public static function trust(): array
+    {
+        $out = [];
+        foreach (self::TRUST as $key => $entry) {
+            $out[$key] = [
+                'label' => self::translated("features.trust_{$key}_label", $entry['label']),
+                'tone' => $entry['tone'],
+                'hint' => self::translated("features.trust_{$key}_hint", $entry['hint']),
+            ];
+        }
+
+        return $out;
+    }
+
+    /** Translation with the canonical English const value as fallback. */
+    protected static function translated(string $key, string $fallback): string
+    {
+        $line = __($key);
+
+        return $line === $key ? $fallback : (string) $line;
+    }
 
     /**
      * Every connector as a catalogue card.
@@ -268,7 +301,7 @@ final class ConnectorCatalogView
     {
         $out = [];
         foreach ($capabilities as $capability) {
-            $feature = self::FEATURES[$capability] ?? null;
+            $feature = self::features()[$capability] ?? null;
             if ($feature === null) {
                 continue;
             }
@@ -286,7 +319,7 @@ final class ConnectorCatalogView
     /** @return array{label: string, tone: string, hint: string} */
     private static function trustFor(string $trust): array
     {
-        return self::TRUST[$trust] ?? [
+        return self::trust()[$trust] ?? [
             'label' => ucfirst(str_replace('_', ' ', $trust)),
             'tone' => 'neutral',
             'hint' => 'This connector declares a trust level the catalogue does not recognise.',
@@ -333,7 +366,7 @@ final class ConnectorCatalogView
         }
 
         $out = [];
-        foreach (self::FEATURES as $key => $feature) {
+        foreach (self::features() as $key => $feature) {
             if (! isset($counts[$key])) {
                 continue;
             }

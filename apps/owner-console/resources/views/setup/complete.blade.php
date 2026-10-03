@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}" dir="{{ \App\Services\Localization\LocaleManager::direction() }}">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Setup complete</title>
 <style>
-  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Naskh Arabic UI", "Noto Sans Arabic", sans-serif;
          background:#0f172a; color:#e2e8f0; min-height:100vh; display:flex; align-items:center; justify-content:center; }
   .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:44px; max-width:520px; text-align:center; }
   h1 { color:#4ade80; font-size:24px; margin-top:0; }
@@ -16,9 +16,9 @@
 </head>
 <body>
   <div class="card">
-    <h1>Setup complete</h1>
-    <p>{{ $platform }} is initialized. Sign in with the owner account you created ({{ $owner }}). This wizard is now locked.</p>
-    <a class="btn" href="{{ url('/admin/login') }}">Sign in to the admin console</a>
+    <h1>{{ __('setup.complete_title') }}</h1>
+    <p>{{ __('setup.complete_body', ['platform' => $platform, 'owner' => $owner]) }}</p>
+    <a class="btn" href="{{ url('/admin/login') }}">{{ __('setup.complete_sign_in') }}</a>
     <div class="v">Platform v{{ $version }}</div>
   </div>
 </body>

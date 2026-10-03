@@ -71,7 +71,7 @@ class ConnectorCatalog extends Page
 
     public function getSubheading(): ?string
     {
-        return 'Everything you can migrate from, and what each one supports.';
+        return __('connectors.subtitle');
     }
 
     // ── Data ───────────────────────────────────────────────────────────

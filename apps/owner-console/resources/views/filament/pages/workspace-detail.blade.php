@@ -19,37 +19,37 @@
     @if ($workspace)
         {{-- Scope banner: makes the active scope unmistakable (§2). --}}
         <div class="nx-scope-banner">
-            <span class="nx-scope-banner__label">Scope</span>
+            <span class="nx-scope-banner__label">{{ __('chrome.environment') }}</span>
             <span class="nx-scope-banner__value">Workspace — {{ $workspace->name }}</span>
         </div>
 
         <div class="nx-grid nx-grid--stats">
             <div class="nx-stat-card">
-                <span class="nx-stat-card__label">Projects</span>
+                <span class="nx-stat-card__label">{{ __('workspaces.projects') }}</span>
                 <span class="nx-stat-card__value">{{ $health['total'] }}</span>
-                <span class="nx-stat-card__hint">{{ $health['healthy'] }} healthy</span>
+                <span class="nx-stat-card__hint">{{ $health['healthy'] }} {{ __('common.status_healthy') }}</span>
             </div>
             <div class="nx-stat-card">
-                <span class="nx-stat-card__label">Needs attention</span>
+                <span class="nx-stat-card__label">{{ __('home.needs_attention') }}</span>
                 <span @class(['nx-stat-card__value', 'nx-stat-card__value--warning' => $health['attention'] > 0])>
                     {{ $health['attention'] }}
                 </span>
-                <span class="nx-stat-card__hint">{{ $health['unknown'] }} without a result</span>
+                <span class="nx-stat-card__hint">{{ $health['unknown'] }} {{ __('common.status_unknown') }}</span>
             </div>
             <div class="nx-stat-card">
-                <span class="nx-stat-card__label">Members</span>
+                <span class="nx-stat-card__label">{{ __('workspaces.members') }}</span>
                 <span class="nx-stat-card__value">{{ $members->count() }}</span>
-                <span class="nx-stat-card__hint">with access to this workspace</span>
+                <span class="nx-stat-card__hint">{{ __('workspaces.subtitle') }}</span>
             </div>
         </div>
 
         {{-- Attention BEFORE projects: what needs me comes first (§7/§8). --}}
         <section class="nx-section">
-            <h2 class="nx-section__title">Needs attention</h2>
+            <h2 class="nx-section__title">{{ __('home.needs_attention') }}</h2>
             @if ($attention === [])
                 <div class="nx-empty nx-empty--inline">
                     <x-filament::icon icon="heroicon-o-check-circle" class="h-5 w-5" />
-                    <p class="nx-empty__body">Nothing needs you right now.</p>
+                    <p class="nx-empty__body">{{ __('home.attention_empty') }}</p>
                 </div>
             @else
                 <ul class="nx-attention">
@@ -64,7 +64,7 @@
                                 <p>{{ $item['detail'] }}</p>
                             </div>
                             @if ($item['url'])
-                                <a class="nx-link" href="{{ $item['url'] }}">Open →</a>
+                                <a class="nx-link" href="{{ $item['url'] }}">{{ __('home.open') }} →</a>
                             @endif
                         </li>
                     @endforeach
@@ -77,16 +77,15 @@
             data-nx-inspect="workspace.projects"
             data-nx-inspect-label="Workspace projects"
         >
-            <h2 class="nx-section__title">Projects</h2>
+            <h2 class="nx-section__title">{{ __('workspaces.projects') }}</h2>
             @if ($projects->isEmpty())
                 <div class="nx-empty">
                     <div class="nx-empty__icon">
                         <x-filament::icon icon="heroicon-o-square-3-stack-3d" class="h-6 w-6" />
                     </div>
-                    <h3 class="nx-empty__title">No projects in this workspace</h3>
+                    <h3 class="nx-empty__title">{{ __('workspaces.no_projects_title') }}</h3>
                     <p class="nx-empty__body">
-                        A project is one backend you migrate — a website, an API, a CRM.
-                        Create one to start connecting a source.
+                        {{ __('home.empty_body') }}
                     </p>
                     @if ($this->canCreateProject())
                         <x-filament::button
@@ -94,7 +93,7 @@
                             href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('create', ['workspace' => $workspace->id]) }}"
                             icon="heroicon-o-plus"
                         >
-                            Create a project
+                            {{ __('workspaces.new_project') }}
                         </x-filament::button>
                     @endif
                 </div>
@@ -134,7 +133,7 @@
 
         @if ($ui['workspace.members']['visibility'] ?? true)
             <section class="nx-section" data-nx-inspect="workspace.members" data-nx-inspect-label="Workspace members">
-                <h2 class="nx-section__title">Members</h2>
+                <h2 class="nx-section__title">{{ __('workspaces.members') }}</h2>
             @if ($members->isEmpty())
                 <div class="nx-empty nx-empty--inline">
                     <p class="nx-empty__body">
@@ -150,7 +149,7 @@
                                 {{ $membership->user?->initials() ?? '?' }}
                             </span>
                             <div>
-                                <strong>{{ $membership->user?->name ?? 'Unknown' }}</strong>
+                                <strong>{{ $membership->user?->name ?? __('common.status_unknown') }}</strong>
                                 <span class="nx-person__role">
                                     {{ \App\Services\Access\Roles::label($membership->role) }}
                                 </span>

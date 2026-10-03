@@ -17,7 +17,8 @@ class AiProviderConfig extends Model
 
     protected function casts(): array
     {
-        return ['enabled' => 'boolean', 'pricing' => 'array', 'max_output_tokens' => 'integer', 'timeout_seconds' => 'integer', 'secret_encrypted' => 'encrypted'];
+        return [
+            'last_tested_at' => 'datetime','enabled' => 'boolean', 'pricing' => 'array', 'max_output_tokens' => 'integer', 'timeout_seconds' => 'integer', 'secret_encrypted' => 'encrypted'];
     }
 
     public function project(): BelongsTo

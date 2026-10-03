@@ -1,6 +1,6 @@
 @extends('setup.layout')
 @section('content')
-<p class="lead">Welcome. This wizard initializes your self-hosted platform: it verifies the stack, creates the first platform owner, and locks itself when done. Nothing here touches your data — existing databases are only verified, never modified.</p>
+<p class="lead">{{ __('setup.s1_lead') }}</p>
 <table class="checks">
 @foreach($checks as $c)
   <tr>
@@ -12,7 +12,7 @@
 <div class="actions">
   <span></span>
   <form method="post" action="{{ url('/setup/step/1') }}">@csrf
-    <button class="btn">Continue</button>
+    <button class="btn">{{ __("setup.continue") }}</button>
   </form>
 </div>
 @endsection

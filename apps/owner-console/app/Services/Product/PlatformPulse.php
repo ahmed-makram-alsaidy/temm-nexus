@@ -93,45 +93,45 @@ final class PlatformPulse
         return [
             [
                 'key' => 'projects',
-                'label' => 'Projects',
+                'label' => __('home.summary_projects'),
                 'value' => $projects->count(),
-                'hint' => $projects->where('health_status', 'healthy')->count().' healthy',
+                'hint' => $projects->where('health_status', 'healthy')->count().' '.__('home.summary_healthy'),
                 'tone' => 'neutral',
                 'url' => $this->projectsUrl(),
             ],
             [
                 'key' => 'active_migrations',
-                'label' => 'Active migrations',
+                'label' => __('home.summary_active_migrations'),
                 'value' => $this->activeMigrationCount(),
-                'hint' => 'transfers running now',
+                'hint' => __('home.summary_transfers_running'),
                 'tone' => $this->activeMigrationCount() > 0 ? 'info' : 'neutral',
                 'url' => null,
             ],
             [
                 'key' => 'live_syncs',
-                'label' => 'Live syncs',
+                'label' => __('home.summary_live_syncs'),
                 'value' => $this->liveSyncCount(),
                 'hint' => $this->liveSyncBehindCount() > 0
-                    ? $this->liveSyncBehindCount().' behind'
-                    : 'all up to date',
+                    ? $this->liveSyncBehindCount().' '.__('home.summary_behind')
+                    : __('home.summary_all_up_to_date'),
                 'tone' => $this->liveSyncBehindCount() > 0 ? 'warning' : ($this->liveSyncCount() > 0 ? 'success' : 'neutral'),
                 'url' => null,
             ],
             [
                 'key' => 'ready_for_cutover',
-                'label' => 'Ready for cutover',
+                'label' => __('home.summary_ready_for_cutover'),
                 'value' => $this->readyForCutoverCount(),
                 'hint' => $this->openBlockerCount() > 0
-                    ? $this->openBlockerCount().' blocking item(s) elsewhere'
-                    : 'nothing blocking',
+                    ? $this->openBlockerCount().' '.__('home.summary_blocking_items')
+                    : __('home.summary_nothing_blocking'),
                 'tone' => $this->readyForCutoverCount() > 0 ? 'success' : 'neutral',
                 'url' => null,
             ],
             [
                 'key' => 'needs_attention',
-                'label' => 'Needs attention',
+                'label' => __('home.needs_attention'),
                 'value' => $this->projectsNeedingAttention()->count(),
-                'hint' => 'projects to look at',
+                'hint' => __('home.summary_projects_to_look_at'),
                 // NOTE: deliberately NOT 'success' when zero. A green 0 on an
                 // attention card reads as a celebratory metric and draws the
                 // eye to the least important number on the page. Zero

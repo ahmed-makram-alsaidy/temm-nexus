@@ -22,12 +22,12 @@ enum JourneyState: string
     public function label(): string
     {
         return match ($this) {
-            self::NOT_STARTED => 'Not started',
-            self::IN_PROGRESS => 'In progress',
-            self::READY => 'Ready',
-            self::NEEDS_ATTENTION => 'Needs attention',
-            self::BLOCKED => 'Blocked',
-            self::COMPLETE => 'Complete',
+            self::NOT_STARTED => __('journey.state_not_started'),
+            self::IN_PROGRESS => __('journey.state_in_progress'),
+            self::READY => __('journey.state_ready'),
+            self::NEEDS_ATTENTION => __('journey.state_needs_attention'),
+            self::BLOCKED => __('journey.state_blocked'),
+            self::COMPLETE => __('journey.state_complete'),
         };
     }
 

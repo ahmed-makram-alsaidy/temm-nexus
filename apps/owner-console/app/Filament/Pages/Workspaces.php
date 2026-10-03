@@ -35,7 +35,17 @@ class Workspaces extends Page
 
     protected static ?string $navigationLabel = 'Clients & Workspaces';
 
+    public static function getNavigationLabel(): string
+    {
+        return __('workspaces.title');
+    }
+
     protected static ?string $title = 'Clients & Workspaces';
+
+    public function getTitle(): string
+    {
+        return __('workspaces.title');
+    }
 
     protected static ?string $slug = 'workspaces';
 
@@ -58,7 +68,7 @@ class Workspaces extends Page
 
     public function getSubheading(): ?string
     {
-        return 'Every client, company, or team you have access to, and the projects inside it.';
+        return __('workspaces.subtitle');
     }
 
     /**
@@ -120,34 +130,34 @@ class Workspaces extends Page
     {
         return [
             Action::make('createWorkspace')
-                ->label('New workspace')
+                ->label(__('workspaces.new_workspace'))
                 ->icon('heroicon-o-plus')
                 ->visible(fn (): bool => $this->canCreate())
-                ->modalHeading('Create a workspace')
+                ->modalHeading(__('workspaces.create_workspace_heading'))
                 ->modalDescription('A workspace is one client, company, or internal team. Projects live inside it.')
-                ->modalSubmitActionLabel('Create workspace')
+                ->modalSubmitActionLabel(__('workspaces.create_workspace_submit'))
                 ->schema([
                     TextInput::make('name')
-                        ->label('Workspace name')
+                        ->label(__('workspaces.workspace_name'))
                         ->required()
                         ->maxLength(120)
                         ->placeholder('e.g. Nayrouz'),
                     Select::make('kind')
-                        ->label('Type')
+                        ->label(__('workspaces.type'))
                         ->options([
-                            'client' => 'Client',
-                            'company' => 'Company',
-                            'team' => 'Internal team',
-                            'internal' => 'Internal',
+                            'client' => __('workspaces.type_client'),
+                            'company' => __('workspaces.type_company'),
+                            'team' => __('workspaces.type_team'),
+                            'internal' => __('workspaces.type_internal'),
                         ])
                         ->default('client')
                         ->required()
                         ->selectablePlaceholder(false),
                     Textarea::make('description')
-                        ->label('Description')
+                        ->label(__('workspaces.workspace_description'))
                         ->rows(2)
                         ->maxLength(500)
-                        ->helperText('Optional. What is this workspace for?'),
+                        ->helperText(__('workspaces.workspace_description_helper')),
                 ])
                 ->action(function (array $data): void {
                     // Re-check at execution time: the form being open is not
@@ -165,7 +175,7 @@ class Workspaces extends Page
                     ]);
 
                     Notification::make()
-                        ->title('Workspace created')
+                        ->title(__('workspaces.workspace_created'))
                         ->body($workspace->name.' is ready. Add a project to it next.')
                         ->success()
                         ->send();

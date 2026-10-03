@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}" dir="{{ \App\Services\Localization\LocaleManager::direction() }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ config('platform.brand') }}</title>
 <style>
-  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Naskh Arabic UI", "Noto Sans Arabic", sans-serif;
          background:#0f172a; color:#e2e8f0; min-height:100vh; display:flex; align-items:center; justify-content:center; }
   .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:48px; max-width:560px; text-align:center; }
   h1 { color:#f8fafc; font-size:26px; margin:0 0 10px; }
@@ -18,8 +18,16 @@
 <body>
   <div class="card">
     <h1>{{ config('platform.brand') }}</h1>
-    <p>Self-hosted backend &amp; migration control plane. Create new backend projects, import existing ones via source connectors (Supabase included), and operate them from one console.</p>
-    <a class="btn" href="{{ url('/admin') }}">Open the console</a>
+    <p>{{ __('welcome.blurb') }}</p>
+    <a class="btn" href="{{ url('/admin') }}">{{ __('welcome.open_console') }}</a>
+    <div style="margin-top:16px">
+      @foreach(\App\Services\Localization\LocaleManager::available() as $code => $name)
+        <form method="POST" action="{{ route('locale.update') }}" style="display:inline;margin:0 4px">@csrf
+          <input type="hidden" name="locale" value="{{ $code }}">
+          <button type="submit" style="background:transparent;border:1px solid #475569;color:{{ app()->getLocale() === $code ? '#a5b4fc' : '#64748b' }};border-radius:8px;padding:5px 12px;cursor:pointer;font-size:13px">{{ $name }}</button>
+        </form>
+      @endforeach
+    </div>
     <div class="v">Platform v{{ config('platform.version') }}</div>
   </div>
 </body>

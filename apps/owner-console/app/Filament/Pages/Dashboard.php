@@ -46,7 +46,7 @@ class Dashboard extends BaseDashboard
 
     public function getTitle(): string
     {
-        return 'Home';
+        return __('home.title');
     }
 
     public function getSubheading(): ?string
@@ -84,10 +84,10 @@ class Dashboard extends BaseDashboard
         $hour = (int) now()->format('G');
 
         return match (true) {
-            $hour < 5 => 'Good night',
-            $hour < 12 => 'Good morning',
-            $hour < 18 => 'Good afternoon',
-            default => 'Good evening',
+            $hour < 5 => __('home.greeting_night'),
+            $hour < 12 => __('home.greeting_morning'),
+            $hour < 18 => __('home.greeting_afternoon'),
+            default => __('home.greeting_evening'),
         };
     }
 
@@ -107,7 +107,7 @@ class Dashboard extends BaseDashboard
         $pulse = $this->pulse();
 
         if (! $pulse->hasAnyProject()) {
-            return 'No projects yet — create one to start your first migration.';
+            return __('home.state_no_projects');
         }
 
         $attention = $pulse->projectsNeedingAttention()->count();
@@ -119,14 +119,14 @@ class Dashboard extends BaseDashboard
             $parts[] = self::projectAttentionPhrase($attention);
         }
         if ($running > 0) {
-            $parts[] = $running.' migration'.($running === 1 ? '' : 's').' running';
+            $parts[] = (string) trans_choice('home.migrations_running_phrase', $running, ['count' => $running]);
         }
         if ($ready > 0) {
-            $parts[] = $ready.' ready for cutover';
+            $parts[] = (string) trans_choice('home.ready_for_cutover_phrase', $ready, ['count' => $ready]);
         }
 
         if ($parts === []) {
-            return 'All clear — nothing needs you right now.';
+            return __('home.state_all_clear');
         }
 
         return ucfirst(implode(' · ', $parts)).'.';
@@ -145,11 +145,7 @@ class Dashboard extends BaseDashboard
             return '';
         }
 
-        if ($count === 1) {
-            return '1 project needs attention';
-        }
-
-        return $count.' projects need attention';
+        return (string) trans_choice('home.attention_phrase', $count, ['count' => $count]);
     }
 
     public function canCreateProject(): bool

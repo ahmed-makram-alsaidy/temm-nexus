@@ -295,11 +295,14 @@ class WorkspaceDetail extends Page
                         ->send();
                 }),
 
+            // 0.4.0-rc.5 (Phase 41, B.1): "New project" now opens the guided
+            // wizard with this workspace preselected (prefill is validated
+            // against reachability inside the wizard).
             Action::make('newProject')
-                ->label('New project')
+                ->label(__('workspaces.new_project'))
                 ->icon('heroicon-o-plus')
                 ->visible(fn (): bool => $this->canCreateProject())
-                ->url(fn (): string => ProjectResource::getUrl('create', [
+                ->url(fn (): string => \App\Filament\Pages\NewProjectWizard::getUrl([
                     'workspace' => $this->workspace?->id,
                 ])),
         ];
