@@ -114,15 +114,15 @@ class InfraNodeDetail extends Page
             ]),
             Section::make('Services ('.$node->services()->count().')')->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Key</th><th>Label</th><th>Scope</th><th>Status</th><th>Endpoint</th><th>Version</th>'
+                    .'<th>'.e(__('labels.key')).'</th><th>'.e(__('labels.th_label')).'</th><th>'.e(__('labels.th_scope')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.endpoint')).'</th><th>'.e(__('labels.version')).'</th>'
                     .'</tr></thead><tbody>'.($svcRows ?: '<tr><td colspan="6">No services reported.</td></tr>').'</tbody></table></div>'),
             ])->compact(),
             Section::make('Projects using this node')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Project</th><th>Service</th></tr></thead><tbody>'
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.project')).'</th><th>'.e(__('labels.th_service')).'</th></tr></thead><tbody>'
                     .($projRows ?: '<tr><td colspan="2">None.</td></tr>').'</tbody></table></div>'),
             ])->compact(),
             Section::make('Health history')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>At</th><th>Severity</th><th>Event</th></tr></thead><tbody>'
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_at')).'</th><th>'.e(__('labels.th_severity')).'</th><th>'.e(__('labels.event')).'</th></tr></thead><tbody>'
                     .($histRows ?: '<tr><td colspan="3">No transitions recorded.</td></tr>').'</tbody></table></div>'),
             ])->compact(),
         ]);

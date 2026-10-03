@@ -113,7 +113,7 @@ class ProjectMigrationCenter extends Page
                 $capRows .= '<tr><td>'.e($row['label']).'</td><td><span class="cp-badge '.$badge.'">'.e($row['status']).'</span></td>'
                     .'<td style="font-size:.75rem;color:var(--cp-text-dim)">'.e($row['detail']).'</td></tr>';
             }
-            $capabilityHtml = '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Capability</th><th>Status</th><th>Detail</th></tr></thead><tbody>'
+            $capabilityHtml = '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_capability')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.detail')).'</th></tr></thead><tbody>'
                 .$capRows.'</tbody></table></div>'
                 .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">Connector: <code>'.e($latestSource->effectiveConnectorKey()).'</code> — statuses are declared by the connector, never faked.</p>';
         }
@@ -169,7 +169,7 @@ class ProjectMigrationCenter extends Page
                 $statuses = $items->groupBy('status')->map(fn ($g) => $g->count())->map(fn ($n, $s) => $s.':'.$n)->implode(' ');
                 $stageRows .= '<tr><td>'.e((string) $stage).'</td><td>'.e($names.$more).'</td><td style="font-size:.75rem">'.e($statuses).'</td></tr>';
             }
-            $planHtml = '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Stage</th><th>Objects (dependency order)</th><th>Statuses</th></tr></thead><tbody>'
+            $planHtml = '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_stage')).'</th><th>'.e(__('labels.th_objects_dependency_order')).'</th><th>'.e(__('labels.th_statuses')).'</th></tr></thead><tbody>'
                 .$stageRows.'</tbody></table></div>'
                 .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">Plan "'.e($plan->name).'" — '.e((string) $plan->items()->count()).' items. '
                 .'Ordering is FK-dependency based (auth first), never alphabetical.</p>';
@@ -205,7 +205,7 @@ class ProjectMigrationCenter extends Page
 
         return $schema->components([
             Section::make('Migration sources')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Name</th><th>Connector</th><th>Ref</th><th>Mode</th><th>Health</th><th>Status</th><th>Last analyzed</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_connector')).'</th><th>'.e(__('labels.th_ref')).'</th><th>'.e(__('labels.th_mode')).'</th><th>'.e(__('labels.health')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_last_analyzed')).'</th></tr></thead><tbody>'
                 .$sourceRows.'</tbody></table></div>'
             )])->compact(),
             Section::make('Connector capabilities (27Q.2)')->schema([Html::make($capabilityHtml)])->compact(),
@@ -214,12 +214,12 @@ class ProjectMigrationCenter extends Page
             Section::make('Risks')->schema([Html::make($riskHtml)])->compact(),
             Section::make('Migration plan')->schema([Html::make($planHtml)])->compact(),
             Section::make('Runs (SOURCE → TARGET shown per run)')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Run</th><th>Mode</th><th>Status</th><th>Progress</th><th>Target DB</th><th>Finished</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.run')).'</th><th>'.e(__('labels.th_mode')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_progress')).'</th><th>'.e(__('labels.th_target_db')).'</th><th>'.e(__('labels.th_finished')).'</th></tr></thead><tbody>'
                 .$runRows.'</tbody></table></div>'
                 .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">Guard: production targets are refused; destructive reset requires a disposable target; source ≠ target enforced.</p>'
             )])->compact(),
             Section::make('Artifacts')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Kind</th><th>Path</th><th>Created</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_kind')).'</th><th>'.e(__('labels.th_path')).'</th><th>'.e(__('labels.created')).'</th></tr></thead><tbody>'
                 .$artifactRows.'</tbody></table></div>'
             )])->compact(),
         ]);

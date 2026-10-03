@@ -83,7 +83,7 @@ class ProjectFunctions extends Page
                 .'<div class="cp-empty__hint">Create your first function (e.g. <code>hello-platform</code>) — every function ships as a versioned, audited module.</div></div>';
         } else {
             $grid .= '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                .'<th>Name</th><th>Auth</th><th>Methods</th><th class="cp-num">Version</th><th>Status</th><th>Updated</th><th></th>'
+                .'<th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_auth')).'</th><th>'.e(__('labels.th_methods')).'</th><th class="cp-num">Version</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_updated')).'</th><th></th>'
                 .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
         }
         $grid .= '<details class="cp-details"><summary>Safe runtime model</summary>'

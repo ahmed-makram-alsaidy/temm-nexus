@@ -106,7 +106,7 @@ class ProjectDatabase extends Page
                 .'<button class="cp-btn" type="submit">Filter</button>'
                 .'<span class="cp-toolbar__count">'.count($tables).' tables &amp; views</span></form>'
                 .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                .'<th>Name</th><th>Type</th><th class="cp-num">Rows</th><th>Records</th><th>Schema</th>'
+                .'<th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.erd_type')).'</th><th class="cp-num">Rows</th><th>'.e(__('labels.th_records')).'</th><th>'.e(__('labels.th_schema')).'</th>'
                 .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
 
             $components = [

@@ -111,7 +111,7 @@ class ProjectFunctionEditor extends Page
             .'<dt>Endpoint</dt><dd><code>'.e($invokePath).'</code> · <a href="'.e($tester).'">Open tester →</a></dd>'
             .'</dl>';
         $history = '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-            .'<th>Version</th><th>State</th><th>Config (preview)</th><th>Deployed</th>'
+            .'<th>'.e(__('labels.version')).'</th><th>'.e(__('labels.state')).'</th><th>'.e(__('labels.th_config_preview')).'</th><th>'.e(__('labels.th_deployed')).'</th>'
             .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
 
         return $schema->components([

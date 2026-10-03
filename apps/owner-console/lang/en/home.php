@@ -48,4 +48,16 @@ return [
 
     'recent_activity' => 'Recent activity',
     'activity_empty' => 'No activity recorded yet. Actions taken in your projects will appear here.',
+    'summary_projects' => 'Projects',
+    'summary_healthy' => 'healthy',
+    'summary_active_migrations' => 'Active migrations',
+    'summary_transfers_running' => 'transfers running now',
+    'summary_live_syncs' => 'Live syncs',
+    'summary_behind' => 'behind',
+    'summary_all_up_to_date' => 'all up to date',
+    'summary_ready_for_cutover' => 'Ready for cutover',
+    'summary_blocking_items' => 'blocking item(s) elsewhere',
+    'summary_nothing_blocking' => 'nothing blocking',
+    'summary_projects_to_look_at' => 'projects to look at',
 ];
+

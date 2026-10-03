@@ -110,11 +110,11 @@ class ProjectEnvironments extends Page
                 .'environment-scoped modules (Secrets, Backups, Resources, Readiness, Migration Center, Connect) follow this selection. '
                 .'Each environment isolates database, redis namespace, storage namespace, realtime namespace, secrets and logs.</p>'
                 .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                .'<th>Name</th><th>Type</th><th>Status</th><th>DB</th><th>Redis ns</th><th>Storage ns</th><th>Reset</th>'
+                .'<th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.erd_type')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_db')).'</th><th>'.e(__('labels.th_redis_ns')).'</th><th>'.e(__('labels.th_storage_ns')).'</th><th>'.e(__('labels.th_reset')).'</th>'
                 .'</tr></thead><tbody>'.$rows.'</tbody></table></div>'
             )])->compact(),
             Section::make('Promotion posture')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Path</th><th>Alignment</th></tr></thead><tbody>'.$promo.'</tbody></table></div>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_path')).'</th><th>'.e(__('labels.th_alignment')).'</th></tr></thead><tbody>'.$promo.'</tbody></table></div>'
                 .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Promotion is guarded: production promotion requires strong confirmation '
                 .'and remains local-only; sensitive data is never copied automatically.</p>'
             )])->compact(),

@@ -101,14 +101,14 @@ class ProjectScheduler extends Page
         $components = [
             Section::make('Scheduled jobs ('.$tasks->count().')')->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Job</th><th>Schedule</th><th>State</th><th>Last run</th><th>Next run</th><th>Last status</th>'
+                    .'<th>'.e(__('labels.job')).'</th><th>'.e(__('labels.th_schedule')).'</th><th>'.e(__('labels.state')).'</th><th>'.e(__('labels.th_last_run')).'</th><th>'.e(__('labels.th_next_run')).'</th><th>'.e(__('labels.th_last_status')).'</th>'
                     .'</tr></thead><tbody>'.$rows.'</tbody></table></div>'
                     .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Due jobs run every minute via the console scheduler. '
                     .'Targets: allowlisted artisan commands, server functions. Never shell.</p>'),
             ]),
             Section::make('Run history')->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Time</th><th>Job</th><th>Status</th><th>Duration</th><th>Request ID</th>'
+                    .'<th>'.e(__('labels.time')).'</th><th>'.e(__('labels.job')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_duration')).'</th><th>'.e(__('labels.request_id')).'</th>'
                     .'</tr></thead><tbody>'.($history ?: '<tr><td colspan="5">No runs yet.</td></tr>').'</tbody></table></div>'),
             ])->compact(),
         ];

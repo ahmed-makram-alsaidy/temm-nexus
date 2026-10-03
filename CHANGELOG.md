@@ -89,6 +89,11 @@ No unrelated features; rc.4 is not modified.
 - `NoUntranslatedStringsTest` — a regression gate that fails the build on
   any NEW hard-coded user-visible string in the product surface, with a
   technical-identifier allowlist.
+- **Inline deep-page tables localized**: the ~200 hard-coded `<th>` column
+  headers across 40+ pages (Logs, Migrations, Realtime, Scheduler,
+  Webhooks, Backups, Storage, API Keys, Infra, Team, …) now render through
+  `labels.th_*` keys; the Logs Explorer toolbar, filter options and
+  sources note are localized.
 
 ### Tests
 

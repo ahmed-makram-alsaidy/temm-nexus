@@ -185,7 +185,7 @@ class ProjectConnect extends Page
 
         $testResults = (string) session("cp_connect_test_{$p->id}");
         $testBlock = $testResults !== ''
-            ? '<div class="cp-tablewrap" style="margin-top:.5rem"><table class="cp-grid"><thead><tr><th>Target</th><th>Status</th><th>Detail</th></tr></thead><tbody>'.$testResults.'</tbody></table></div>'
+            ? '<div class="cp-tablewrap" style="margin-top:.5rem"><table class="cp-grid"><thead><tr><th>'.e(__('labels.target')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.detail')).'</th></tr></thead><tbody>'.$testResults.'</tbody></table></div>'
             : '';
 
         return $schema->components([
@@ -203,7 +203,7 @@ class ProjectConnect extends Page
             ])->compact(),
             Section::make('API keys (prefixes only)')->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Name</th><th>Prefix</th><th>Scopes</th><th>Status</th>'
+                    .'<th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_prefix')).'</th><th>'.e(__('labels.th_scopes')).'</th><th>'.e(__('labels.status')).'</th>'
                     .'</tr></thead><tbody>'.$keyRows.'</tbody></table></div>'
                     .'<p style="font-size:.75rem;color:var(--cp-text-dim)"><strong>CLIENT SAFE</strong> (may ship in web/Flutter builds): '
                     .'minimum scopes the screen needs — typically <code>read:data</code>, <code>storage:read</code>, '

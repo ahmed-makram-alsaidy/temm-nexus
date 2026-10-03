@@ -75,7 +75,7 @@ class ProjectApi extends Page
         foreach ($grouped as $group => $list) {
             $explorer .= '<details class="cp-details"'.($first ? ' open' : '').'><summary>'.e($group)
                 .' <span class="cp-badge">'.count($list).'</span></summary>'
-                .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Method</th><th>Endpoint</th><th>Name</th><th>Auth</th></tr></thead><tbody>';
+                .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_method')).'</th><th>'.e(__('labels.endpoint')).'</th><th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_auth')).'</th></tr></thead><tbody>';
             foreach ($list as $r) {
                 $methodColor = $r['method'] === 'GET' ? 'is-info' : ($r['method'] === 'POST' ? 'is-success' : 'is-warning');
                 $authBadge = $r['auth'] === 'auth' ? '<span class="cp-badge is-danger">auth</span>' : '<span class="cp-badge">public</span>';

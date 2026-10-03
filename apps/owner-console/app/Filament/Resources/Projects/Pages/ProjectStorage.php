@@ -143,7 +143,7 @@ class ProjectStorage extends Page
                     .'</div>';
             } else {
                 $grid .= '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Bucket</th><th>Policy</th><th class="cp-num">Files</th><th class="cp-num">Size</th><th></th>'
+                    .'<th>'.e(__('labels.th_bucket')).'</th><th>'.e(__('labels.th_policy')).'</th><th class="cp-num">Files</th><th class="cp-num">Size</th><th></th>'
                     .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
             }
 
@@ -239,8 +239,8 @@ class ProjectStorage extends Page
         $grid = $bucketNav.'<div class="cp-toolbar"><span style="font-size:.8125rem">'.$crumbs.'</span>'
             .'<span class="cp-toolbar__count">'.count($allFiles).' items'.($capped ? ', showing 500' : '').'</span></div>'
             .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-            .'<th>'.$sortLink('name', 'Name').'</th><th>Type</th><th class="cp-num">'.$sortLink('size', 'Size').'</th>'
-            .'<th>MIME</th><th>'.$sortLink('modified', 'Modified').'</th><th></th>'
+            .'<th>'.$sortLink('name', 'Name').'</th><th>'.e(__('labels.erd_type')).'</th><th class="cp-num">'.$sortLink('size', 'Size').'</th>'
+            .'<th>'.e(__('labels.th_mime')).'</th><th>'.$sortLink('modified', 'Modified').'</th><th></th>'
             .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
 
         return $schema->components([

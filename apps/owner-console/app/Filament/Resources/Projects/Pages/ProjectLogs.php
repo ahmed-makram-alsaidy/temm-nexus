@@ -72,7 +72,7 @@ class ProjectLogs extends Page
 
     public function getBreadcrumbs(): array
     {
-        return ['Logs Explorer'];
+        return [__('labels.logs_explorer')];
     }
 
     public static function canAccess(array $parameters = []): bool
@@ -144,31 +144,31 @@ class ProjectLogs extends Page
         }
 
         $components = [
-            Section::make('Logs Explorer')->schema([
+            Section::make(__('labels.logs_explorer'))->schema([
                 Html::make($historyNote.'<div class="cp-toolbar">'
                     .($filterChips ? implode(' ', $filterChips).' <a href="'.e($this->self([
                         'source' => null, 'severity' => null, 'q' => null, 'request_id' => null, 'since' => null, 'show' => null,
-                    ])).'">Clear ✕</a>' : '<span class="cp-toolbar__count">Latest 100 across all sources'.($result['truncated'] ? ' (truncated)' : '').'</span>')
+                    ])).'">Clear ✕</a>' : '<span class="cp-toolbar__count">'.__('labels.logs_latest_100').($result['truncated'] ? __('labels.logs_truncated_suffix') : '').'</span>')
                     .'</div>'
                     .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Time</th><th>Source</th><th>Severity</th><th>Summary</th><th>Request</th><th></th>'
+                    .'<th>'.e(__('labels.logs_th_time')).'</th><th>'.e(__('labels.logs_th_source')).'</th><th>'.e(__('labels.logs_th_severity')).'</th><th>'.e(__('labels.logs_th_summary')).'</th><th>'.e(__('labels.logs_th_request')).'</th><th></th>'
                     .'</tr></thead><tbody>'.$rows.'</tbody></table></div>'
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Sources: laravel files · auth · audit · functions · webhooks · scheduler · realtime · sql · backups · queue. '
-                    .'Click a request chip to follow one call across API → function → logs.</p>'),
+                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('labels.logs_sources_note')).'</p>'
+                   ),
             ])->headerActions([
                 Action::make('filter')->label(__('labels.filter'))->icon('heroicon-o-funnel')
                     ->schema([
-                        Select::make('source')->options(['all' => 'All sources'] + array_combine(LogExplorerService::SOURCES, LogExplorerService::SOURCES))
+                        Select::make('source')->options(['all' => __('labels.all_sources')] + array_combine(LogExplorerService::SOURCES, LogExplorerService::SOURCES))
                             ->default($this->source ?? 'all'),
                         Select::make('severity')->options([
-                            'all' => 'All severities', 'debug' => 'Debug', 'info' => 'Info',
-                            'warning' => 'Warning', 'error' => 'Error',
+                            'all' => __('labels.all_severities'), 'debug' => __('labels.debug'), 'info' => __('labels.info'),
+                            'warning' => __('labels.warning'), 'error' => __('labels.error'),
                         ])->default($this->severity ?? 'all'),
-                        TextInput::make('q')->label(__('labels.search'))->placeholder('summary contains…')->default($this->search),
-                        TextInput::make('request_id')->label(__('labels.request_id'))->placeholder('uuid…')->default($this->requestId),
+                        TextInput::make('q')->label(__('labels.search'))->placeholder(__('labels.summary_contains'))->default($this->search),
+                        TextInput::make('request_id')->label(__('labels.request_id'))->placeholder(__('labels.uuid_ellipsis'))->default($this->requestId),
                         Select::make('since')->label(__('labels.time_range'))->options([
-                            'all' => 'All time (history preserved)', '24h' => 'Last 24 hours',
-                            '7d' => 'Last 7 days', '30d' => 'Last 30 days',
+                            'all' => __('labels.all_time_history_preserved'), '24h' => __('labels.last_24_hours'),
+                            '7d' => __('labels.last_7_days'), '30d' => __('labels.last_30_days'),
                         ])->default($this->since ?? 'all'),
                     ])
                     ->action(function (array $data) {

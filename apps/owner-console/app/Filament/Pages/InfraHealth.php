@@ -81,12 +81,12 @@ class InfraHealth extends Page
             ]),
             Section::make('Nodes')->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Node</th><th>Status</th><th>Last seen</th></tr></thead><tbody>'
+                    .'<th>'.e(__('labels.node')).'</th>'.e(__('labels.status')).'<th>'.e(__('labels.last_seen')).'<th></tr></thead><tbody>'
                     .($nodeRows ?: '<tr><td colspan="3">No nodes registered. Run <code>php artisan infra:seed-local</code>.</td></tr>')
                     .'</tbody></table></div>'),
             ])->compact(),
             Section::make('Services (worst status wins)')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Service</th><th>Status</th></tr></thead><tbody>'
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>.'.e(__('labels.')).'</th><th>'.e(__('labels.status')).'<th></tr></thead><tbody>'
                     .$svcRows.'</tbody></table></div>'),
             ])->compact(),
         ]);

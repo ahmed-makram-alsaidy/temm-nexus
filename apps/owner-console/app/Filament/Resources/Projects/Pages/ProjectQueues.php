@@ -71,7 +71,7 @@ class ProjectQueues extends Page implements HasTable
             $queueRows .= '<tr><td><code>'.e($q['queue']).'</code></td><td class="cp-num">'.(int) $q['pending'].'</td></tr>';
         }
         $queuesHtml = $queueRows !== ''
-            ? '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Queue</th><th class="cp-num">Pending</th></tr></thead><tbody>'.$queueRows.'</tbody></table></div>'
+            ? '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_queue')).'</th><th class="cp-num">Pending</th></tr></thead><tbody>'.$queueRows.'</tbody></table></div>'
             : '<div class="cp-empty"><div class="cp-empty__icon">∅</div>'
                 .'<div class="cp-empty__title">No queued work</div>'
                 .'<div class="cp-empty__hint">All project queues are empty right now.</div></div>';

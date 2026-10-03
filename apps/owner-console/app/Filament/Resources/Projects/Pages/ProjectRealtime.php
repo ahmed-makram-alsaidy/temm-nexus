@@ -84,7 +84,7 @@ class ProjectRealtime extends Page
         }
         $eventsHtml = $rows !== ''
             ? '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                .'<th>Time</th><th>Channel</th><th>Event</th><th>Payload</th><th>Delivery</th>'
+                .'<th>'.e(__('labels.time')).'</th><th>'.e(__('labels.th_channel')).'</th><th>'.e(__('labels.event')).'</th><th>'.e(__('labels.th_payload')).'</th><th>'.e(__('labels.th_delivery')).'</th>'
                 .'</tr></thead><tbody>'.$rows.'</tbody></table></div>'
             : '<div class="cp-empty"><div class="cp-empty__icon">≋</div>'
                 .'<div class="cp-empty__title">No events yet</div>'
@@ -92,7 +92,7 @@ class ProjectRealtime extends Page
 
         $channelHtml = $channels->isEmpty()
             ? '<div class="cp-empty__hint">No channels observed in the recent window.</div>'
-            : '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Channel</th><th class="cp-num">Events</th></tr></thead><tbody>'
+            : '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_channel')).'</th><th class="cp-num">Events</th></tr></thead><tbody>'
                 .collect($channels)->map(fn ($c, $ch) => '<tr><td><code>'.e($ch).'</code></td><td class="cp-num">'.(int) $c.'</td></tr>')->implode('')
                 .'</tbody></table></div>';
 

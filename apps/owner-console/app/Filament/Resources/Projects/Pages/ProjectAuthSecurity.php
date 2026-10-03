@@ -104,7 +104,7 @@ class ProjectAuthSecurity extends Page
 
         return $schema->components([
             Section::make('Providers')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Provider</th><th>State</th><th>Client secret (vault ref)</th></tr></thead>'
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_provider')).'</th><th>'.e(__('labels.state')).'</th><th>'.e(__('labels.th_client_secret_vault_ref')).'</th></tr></thead>'
                     .'<tbody>'.$provRows.'</tbody></table></div>'
                     .'<p style="font-size:.75rem;color:var(--cp-text-dim)">OAuth client secrets live in the Secrets Vault; only the reference name is stored here.</p>'),
             ])->compact(),

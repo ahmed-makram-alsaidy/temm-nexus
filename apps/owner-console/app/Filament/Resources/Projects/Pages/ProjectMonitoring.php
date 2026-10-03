@@ -157,8 +157,8 @@ class ProjectMonitoring extends Page
         }
 
         return '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-            .'<th>Endpoint</th><th class="cp-num">Count</th><th class="cp-num">Avg</th>'
-            .'<th class="cp-num">p95</th><th>Latest</th>'
+            .'<th>'.e(__('labels.endpoint')).'</th><th class="cp-num">Count</th><th class="cp-num">Avg</th>'
+            .'<th class="cp-num">p95</th>.'.e(__('labels.')).'</th><th>'
             .'</tr></thead><tbody>'.$tr.'</tbody></table></div>';
     }
 
@@ -183,7 +183,7 @@ class ProjectMonitoring extends Page
         }
 
         return '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-            .'<th>Query</th><th class="cp-num">Duration</th><th>At</th>'
+            .'<th>'.e(__('labels.th_query')).'</th><th class="cp-num">Duration</th>.'.e(__('labels.')).'</th><th>'
             .'</tr></thead><tbody>'.$tr.'</tbody></table></div>';
     }
 
@@ -207,7 +207,7 @@ class ProjectMonitoring extends Page
         }
 
         return '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-            .'<th>Exception</th><th>At</th>'
+            .'<th>'.e(__('labels.th_exception')).'</th>.'.e(__('labels.')).'</th><th>'
             .'</tr></thead><tbody>'.$tr.'</tbody></table></div>';
     }
 }

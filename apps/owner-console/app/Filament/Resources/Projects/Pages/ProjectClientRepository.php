@@ -102,12 +102,12 @@ class ProjectClientRepository extends Page
             }
             $scanHtml = '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.6rem">'.$cells.'</div>'
                 .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Secret findings are stored as MARKERS + evidence hashes — raw values never enter the database or AI context.</p>'
-                .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>File</th><th>Marker</th><th>Evidence</th><th>Status</th></tr></thead><tbody>'.$secretRows.'</tbody></table></div>';
+                .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.file')).'</th><th>'.e(__('labels.th_marker')).'</th><th>'.e(__('labels.th_evidence')).'</th><th>'.e(__('labels.status')).'</th></tr></thead><tbody>'.$secretRows.'</tbody></table></div>';
         }
 
         return $schema->components([
             Section::make('Linked repositories')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Name</th><th>Type</th><th>Root / URL</th><th>Framework</th><th>Status</th><th>Scanned</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.erd_type')).'</th><th>'.e(__('labels.th_root_url')).'</th><th>'.e(__('labels.th_framework')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_scanned')).'</th></tr></thead><tbody>'
                 .$repoRows.'</tbody></table></div>'
                 .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">LOCAL PATH roots are operator-approved; every read is traversal-guarded. '
                 .'Git links are metadata-only in this phase (no credential handling).</p>'

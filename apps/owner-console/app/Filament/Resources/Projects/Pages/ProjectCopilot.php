@@ -127,7 +127,7 @@ class ProjectCopilot extends Page
 
         return $schema->components([
             Section::make('AI providers')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Name</th><th>Provider</th><th>Model</th><th>Scope</th><th>Status</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_provider')).'</th><th>'.e(__('labels.th_model')).'</th><th>'.e(__('labels.th_scope')).'</th><th>'.e(__('labels.status')).'</th></tr></thead><tbody>'
                 .$providerRows.'</tbody></table></div>'
                 .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">API keys are encrypted at rest and never rendered. '
                 .'Privacy: only minimized/redacted project material is sent to providers — never secrets, hashes or row data.</p>'
@@ -137,11 +137,11 @@ class ProjectCopilot extends Page
                 .'selected files) through scoped, redacted context packs. Source content is treated as UNTRUSTED DATA.</p>'
             )])->compact(),
             Section::make('Copilot run history')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Run</th><th>Mode</th><th>Action</th><th>Status</th><th>Provider/Model</th><th>When</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.run')).'</th><th>'.e(__('labels.th_mode')).'</th><th>'.e(__('labels.th_action')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_provider_model')).'</th><th>'.e(__('labels.th_when')).'</th></tr></thead><tbody>'
                 .$runRows.'</tbody></table></div>'
             )])->compact(),
             Section::make('Patch runs — PLAN → PATCH → REVIEW → APPROVE → APPLY')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Run</th><th>Files</th><th>Status</th><th>When</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.run')).'</th><th>'.e(__('labels.th_files')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_when')).'</th></tr></thead><tbody>'
                 .$patchRows.'</tbody></table></div>'
             )])->compact(),
         ]);

@@ -85,7 +85,7 @@ class ProjectApiKeys extends Page
                 : '<div class="cp-error">Reveal link expired or already used.</div>';
         }
         $grid = $reveal.'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-            .'<th>Name</th><th>Prefix</th><th>Scopes</th><th>Created</th><th>Last used</th><th>Expires</th><th>Status</th>'
+            .'<th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_prefix')).'</th><th>'.e(__('labels.th_scopes')).'</th><th>'.e(__('labels.created')).'</th><th>'.e(__('labels.th_last_used')).'</th><th>'.e(__('labels.th_expires')).'</th><th>'.e(__('labels.status')).'</th>'
             .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
 
         return $schema->components([

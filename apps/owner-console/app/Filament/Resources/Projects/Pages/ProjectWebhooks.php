@@ -93,7 +93,7 @@ class ProjectWebhooks extends Page
         return $schema->components([
             Section::make('Webhooks ('.$webhooks->count().')')->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Webhook</th><th>Events</th><th>State</th><th class="cp-num">Retries</th>'
+                    .'<th>'.e(__('labels.webhook')).'</th>.'.e(__('labels.')).'</th><th>'.e(__('labels.state')).'<th><th class="cp-num">Retries</th>'
                     .'</tr></thead><tbody>'.$rows.'</tbody></table></div>'
                     .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Signed (HMAC-SHA256) deliveries with backoff retries. '
                     .'Targets are SSRF-guarded: allowlisted platform hosts or public IPs only — localhost, private ranges, '
@@ -101,8 +101,8 @@ class ProjectWebhooks extends Page
             ]),
             Section::make('Delivery log')->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Time</th><th>Webhook</th><th>Event</th><th>Status</th><th class="cp-num">Code</th>'
-                    .'<th class="cp-num">Attempts</th><th>Duration</th><th>Request ID</th>'
+                    .'<th>'.e(__('labels.time')).'</th>'.e(__('labels.webhook')).'<th>'.e(__('labels.event')).'<th>'.e(__('labels.status')).'<th><th class="cp-num">Code</th>'
+                    .'<th class="cp-num">Attempts</th>.'.e(__('labels.')).'</th><th>'.e(__('labels.request_id')).'<th>'
                     .'</tr></thead><tbody>'.($log ?: '<tr><td colspan="8">No deliveries yet.</td></tr>').'</tbody></table></div>'),
             ])->compact(),
         ]);

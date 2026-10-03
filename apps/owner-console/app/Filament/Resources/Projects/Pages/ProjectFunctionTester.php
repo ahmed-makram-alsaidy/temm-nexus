@@ -126,7 +126,7 @@ class ProjectFunctionTester extends Page
             Section::make('Response')->schema([Html::make($result)])->compact(),
             Section::make('Recent invocations')->schema([
                 Html::make('<div id="logs"></div><div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Time</th><th>Status</th><th>Version</th><th>Duration</th><th>Request ID</th><th>Actor</th>'
+                    .'<th>'.e(__('labels.time')).'</th>'.e(__('labels.status')).'<th>'.e(__('labels.version')).'<th>.'.e(__('labels.')).'</th><th>'.e(__('labels.request_id')).'<th>'.e(__('labels.actor')).'<th>'
                     .'</tr></thead><tbody>'.($logs ?: '<tr><td colspan="6"><div class="cp-empty"><div class="cp-empty__icon">◷</div><div class="cp-empty__title">No invocations yet</div><div class="cp-empty__hint">Send a request above — every call lands here with status, version and request ID.</div></div></td></tr>').'</tbody></table></div>'),
             ])->compact(),
         ]);

@@ -106,25 +106,25 @@ class ProjectDbAdvanced extends Page
                     .'Create/remove relationships from the Schema page.</p>'),
             ]),
             Section::make('Indexes ('.count($indexes).')')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Table</th><th>Index</th>'
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_table')).'</th><th>'.e(__('labels.th_index')).'</th>'
                     .'<th class="cp-num">Size</th><th class="cp-num">Scans</th></tr></thead><tbody>'
                     .($idxRows ?: '<tr><td colspan="4">No indexes.</td></tr>').'</tbody></table></div>'),
             ])->compact(),
             Section::make('Triggers ('.count($triggers).')')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Trigger</th><th>Table</th>'
-                    .'<th>Event</th><th>Function</th><th>State</th></tr></thead><tbody>'
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.trigger')).'</th><th>'.e(__('labels.th_table')).'</th>'
+                    .'<th>'.e(__('labels.event')).'</th><th>'.e(__('labels.function')).'</th><th>'.e(__('labels.state')).'</th></tr></thead><tbody>'
                     .($trgRows ?: '<tr><td colspan="5">No user triggers.</td></tr>').'</tbody></table></div>'),
             ])->compact(),
             Section::make('Extensions')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Extension</th><th>Purpose</th>'
-                    .'<th>Status</th></tr></thead><tbody>'.$extRows.'</tbody></table></div>'
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_extension')).'</th><th>'.e(__('labels.th_purpose')).'</th>'
+                    .'<th>'.e(__('labels.status')).'</th></tr></thead><tbody>'.$extRows.'</tbody></table></div>'
                     .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Installs are allowlisted; the database may still refuse '
                     .'without superuser/DBA rights — the outcome is reported, never hidden.</p>'),
             ])->compact(),
             Section::make('Authorization')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Role</th><th>Can log in</th></tr></thead><tbody>'
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.role')).'</th><th>'.e(__('labels.th_can_log_in')).'</th></tr></thead><tbody>'
                     .($roleRows ?: '<tr><td colspan="2">—</td></tr>').'</tbody></table></div>'
-                    .'<div class="cp-tablewrap" style="margin-top:.5rem"><table class="cp-grid"><thead><tr><th>Table</th><th>RLS policy</th><th>Command</th></tr></thead><tbody>'
+                    .'<div class="cp-tablewrap" style="margin-top:.5rem"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_table')).'</th><th>'.e(__('labels.th_rls_policy')).'</th><th>'.e(__('labels.th_command')).'</th></tr></thead><tbody>'
                     .($polRows ?: '<tr><td colspan="3">No RLS policies.</td></tr>').'</tbody></table></div>'
                     .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e($authz['note']).'</p>'),
             ])->compact(),

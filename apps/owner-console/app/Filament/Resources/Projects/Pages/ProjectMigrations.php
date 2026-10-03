@@ -92,7 +92,7 @@ class ProjectMigrations extends Page
             ])->headerActions($this->migrationActions($status !== null)),
             Section::make('Schema change history ('.$changes->count().')')->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Time</th><th>Change</th><th>Detail</th><th>Owner</th>'
+                    .'<th>'.e(__('labels.time')).'</th>.'.e(__('labels.')).'</th><th>'.e(__('labels.detail')).'<th>'.e(__('labels.owner')).'<th>'
                     .'</tr></thead><tbody>'.($rows ?: '<tr><td colspan="4">No visual-tool changes recorded yet.</td></tr>')
                     .'</tbody></table></div>'
                     .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Table/column/FK/index/trigger/function operations '

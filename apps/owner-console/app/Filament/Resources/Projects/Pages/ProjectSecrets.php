@@ -75,7 +75,7 @@ class ProjectSecrets extends Page
         }
         $grid = '<div class="cp-toolbar"><span class="cp-toolbar__count">'.$secrets->count().' secrets</span></div>'
             .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-            .'<th>Name</th><th>Status</th><th>Env</th><th>Updated</th><th>Last rotated</th><th>Description</th>'
+            .'<th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_env')).'</th><th>'.e(__('labels.th_updated')).'</th><th>'.e(__('labels.th_last_rotated')).'</th><th>'.e(__('labels.th_description')).'</th>'
             .'</tr></thead><tbody>'.$rows.'</tbody></table></div>'
             .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Encrypted at rest (APP_KEY, server env only). '
             .'Consumed server-side by Server Functions (<code>{{secrets.NAME}}</code>), scheduled tasks and the API tester. '

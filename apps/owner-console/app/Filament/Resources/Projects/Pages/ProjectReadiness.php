@@ -115,14 +115,14 @@ class ProjectReadiness extends Page
             Section::make('Checklist — environment: '.e($env->slug))->schema([Html::make(
                 '<p style="font-size:.75rem;color:var(--cp-text-dim);margin-bottom:.5rem">Status only (no numeric score). Machine checks carry platform evidence; '
                 .'manual acknowledgements cannot hide a RED machine check.</p>'
-                .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Category</th><th>Status</th><th>Check</th><th>Origin</th><th>Evidence</th><th>Prod</th><th>Ack</th></tr></thead><tbody>'
+                .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_category')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_check')).'</th><th>'.e(__('labels.th_origin')).'</th><th>'.e(__('labels.th_evidence')).'</th><th>'.e(__('labels.th_prod')).'</th><th>'.e(__('labels.th_ack')).'</th></tr></thead><tbody>'
                 .$rows.'</tbody></table></div>'
             )])->compact(),
             Section::make('Production blockers')->schema([Html::make(
                 '<div class="cp-tablewrap"><table class="cp-grid"><tbody>'.$blockers.'</tbody></table></div>'
             )])->compact(),
             Section::make('History')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>ID</th><th>When</th><th colspan="4">Counts</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_id')).'</th><th>'.e(__('labels.th_when')).'</th><th colspan="4">Counts</th></tr></thead><tbody>'
                 .$histRows.'</tbody></table></div>'
             )])->compact(),
         ]);

@@ -99,7 +99,7 @@ class ProjectInfrastructure extends Page
             ]),
             Section::make('Service mapping')->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>Service</th><th>Node</th><th>Endpoint override</th></tr></thead><tbody>'
+                    .'<th>'.e(__('labels.th_service')).'</th><th>'.e(__('labels.node')).'</th><th>'.e(__('labels.th_endpoint_override')).'</th></tr></thead><tbody>'
                     .$mapRows.'</tbody></table></div>'),
             ])->compact(),
             Section::make('Resolved endpoints')->schema([

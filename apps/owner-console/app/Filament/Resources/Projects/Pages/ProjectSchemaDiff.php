@@ -89,13 +89,13 @@ class ProjectSchemaDiff extends Page
                     .'<td>'.e($row['kind']).'</td><td><code>'.e($row['object']).'</code></td>'
                     .'<td>'.e($row['change']).'</td><td>'.e($row['detail']).'</td></tr>';
             }
-            $diffHtml = '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Severity</th><th>Kind</th><th>Object</th><th>Change</th><th>Detail</th></tr></thead><tbody>'
+            $diffHtml = '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_severity')).'</th><th>'.e(__('labels.th_kind')).'</th><th>'.e(__('labels.th_object')).'</th><th>'.e(__('labels.th_change')).'</th><th>'.e(__('labels.detail')).'</th></tr></thead><tbody>'
                 .$diffHtml.'</tbody></table></div>';
         }
 
         return $schema->components([
             Section::make('Snapshots')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>ID</th><th>Environment</th><th>Source</th><th>Fingerprint</th><th>Captured</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_id')).'</th><th>'.e(__('labels.environment')).'</th><th>'.e(__('labels.source')).'</th><th>'.e(__('labels.th_fingerprint')).'</th><th>'.e(__('labels.th_captured')).'</th></tr></thead><tbody>'
                 .$snapRows.'</tbody></table></div>'
                 .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Fingerprints are deterministic sha256 over schema shape (tables, columns, types, '
                 .'nullability, defaults, PK, FK, indexes, views, functions, triggers).</p>'

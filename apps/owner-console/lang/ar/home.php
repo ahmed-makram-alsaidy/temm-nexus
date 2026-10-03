@@ -48,4 +48,16 @@ return [
 
     'recent_activity' => 'النشاط الأخير',
     'activity_empty' => 'لا يوجد نشاط مسجل بعد. ستظهر هنا الإجراءات المتخذة في مشاريعك.',
+    'summary_projects' => 'المشاريع',
+    'summary_healthy' => 'سليم',
+    'summary_active_migrations' => 'ترحيلات نشطة',
+    'summary_transfers_running' => 'عمليات نقل قيد التشغيل الآن',
+    'summary_live_syncs' => 'مزامنات حية',
+    'summary_behind' => 'متأخرة',
+    'summary_all_up_to_date' => 'كل شيء محدث',
+    'summary_ready_for_cutover' => 'جاهز للتحويل النهائي',
+    'summary_blocking_items' => 'عناصر مانعة في مكان آخر',
+    'summary_nothing_blocking' => 'لا شيء يمنع',
+    'summary_projects_to_look_at' => 'مشاريع تحتاج نظرة',
 ];
+

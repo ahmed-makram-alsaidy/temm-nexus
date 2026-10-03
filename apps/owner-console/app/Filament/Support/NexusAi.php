@@ -77,6 +77,6 @@ final class NexusAi
             }
         }
 
-        return 'Platform';
+        return __('labels.platform');
     }
 }

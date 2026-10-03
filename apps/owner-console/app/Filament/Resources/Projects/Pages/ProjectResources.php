@@ -115,14 +115,14 @@ class ProjectResources extends Page
 
         return $schema->components([
             Section::make('Current metrics — environment: '.e($env->slug))->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Metric</th><th>Value</th><th>Sampled</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_metric')).'</th><th>'.e(__('labels.value')).'</th><th>'.e(__('labels.th_sampled')).'</th></tr></thead><tbody>'
                 .$rows.'</tbody></table></div>'
                 .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.4rem">Unavailable means the platform could not measure it — never a fabricated value. '
                 .'Node-attributed metrics (CPU/RAM) cover the shared node, not per-project splits.</p>'
             )])->compact(),
             Section::make('Capacity warnings')->schema([Html::make($warningHtml)])->compact(),
             Section::make('Cost (operator-entered)')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Resource</th><th>Monthly</th><th>Allocation</th><th>Month</th><th>Project share</th></tr></thead><tbody>'
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.resource')).'</th><th>'.e(__('labels.th_monthly')).'</th><th>'.e(__('labels.th_allocation')).'</th><th>'.e(__('labels.th_month')).'</th><th>'.e(__('labels.th_project_share')).'</th></tr></thead><tbody>'
                 .$costRows.'</tbody></table></div>'
             )])->compact(),
         ]);

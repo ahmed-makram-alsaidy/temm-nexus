@@ -153,20 +153,20 @@ class ProjectBackups extends Page implements HasTable
                 .'Backups are integrity-verified (checksum + archive listing) from this page.</p></details>'),
             Section::make('Backup health — <span class="cp-badge '.$healthBadge.'">'.e($health['overall']).'</span>')->schema([
                 \Filament\Schemas\Components\Html::make(
-                    '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Policy</th><th>Scope</th><th>Schedule</th><th>Retention</th><th>Backup</th><th>Restore test</th><th>Last run</th></tr></thead><tbody>'
+                    '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_policy')).'</th><th>'.e(__('labels.th_scope')).'</th><th>'.e(__('labels.th_schedule')).'</th><th>'.e(__('labels.retention')).'</th><th>'.e(__('labels.th_backup')).'</th><th>'.e(__('labels.restore_test')).'</th><th>'.e(__('labels.th_last_run')).'</th></tr></thead><tbody>'
                     .$policyRows.'</tbody></table></div>'
                     .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">Offsite configured: '.($health['offsite_configured'] ? 'yes (s3-compatible destination registered)' : 'no — local only').'.</p>'
                 ),
             ])->compact(),
             Section::make('Restore drills')->schema([
                 \Filament\Schemas\Components\Html::make(
-                    '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Run</th><th>Status</th><th>Finished</th><th>Result</th><th>Error</th></tr></thead><tbody>'
+                    '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.run')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_finished')).'</th><th>'.e(__('labels.th_result')).'</th><th>'.e(__('labels.th_error')).'</th></tr></thead><tbody>'
                     .$drillRows.'</tbody></table></div>'
                 ),
             ])->compact(),
             Section::make('Offsite destinations')->schema([
                 \Filament\Schemas\Components\Html::make(
-                    '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>Name</th><th>Driver</th><th>Endpoint</th><th>Key</th></tr></thead><tbody>'
+                    '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_driver')).'</th><th>'.e(__('labels.endpoint')).'</th><th>'.e(__('labels.key')).'</th></tr></thead><tbody>'
                     .$destRows.'</tbody></table></div>'
                 ),
             ])->compact(),
