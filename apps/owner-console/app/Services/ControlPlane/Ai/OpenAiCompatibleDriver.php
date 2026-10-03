@@ -27,6 +27,22 @@ use Illuminate\Support\Facades\Http;
  *     produce a blank assistant bubble or a fake successful reply.
  *   - Reasoning content (`reasoning_content`, DeepSeek-style) is never used
  *     as the final answer; only choices[0].message.content is.
+ *
+ * 0.4.0-rc.7 — transport parity hardening + safe telemetry:
+ *   - Header merge order is explicit: framework defaults first, then custom
+ *     provider headers LAST, then the protected credential re-asserted. A
+ *     gateway that identifies clients by User-Agent (AgentRouter) receives
+ *     the configured header verbatim — verified at the raw-socket level by
+ *     tests/Feature/Phase42/TransportTelemetryTest.php.
+ *   - Every wire call carries `"stream": false` explicitly, so the request
+ *     shape is identical across providers regardless of their defaults.
+ *   - Every wire call is observed by TransportTelemetry (URL, method, status,
+ *     Content-Type, effective User-Agent, request JSON field names, stream
+ *     value) with Authorization and the API key structurally excluded.
+ *   - The Test Connection probe can no longer misclassify a starved
+ *     reasoning model: `max_tokens` is a small sane budget (not 1) and a
+ *     200 that ends in `finish_reason: "length"` still proves auth, model
+ *     and a healthy completion pipeline → CONNECTED.
  */
 class OpenAiCompatibleDriver implements AiDriver
 {
@@ -68,13 +84,22 @@ class OpenAiCompatibleDriver implements AiDriver
     /**
      * ONE client builder for every wire call — complete() and test() both go
      * through this, which is what guarantees Test Connection parity.
+     *
+     * Merge order (the order is the contract, verified by regression):
+     *   1. framework defaults (timeout, Accept: application/json)
+     *   2. validated custom provider headers — LAST, so a provider that
+     *      identifies clients by User-Agent gets the configured value and
+     *      custom headers always win over framework defaults
+     *   3. protected headers re-asserted — the vault credential is applied
+     *      after the custom merge and can never be displaced by stored state
      */
     protected function client(AiProviderConfig $config, ?int $timeout = null): PendingRequest
     {
-        return Http::timeout($timeout ?? $config->timeout_seconds)
-            ->withToken((string) ($config->secret_encrypted ?? ''))
+        $pending = Http::timeout($timeout ?? $config->timeout_seconds)
             ->accept('application/json')
             ->withHeaders($this->safeCustomHeaders($config));
+
+        return $pending->withToken((string) ($config->secret_encrypted ?? ''));
     }
 
     /**
@@ -110,11 +135,31 @@ class OpenAiCompatibleDriver implements AiDriver
 
     public function complete(AiProviderConfig $config, array $messages, array $options = []): array
     {
-        $response = $this->client($config)->post($this->endpoint($config), [
+        $payload = [
             'model' => $config->model,
             'messages' => $messages,
             'max_tokens' => $options['max_output_tokens'] ?? $config->max_output_tokens,
-        ]);
+            'stream' => false,
+        ];
+        $url = $this->endpoint($config);
+        $pending = $this->client($config);
+        TransportTelemetry::outgoing($config, 'chat', $url, 'POST', $pending->getOptions()['headers'] ?? [], $payload);
+
+        try {
+            $response = $pending->post($url, $payload);
+        } catch (ConnectionException $e) {
+            TransportTelemetry::connectionFailure($config, 'chat', get_class($e), $e->getMessage());
+
+            throw $e;
+        }
+
+        TransportTelemetry::incoming(
+            $config,
+            'chat',
+            $response->status(),
+            $this->responseContentType($response),
+            $response->status() >= 400 ? (string) $response->body() : null
+        );
 
         if ($response->status() !== 200) {
             throw new AiProviderException(
@@ -154,34 +199,72 @@ class OpenAiCompatibleDriver implements AiDriver
 
     public function test(AiProviderConfig $config): string
     {
-        try {
-            $response = $this->client($config, min($config->timeout_seconds, 20))
-                ->post($this->endpoint($config), [
-                    'model' => $config->model,
-                    'messages' => [['role' => 'user', 'content' => 'ping']],
-                    'max_tokens' => 1,
-                ]);
-            if ($response->status() === 200 && is_array($response->json())
-                && ! isset($response->json()['error'])
-                && trim((string) ($response->json()['choices'][0]['message']['content'] ?? '')) !== '') {
-                return self::RESULT_CONNECTED;
-            }
-            if ($response->status() === 200) {
-                // 200 with an error envelope or empty content — classify the body.
-                return str_contains(strtolower((string) $response->body()), 'unauthorized')
-                    ? self::RESULT_AUTH_FAILED
-                    : self::RESULT_PROVIDER_ERROR;
-            }
+        // A 1-token probe starves reasoning-style models: they burn the whole
+        // budget on reasoning and answer 200 with EMPTY content, which used to
+        // be misclassified as a provider error. A small sane budget plus the
+        // finish_reason check below keeps the probe honest without that trap.
+        $payload = [
+            'model' => $config->model,
+            'messages' => [['role' => 'user', 'content' => 'ping']],
+            'max_tokens' => max(1, min((int) ($config->max_output_tokens ?: 32), 32)),
+            'stream' => false,
+        ];
+        $url = $this->endpoint($config);
+        $pending = $this->client($config, min($config->timeout_seconds, 20));
+        TransportTelemetry::outgoing($config, 'test_connection', $url, 'POST', $pending->getOptions()['headers'] ?? [], $payload);
 
-            return match ($response->status()) {
-                401, 403 => self::RESULT_AUTH_FAILED,
-                404 => self::RESULT_MODEL_NOT_FOUND,
-                429 => self::RESULT_RATE_LIMITED,
-                default => self::RESULT_PROVIDER_ERROR,
-            };
+        try {
+            $response = $pending->post($url, $payload);
         } catch (ConnectionException $e) {
+            TransportTelemetry::connectionFailure($config, 'test_connection', get_class($e), $e->getMessage());
+
             return str_contains(strtolower($e->getMessage()), 'timed out') ? self::RESULT_TIMEOUT : self::RESULT_PROVIDER_ERROR;
         }
+
+        TransportTelemetry::incoming(
+            $config,
+            'test_connection',
+            $response->status(),
+            $this->responseContentType($response),
+            (string) $response->body()
+        );
+
+        if ($response->status() === 200) {
+            $body = $response->json();
+
+            if (is_array($body) && ! isset($body['error']) && is_array($body['choices'][0] ?? null)) {
+                $choice = $body['choices'][0];
+                $content = trim((string) ($choice['message']['content'] ?? ''));
+                $finish = strtolower((string) ($choice['finish_reason'] ?? ''));
+
+                // Empty content with finish_reason "length" means the model
+                // RAN and the probe budget cut it off — auth, model and the
+                // completion pipeline are all proven. That is CONNECTED.
+                if ($content !== '' || $finish === 'length') {
+                    return self::RESULT_CONNECTED;
+                }
+            }
+
+            // 200 with an error envelope or empty content — classify the body.
+            return str_contains(strtolower((string) $response->body()), 'unauthorized')
+                ? self::RESULT_AUTH_FAILED
+                : self::RESULT_PROVIDER_ERROR;
+        }
+
+        return match ($response->status()) {
+            401, 403 => self::RESULT_AUTH_FAILED,
+            404 => self::RESULT_MODEL_NOT_FOUND,
+            429 => self::RESULT_RATE_LIMITED,
+            default => self::RESULT_PROVIDER_ERROR,
+        };
+    }
+
+    /** Response Content-Type (first value) for telemetry — never an error path. */
+    protected function responseContentType($response): ?string
+    {
+        $type = $response->headers()['Content-Type'] ?? null;
+
+        return is_array($type) ? ($type[0] ?? null) : $type;
     }
 
     /**

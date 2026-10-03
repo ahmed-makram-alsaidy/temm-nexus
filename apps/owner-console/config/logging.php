@@ -65,6 +65,18 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // 0.4.0-rc.7 — SAFE AI transport telemetry (TransportTelemetry):
+        // wire facts only (URL, method, status, Content-Type, effective
+        // User-Agent, JSON field names, stream value). Authorization and the
+        // API key are structurally excluded; disable with NEXUS_AI_TELEMETRY=false.
+        'nexus-ai' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/nexus-ai.log'),
+            'level' => env('NEXUS_AI_TELEMETRY_LEVEL', 'debug'),
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),

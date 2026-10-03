@@ -49,4 +49,29 @@ return [
     // by AiNetworkGuard); listed so the settings UI can mark the field
     // as required for them.
     'requires_base_url' => ['openai_compatible'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Transport telemetry (0.4.0-rc.7)
+    |--------------------------------------------------------------------------
+    |
+    | Safe wire-level diagnostics for every AI provider call, written through
+    | App\Services\ControlPlane\Ai\TransportTelemetry to the `nexus-ai` log
+    | channel: final URL, method, status code, Content-Type, effective
+    | User-Agent, request JSON FIELD NAMES and the `stream` value. Header
+    | values are logged only for User-Agent / Content-Type / Accept;
+    | Authorization and the API key are structurally excluded and the key is
+    | redacted from any response body preview.
+    */
+
+    'telemetry' => [
+        'enabled' => env('NEXUS_AI_TELEMETRY', true),
+        'channel' => env('NEXUS_AI_TELEMETRY_CHANNEL', 'nexus-ai'),
+        'body_log_bytes' => env('NEXUS_AI_TELEMETRY_BODY_BYTES', 300),
+    ],
+
+    // Local development ONLY: permits http://127.0.0.1 / localhost AI base
+    // URLs so the acceptance flow can run against the shipped mock provider
+    // (scripts/mock-agentrouter.php). Default false; never enable in prod.
+    'allow_loopback_endpoints' => env('AI_ALLOW_LOOPBACK_ENDPOINTS', false),
 ];
