@@ -1,3 +1,16 @@
+## [0.4.0] — 2026-10-03
+
+**STABLE release.** Content identical to `v0.4.0-rc.5` (version metadata
+only — the accepted, frozen rc.5 codebase passed the full stable closure:
+hermetic blocking suite, Arabic/English localization gate, AI and
+New Project wizard regression, security scans, artifact-only fresh
+install, rc.5 → stable upgrade drill, download-back hash verification,
+and VPS acceptance). rc.5 is not modified.
+
+### Changed
+
+- Version metadata promoted from `0.4.0-rc.5` to `0.4.0`.
+
 ## [0.4.0-rc.5] — 2026-10-03
 
 **PRE-RELEASE — release candidate.** Product UX closure on top of the
