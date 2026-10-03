@@ -22,7 +22,7 @@ class ProjectsTable
                 TextColumn::make('slug')->badge()->searchable(),
                 TextColumn::make('status')->badge()
                     ->color(fn ($s) => $s === 'active' ? 'success' : ($s === 'paused' ? 'warning' : 'gray')),
-                TextColumn::make('health_status')->label('Health')->badge()
+                TextColumn::make('health_status')->label(__('labels.health'))->badge()
                     ->color(fn ($s) => $s === 'healthy' ? 'success' : ($s === 'unhealthy' ? 'danger' : 'warning')),
                 TextColumn::make('api_domain')->placeholder('—')->toggleable(),
                 TextColumn::make('db_name')->placeholder('—')->toggleable(),
@@ -32,7 +32,7 @@ class ProjectsTable
                 SelectFilter::make('status')->options(['planned' => 'Planned', 'active' => 'Active', 'paused' => 'Paused', 'archived' => 'Archived']),
             ])
             ->recordActions([
-                Action::make('open')->label('Open')->icon('heroicon-o-arrow-top-right-on-square')
+                Action::make('open')->label(__('labels.open'))->icon('heroicon-o-arrow-top-right-on-square')
                     ->url(fn ($record) => ProjectResource::getUrl('overview', ['record' => $record])),
                 EditAction::make(),
             ])

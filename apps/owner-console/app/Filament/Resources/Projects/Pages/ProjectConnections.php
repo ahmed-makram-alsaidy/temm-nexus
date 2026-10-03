@@ -38,7 +38,7 @@ class ProjectConnections extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Connections';
+        return __('labels.connections');
     }
 
     public function getBreadcrumbs(): array
@@ -114,15 +114,15 @@ class ProjectConnections extends Page
                     .'the console service. One-click rotation is intentionally absent — the web tier cannot safely rewrite its own '
                     .'credentials and restart itself.</p>'),
             ])->headerActions([
-                Action::make('generate_password')->label('Generate new password')
+                Action::make('generate_password')->label(__('labels.generate_new_password'))
                     ->visible(fn () => CpAccess::allows(auth()->user(), 'settings.manage'))
                     ->requiresConfirmation()
-                    ->modalDescription('Generates a 40-char password shown ONCE. Nothing changes until you apply it via the runbook.')
+                    ->modalDescription(__('labels.generates_a_40_char_password_shown_once_'))
                     ->action(function () {
                         $plain = Str::password(40);
                         session()->flash('cp_new_db_password', $plain);
                         $this->audit('CREDENTIALS_ROTATED', 'database', null, ['stage' => 'generated']);
-                        Notification::make()->title('Password generated — copy it now')->warning()->send();
+                        Notification::make()->title(__('labels.password_generated_copy_it_now'))->warning()->send();
                         $this->redirect(static::getUrl(['record' => $this->project(), 'rotated' => 1]));
                     }),
             ])->compact(),

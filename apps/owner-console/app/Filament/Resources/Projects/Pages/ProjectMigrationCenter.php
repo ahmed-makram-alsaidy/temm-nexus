@@ -46,7 +46,7 @@ class ProjectMigrationCenter extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Migration Center';
+        return __('labels.migration_center');
     }
 
     public function getBreadcrumbs(): array
@@ -230,7 +230,7 @@ class ProjectMigrationCenter extends Page
         $project = $this->project();
 
         return array_filter([
-            Action::make('create_source')->label('New source')->icon('heroicon-o-plus')
+            Action::make('create_source')->label(__('labels.new_source'))->icon('heroicon-o-plus')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'migrations.manage'))
                 ->schema([
                     TextInput::make('display_name')->required(),
@@ -239,14 +239,14 @@ class ProjectMigrationCenter extends Page
                         \App\Services\ControlPlane\Connectors\ConnectorRegistry::instance()->all()
                     )->mapWithKeys(fn ($d, $k) => [$k => $d['name'].' (v'.$d['version'].', '.$d['trust'].')'])->all()
                         + ['sqlite' => 'SQLite (test fixture)'])->default('supabase')->required(),
-                    TextInput::make('source_ref')->label('Project ref (display only)')->placeholder('local snapshot 2026-09-19'),
+                    TextInput::make('source_ref')->label(__('labels.project_ref_display_only'))->placeholder('local snapshot 2026-09-19'),
                     TextInput::make('host')->default('postgres'),
                     TextInput::make('port')->numeric()->default(5432),
                     TextInput::make('database')->required(),
                     TextInput::make('username')->default('postgres'),
-                    TextInput::make('password_secret')->label('Password vault secret name')->placeholder('MIGRATION_SOURCE_DB_PASSWORD')
-                        ->helperText('Never paste the password — reference a vault secret by name.'),
-                    TextInput::make('manifest')->label('Optional edge-function manifest JSON (imported)'),
+                    TextInput::make('password_secret')->label(__('labels.password_vault_secret_name'))->placeholder('MIGRATION_SOURCE_DB_PASSWORD')
+                        ->helperText(__('labels.never_paste_the_password_reference_a_vau')),
+                    TextInput::make('manifest')->label(__('labels.optional_edge_function_manifest_json_imp')),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'migrations.manage');
@@ -275,12 +275,12 @@ class ProjectMigrationCenter extends Page
                         'created_by' => auth()->id(),
                     ]);
                     \App\Services\ControlPlane\AdminAudit::record('MIGRATION_SOURCE_CREATED', $this->project(), 'migration_source', null, ['name' => $data['display_name']]);
-                    Notification::make()->title('Source created (READ-ONLY)')->success()->send();
+                    Notification::make()->title(__('labels.source_created_read_only'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('analyze')->label('Analyze source')->icon('heroicon-o-magnifying-glass')
+            Action::make('analyze')->label(__('labels.analyze_source'))->icon('heroicon-o-magnifying-glass')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'migrations.manage') && MigrationSource::where('project_id', $project->id)->exists())
-                ->schema([Select::make('source_id')->label('Source')->required()->options(
+                ->schema([Select::make('source_id')->label(__('labels.source'))->required()->options(
                     MigrationSource::where('project_id', $project->id)->pluck('display_name', 'id')->all()
                 )])
                 ->action(function (array $data) {
@@ -291,15 +291,15 @@ class ProjectMigrationCenter extends Page
                     if ($analysis->status === 'completed') {
                         $service->classify($analysis);
                         $service->rlsMappingArtifact($analysis);
-                        Notification::make()->title('Analysis completed: '.collect($analysis->counts)->sum().' objects inventoried')->success()->send();
+                        Notification::make()->title(__('labels.analysis_completed_frag').collect($analysis->counts)->sum().' objects inventoried')->success()->send();
                     } else {
-                        Notification::make()->title('Analysis failed')->body(($analysis->errors['message'] ?? 'unknown error'))->danger()->send();
+                        Notification::make()->title(__('labels.analysis_failed'))->body(($analysis->errors['message'] ?? 'unknown error'))->danger()->send();
                     }
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('generate_plan')->label('Generate plan')->icon('heroicon-o-map')
+            Action::make('generate_plan')->label(__('labels.generate_plan'))->icon('heroicon-o-map')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'migrations.manage') && MigrationAnalysis::where('project_id', $project->id)->where('status', 'completed')->exists())
-                ->schema([Select::make('analysis_id')->label('Analysis')->required()->options(
+                ->schema([Select::make('analysis_id')->label(__('labels.analysis'))->required()->options(
                     MigrationAnalysis::where('project_id', $project->id)->where('status', 'completed')->orderByDesc('id')
                         ->get()->mapWithKeys(fn ($a) => [$a->id => '#'.$a->id.' '.$a->run_id])->all()
                 )])
@@ -307,7 +307,7 @@ class ProjectMigrationCenter extends Page
                     CpAccess::require(auth()->user(), 'migrations.manage');
                     $analysis = MigrationAnalysis::where('project_id', $this->project()->id)->findOrFail($data['analysis_id']);
                     $plan = (new MigrationCenterService)->generatePlan($analysis);
-                    Notification::make()->title('Plan created with '.$plan->items()->count().' items')->success()->send();
+                    Notification::make()->title(__('labels.plan_created_with_frag').$plan->items()->count().' items')->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
             $this->runAction(),
@@ -319,10 +319,10 @@ class ProjectMigrationCenter extends Page
     {
         $project = $this->project();
 
-        return Action::make('start_run')->label('Start run')->icon('heroicon-o-play')->color('warning')
+        return Action::make('start_run')->label(__('labels.start_run'))->icon('heroicon-o-play')->color('warning')
             ->visible(fn () => CpAccess::allows(auth()->user(), 'migrations.manage') && MigrationPlan::where('project_id', $project->id)->exists())
             ->schema([
-                Select::make('plan_id')->label('Plan')->required()->options(
+                Select::make('plan_id')->label(__('labels.plan'))->required()->options(
                     MigrationPlan::where('project_id', $project->id)->orderByDesc('id')->pluck('name', 'id')->all()
                 ),
                 Select::make('mode')->options(['dry_run' => 'Dry run (no writes)', 'rehearsal' => 'Rehearsal (disposable target)'])->default('dry_run')->required(),
@@ -330,8 +330,8 @@ class ProjectMigrationCenter extends Page
                 TextInput::make('target_port')->numeric()->default(5432),
                 TextInput::make('target_database')->required(),
                 TextInput::make('target_username')->default('postgres'),
-                TextInput::make('target_password_secret')->label('Target password vault secret name'),
-                Toggle::make('target_disposable')->default(true)->helperText('Required for rehearsal/reset.'),
+                TextInput::make('target_password_secret')->label(__('labels.target_password_vault_secret_name')),
+                Toggle::make('target_disposable')->default(true)->helperText(__('labels.required_for_rehearsal_reset')),
             ])
             ->action(function (array $data) {
                 CpAccess::require(auth()->user(), 'migrations.manage');
@@ -351,7 +351,7 @@ class ProjectMigrationCenter extends Page
                     'target_environment_type' => EnvironmentContext::active($this->project())->type,
                 ]);
                 $manager->execute($run);
-                Notification::make()->title('Run '.$run->run_id.': '.$run->status)
+                Notification::make()->title(__('labels.run_frag').$run->run_id.': '.$run->status)
                     ->success($run->status === 'completed')->danger($run->status === 'failed')->warning(! in_array($run->status, ['completed', 'failed']))->send();
                 $this->redirect(static::getUrl(['record' => $this->project()]));
             });
@@ -361,20 +361,20 @@ class ProjectMigrationCenter extends Page
     {
         $project = $this->project();
 
-        return Action::make('rehearse_clean')->label('Rehearse clean migration')->icon('heroicon-o-arrow-path-rounded-square')->color('danger')
+        return Action::make('rehearse_clean')->label(__('labels.rehearse_clean_migration'))->icon('heroicon-o-arrow-path-rounded-square')->color('danger')
             ->visible(fn () => CpAccess::allows(auth()->user(), 'migrations.manage') && MigrationPlan::where('project_id', $project->id)->exists())
             ->requiresConfirmation()
-            ->modalDescription('Resets an EXPLICITLY disposable target twice and compares results for determinism. Never touches production.')
+            ->modalDescription(__('labels.resets_an_explicitly_disposable_target_t'))
             ->schema([
-                Select::make('plan_id')->label('Plan')->required()->options(
+                Select::make('plan_id')->label(__('labels.plan'))->required()->options(
                     MigrationPlan::where('project_id', $project->id)->orderByDesc('id')->pluck('name', 'id')->all()
                 ),
                 TextInput::make('target_database')->required()->default('migration_rehearsal_target'),
                 TextInput::make('target_host')->default('postgres'),
                 TextInput::make('target_port')->numeric()->default(5432),
                 TextInput::make('target_username')->default('postgres'),
-                TextInput::make('target_password_secret')->label('Target password vault secret name'),
-                Toggle::make('disposable')->label('I confirm this target is disposable')->default(false),
+                TextInput::make('target_password_secret')->label(__('labels.target_password_vault_secret_name')),
+                Toggle::make('disposable')->label(__('labels.i_confirm_this_target_is_disposable'))->default(false),
             ])
             ->action(function (array $data) {
                 CpAccess::require(auth()->user(), 'migrations.manage');

@@ -230,7 +230,7 @@ class WorkspaceDetail extends Page
     {
         return [
             Action::make('askAi')
-                ->label('Ask Nexus AI')
+                ->label(__('labels.ask_nexus_ai'))
                 ->icon('heroicon-o-sparkles')
                 ->color('gray')
                 ->visible(fn (): bool => $this->canUseAi())
@@ -238,26 +238,26 @@ class WorkspaceDetail extends Page
                 ->openUrlInNewTab(false),
 
             Action::make('inviteMember')
-                ->label('Invite member')
+                ->label(__('labels.invite_member'))
                 ->icon('heroicon-o-user-plus')
                 ->color('gray')
                 ->visible(fn (): bool => $this->canManageMembers())
-                ->modalHeading('Add a member to '.($this->workspace?->name ?? 'this workspace'))
-                ->modalDescription('Members can reach every project in this workspace at the role you choose. To restrict someone to a single project, use project-level access instead.')
-                ->modalSubmitActionLabel('Add member')
+                ->modalHeading(__('labels.add_a_member_to_frag').($this->workspace?->name ?? 'this workspace'))
+                ->modalDescription(__('labels.members_can_reach_every_project_in_this_'))
+                ->modalSubmitActionLabel(__('labels.add_member'))
                 ->schema([
                     TextInput::make('email')
-                        ->label('Email address')
+                        ->label(__('labels.email_address'))
                         ->email()
                         ->required()
-                        ->helperText('The person must already have an account on this platform, or be invited by an operator.'),
+                        ->helperText(__('labels.the_person_must_already_have_an_account_')),
                     Select::make('role')
-                        ->label('Role')
+                        ->label(__('labels.role'))
                         ->options(fn (): array => $this->roleOptions())
                         ->default(Roles::WORKSPACE_MEMBER)
                         ->required()
                         ->selectablePlaceholder(false)
-                        ->helperText('Roles are bundles of permissions. The exact permissions are shown on the Members screen.'),
+                        ->helperText(__('labels.roles_are_bundles_of_permissions_the_exa')),
                 ])
                 ->action(function (array $data): void {
                     // Execution-time re-check (§17).
@@ -269,8 +269,8 @@ class WorkspaceDetail extends Page
 
                     if (! $user) {
                         Notification::make()
-                            ->title('No account with that email')
-                            ->body('Ask a platform operator to create the account first, then add them here.')
+                            ->title(__('labels.no_account_with_that_email'))
+                            ->body(__('labels.ask_a_platform_operator_to_create_the_ac'))
                             ->warning()
                             ->send();
 
@@ -289,7 +289,7 @@ class WorkspaceDetail extends Page
                     }
 
                     Notification::make()
-                        ->title('Member added')
+                        ->title(__('labels.member_added'))
                         ->body($user->name.' now has access to '.$this->workspace->name.'.')
                         ->success()
                         ->send();

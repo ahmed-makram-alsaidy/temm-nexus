@@ -42,7 +42,7 @@ class ProjectResources extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Resources';
+        return __('labels.resources');
     }
 
     public function getBreadcrumbs(): array
@@ -133,13 +133,13 @@ class ProjectResources extends Page
         $project = $this->project();
 
         return [
-            Action::make('collect')->label('Collect now')->icon('heroicon-o-arrow-path')
+            Action::make('collect')->label(__('labels.collect_now'))->icon('heroicon-o-arrow-path')
                 ->action(function () {
                     $collected = ResourceObservabilityService::collect($this->project(), EnvironmentContext::active($this->project()));
                     Notification::make()->title(count($collected).' metrics collected')->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('threshold')->label('Set threshold')->icon('heroicon-o-bell-alert')
+            Action::make('threshold')->label(__('labels.set_threshold'))->icon('heroicon-o-bell-alert')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'infrastructure.manage'))
                 ->schema([
                     Select::make('metric')->required()->options(array_combine(array_keys(ResourceObservabilityService::METRICS), array_keys(ResourceObservabilityService::METRICS))),
@@ -149,9 +149,9 @@ class ProjectResources extends Page
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'infrastructure.manage');
                     ResourceObservabilityService::setThreshold($this->project(), $data['metric'], (float) $data['warning'], isset($data['critical']) ? (float) $data['critical'] : null);
-                    Notification::make()->title('Threshold saved')->success()->send();
+                    Notification::make()->title(__('labels.threshold_saved'))->success()->send();
                 }),
-            Action::make('cost')->label('Record cost')->icon('heroicon-o-banknotes')
+            Action::make('cost')->label(__('labels.record_cost'))->icon('heroicon-o-banknotes')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'settings.manage'))
                 ->schema([
                     TextInput::make('name')->required()->default('shared VPS'),
@@ -165,7 +165,7 @@ class ProjectResources extends Page
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'settings.manage');
                     ResourceObservabilityService::recordCost($this->project(), $data);
-                    Notification::make()->title('Cost entry saved (ESTIMATE basis)')->success()->send();
+                    Notification::make()->title(__('labels.cost_entry_saved_estimate_basis'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
         ];

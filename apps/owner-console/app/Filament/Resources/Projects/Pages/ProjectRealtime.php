@@ -41,7 +41,7 @@ class ProjectRealtime extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Realtime';
+        return __('labels.realtime');
     }
 
     public function getBreadcrumbs(): array
@@ -101,11 +101,11 @@ class ProjectRealtime extends Page
 
         return $schema->components([
             Section::make('Status')->schema([
-                TextEntry::make('installed')->label('Server')->state($status['installed'] ? 'Installed' : 'Not installed')
+                TextEntry::make('installed')->label(__('labels.server'))->state($status['installed'] ? 'Installed' : 'Not installed')
                     ->badge()->color($status['installed'] ? 'success' : 'gray'),
-                TextEntry::make('app_key')->label('Credentials')->state($status['app_key']),
-                TextEntry::make('endpoint')->label('Endpoint')->state($status['host'] ? "{$status['scheme']}://{$status['host']}:{$status['port']}" : '—'),
-                TextEntry::make('clients')->label('Connected clients')->state($connectedLine),
+                TextEntry::make('app_key')->label(__('labels.credentials'))->state($status['app_key']),
+                TextEntry::make('endpoint')->label(__('labels.endpoint'))->state($status['host'] ? "{$status['scheme']}://{$status['host']}:{$status['port']}" : '—'),
+                TextEntry::make('clients')->label(__('labels.connected_clients'))->state($connectedLine),
             ])->compact(),
             Grid::make(2)->schema([
                 Section::make('Channels ('.$channels->count().')')->schema([
@@ -134,14 +134,14 @@ class ProjectRealtime extends Page
         }
 
         return [
-            Action::make('publish')->label('Publish test event')->icon('heroicon-o-signal')
+            Action::make('publish')->label(__('labels.publish_test_event'))->icon('heroicon-o-signal')
                 ->slideOver()
                 ->schema([
                     TextInput::make('channel')->required()->default('demo.orders')->maxLength(160),
                     TextInput::make('event')->required()->default('DemoOrderCreated')->maxLength(160),
-                    Textarea::make('payload')->label('Payload (JSON)')->rows(4)->default('{"order_id": 1}')
+                    Textarea::make('payload')->label(__('labels.payload_json'))->rows(4)->default('{"order_id": 1}')
                         ->extraAttributes(['class' => 'cp-code', 'spellcheck' => 'false']),
-                    TextInput::make('credential')->label('API key (private channels only)')->password()->revealable(),
+                    TextInput::make('credential')->label(__('labels.api_key_private_channels_only'))->password()->revealable(),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'functions.invoke');
@@ -149,7 +149,7 @@ class ProjectRealtime extends Page
                         $this->project(), $data['channel'], $data['event'],
                         $data['payload'] ?? '{}', $data['credential'] ?: null
                     );
-                    $note = Notification::make()->title('Event '.$result['level'].': '.$result['detail']);
+                    $note = Notification::make()->title(__('labels.event_frag').$result['level'].': '.$result['detail']);
                     $result['level'] === 'recorded' ? $note->warning()->send() : $note->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),

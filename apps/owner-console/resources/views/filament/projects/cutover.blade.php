@@ -231,7 +231,7 @@
     {{-- 6. The ordered plan. --}}
     @if ($ui['cutover.plan']['visibility'] ?? true)
         <section class="nx-section" data-nx-inspect="cutover.plan" data-nx-inspect-label="Ordered cutover plan">
-            <h2 class="nx-section__title">Ordered cutover plan</h2>
+            <h2 class="nx-section__title">{{ __('labels.ordered_cutover_plan') }}</h2>
             <p class="nx-section__description">
                 Steps marked as needing approval are gated. The platform records each step; it does not
                 execute DNS or endpoint changes.
@@ -260,18 +260,18 @@
         <summary>Advanced details</summary>
         <div class="nx-advanced__body">
             <div class="nx-fact">
-                <span class="nx-fact__label">Live Sync raw state</span>
+                <span class="nx-fact__label">{{ __('labels.live_sync_raw_state') }}</span>
                 <span class="nx-fact__value nx-code">{{ $liveSync['raw_state'] }}</span>
-                <span class="nx-fact__detail">Internal gate state, shown verbatim.</span>
+                <span class="nx-fact__detail">{{ __('labels.internal_gate_state_shown_verbatim') }}</span>
             </div>
             <div class="nx-fact">
-                <span class="nx-fact__label">Live Sync lag</span>
+                <span class="nx-fact__label">{{ __('labels.live_sync_lag') }}</span>
                 <span class="nx-fact__value nx-code">
                     {{ $liveSync['lag_seconds'] !== null ? $liveSync['lag_seconds'].'s' : '—' }}
                 </span>
             </div>
             <div class="nx-fact">
-                <span class="nx-fact__label">Rollback window expires</span>
+                <span class="nx-fact__label">{{ __('labels.rollback_window_expires') }}</span>
                 <span class="nx-fact__value nx-code">{{ $rollback['expires_at'] ?? '—' }}</span>
             </div>
             <div class="nx-fact">

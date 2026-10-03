@@ -45,7 +45,7 @@ class ProjectQueues extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Queues';
+        return __('labels.queues');
     }
 
     public function getBreadcrumbs(): array
@@ -122,22 +122,22 @@ class ProjectQueues extends Page implements HasTable
                 TextColumn::make('failed_at')->dateTime()->sortable(),
             ])
             ->recordActions([
-                Action::make('retry')->label('Retry')->icon('heroicon-o-arrow-path')
+                Action::make('retry')->label(__('labels.retry'))->icon('heroicon-o-arrow-path')
                     ->requiresConfirmation()
                     ->action(function ($record) {
                         // queue:retry addresses jobs by UUID, not numeric id.
                         $result = ProjectArtisan::run($this->project(), 'queue:retry', [(string) $record->uuid]);
                         abort_unless($result['ok'], 422, 'Retry failed: '.$result['output']);
                         $this->audit('QUEUE_JOB_RETRIED', 'failed_job', $record->uuid);
-                        Notification::make()->title('Job pushed back to the queue')->success()->send();
+                        Notification::make()->title(__('labels.job_pushed_back_to_the_queue'))->success()->send();
                     }),
-                Action::make('forget')->label('Delete')->icon('heroicon-o-trash')->color('danger')
+                Action::make('forget')->label(__('labels.delete'))->icon('heroicon-o-trash')->color('danger')
                     ->requiresConfirmation()
                     ->action(function ($record) {
                         $result = ProjectArtisan::run($this->project(), 'queue:forget', [(string) $record->uuid]);
                         abort_unless($result['ok'], 422, 'Delete failed: '.$result['output']);
                         $this->audit('QUEUE_JOB_DELETED', 'failed_job', $record->uuid);
-                        Notification::make()->title('Failed job deleted')->success()->send();
+                        Notification::make()->title(__('labels.failed_job_deleted'))->success()->send();
                     }),
             ])
             ->heading('Failed jobs')

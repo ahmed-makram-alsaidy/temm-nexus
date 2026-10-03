@@ -135,13 +135,13 @@ class InfraNodeDetail extends Page
         }
 
         return [
-            Action::make('rotate_token')->label('Rotate agent token')->color('warning')->requiresConfirmation()
-                ->modalDescription('The old token stops working immediately. The new token is shown once.')
+            Action::make('rotate_token')->label(__('labels.rotate_agent_token'))->color('warning')->requiresConfirmation()
+                ->modalDescription(__('labels.the_old_token_stops_working_immediately_'))
                 ->action(function () {
                     $node = InfrastructureNode::query()->where('name', $this->node)->firstOrFail();
                     $plain = $node->rotateToken();
                     AdminAudit::record('NODE_TOKEN_ROTATED', null, 'node', $node->name, []);
-                    Notification::make()->title('New agent token (copy now — shown once)')->body($plain)->warning()
+                    Notification::make()->title(__('labels.new_agent_token_copy_now_shown_once'))->body($plain)->warning()
                         ->persistent()->send();
                 }),
         ];

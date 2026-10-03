@@ -11,7 +11,7 @@ class AuditLogList extends ListRecords
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'Audit Log';
+        return __('labels.audit_log');
     }
 
     public function getBreadcrumbs(): array

@@ -29,7 +29,7 @@ class InfraHealth extends Page
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'Infrastructure Health';
+        return __('labels.infrastructure_health');
     }
 
     public function getBreadcrumbs(): array

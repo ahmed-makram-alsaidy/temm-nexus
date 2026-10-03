@@ -46,7 +46,7 @@ class ProjectDatabase extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Tables';
+        return __('labels.tables');
     }
 
     public function getBreadcrumbs(): array
@@ -123,13 +123,13 @@ class ProjectDatabase extends Page
     {
         return array_filter([
             CpAccess::allows(auth()->user(), 'database.write') ? Action::make('create_table')
-                ->label('New table')
+                ->label(__('labels.new_table'))
                 ->icon('heroicon-o-plus')
                 ->schema([
-                    TextInput::make('name')->label('Table name')->required()
+                    TextInput::make('name')->label(__('labels.table_name'))->required()
                         ->regex('/^[a-z_][a-z0-9_]{0,62}$/')
-                        ->helperText('Lowercase letters, digits, underscores.'),
-                    Repeater::make('columns')->label('Columns')->minItems(1)->defaultItems(1)
+                        ->helperText(__('labels.lowercase_letters_digits_underscores')),
+                    Repeater::make('columns')->label(__('labels.columns'))->minItems(1)->defaultItems(1)
                         ->schema([
                             TextInput::make('name')->required()->regex('/^[a-z_][a-z0-9_]{0,62}$/'),
                             Select::make('type')->required()->options([
@@ -140,10 +140,10 @@ class ProjectDatabase extends Page
                                 'jsonb' => 'JSONB', 'uuid' => 'UUID',
                                 'serial' => 'SERIAL',
                             ]),
-                            Toggle::make('nullable')->label('Nullable')->default(true),
-                            TextInput::make('default')->label('Default')->placeholder('NULL / NOW() / …'),
-                            Toggle::make('pk')->label('PK'),
-                            Toggle::make('unique')->label('Unique'),
+                            Toggle::make('nullable')->label(__('labels.nullable'))->default(true),
+                            TextInput::make('default')->label(__('labels.default'))->placeholder(__('labels.null_now')),
+                            Toggle::make('pk')->label(__('labels.pk')),
+                            Toggle::make('unique')->label(__('labels.unique')),
                         ])->columns(3),
                 ])
                 ->action(function (array $data) {
@@ -154,15 +154,15 @@ class ProjectDatabase extends Page
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }) : null,
             CpAccess::allows(auth()->user(), 'database.write') ? Action::make('drop_table')
-                ->label('Drop table')
+                ->label(__('labels.drop_table'))
                 ->icon('heroicon-o-trash')
                 ->color('danger')
                 ->requiresConfirmation()
-                ->modalHeading('Drop table permanently?')
-                ->modalDescription('All rows are destroyed. There is no undo. Type the exact table name to confirm.')
+                ->modalHeading(__('labels.drop_table_permanently'))
+                ->modalDescription(__('labels.all_rows_are_destroyed_there_is_no_undo_'))
                 ->schema([
-                    TextInput::make('table')->label('Table name')->required(),
-                    TextInput::make('confirm')->label('Type the table name again')->required(),
+                    TextInput::make('table')->label(__('labels.table_name'))->required(),
+                    TextInput::make('confirm')->label(__('labels.type_the_table_name_again'))->required(),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'database.write');

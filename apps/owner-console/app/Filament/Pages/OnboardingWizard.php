@@ -52,7 +52,7 @@ class OnboardingWizard extends Page
 
     public function getTitle(): string
     {
-        return 'Onboarding Wizard';
+        return __('labels.onboarding_wizard');
     }
 
     protected function steps(): array
@@ -121,7 +121,7 @@ class OnboardingWizard extends Page
         if ($flow === 'create') {
             $actions[] = Action::make('identity_step')->label('1. Identity')->schema([
                 TextInput::make('name')->required()->default($state['name'] ?? ''),
-                TextInput::make('slug')->helperText('Optional — derived from name'),
+                TextInput::make('slug')->helperText(__('labels.optional_derived_from_name')),
                 TextInput::make('api_domain')->placeholder('api.myapp.test'),
             ])->action(fn (array $data) => $this->saveStep(['name' => $data['name'], 'slug' => $data['slug'] ?: null, 'api_domain' => $data['api_domain'] ?: null]));
             $actions[] = Action::make('platform_steps')->label('2–7. Platform')->schema([
@@ -137,7 +137,7 @@ class OnboardingWizard extends Page
                 'redis_prefix' => $data['redis_prefix'] ?: null,
             ])));
             $actions[] = Action::make('secrets_step')->label('8. Secrets')->schema([
-                TextInput::make('secret_name')->placeholder('STRIPE_SECRET')->helperText('One optional starter secret'),
+                TextInput::make('secret_name')->placeholder('STRIPE_SECRET')->helperText(__('labels.one_optional_starter_secret')),
                 TextInput::make('secret_value')->password()->revealable(),
             ])->action(function (array $data) use ($state) {
                 $secrets = $state['secrets'] ?? [];
@@ -172,7 +172,7 @@ class OnboardingWizard extends Page
 
             $actions[] = Action::make('identity_step')->label('1. Identity')->schema([
                 TextInput::make('name')->required()->default($state['name'] ?? ''),
-                TextInput::make('slug')->helperText('Optional — derived from name'),
+                TextInput::make('slug')->helperText(__('labels.optional_derived_from_name')),
             ])->action(fn (array $data) => $this->saveStep(['name' => $data['name'], 'slug' => $data['slug'] ?: null]));
 
             // 27Q — connector cards populated from the registry.
@@ -180,7 +180,7 @@ class OnboardingWizard extends Page
                 ->mapWithKeys(fn ($d, $k) => [$k => $d['name'].' (v'.$d['version'].') — '.$d['description']])->all();
             $actions[] = Action::make('choose_source')->label('2. Choose source connector')->icon('heroicon-o-square-3-stack-3d')
                 ->schema([
-                    Select::make('source_type')->label('Available connectors')->options($connectorOptions)->required()->native(false)
+                    Select::make('source_type')->label(__('labels.available_connectors'))->options($connectorOptions)->required()->native(false)
                         ->helperText($descriptors === [] ? 'No connectors registered.' : count($descriptors).' connector(s) registered — first-party, read-only.'),
                 ])
                 ->action(function (array $data) {
@@ -198,22 +198,22 @@ class OnboardingWizard extends Page
             $actions[] = Action::make('connect_account')->label('3. Connect account')->icon('heroicon-o-cloud')
                 ->visible($isAccountFlow)
                 ->schema(array_merge([
-                    Select::make('connection_id')->label('Existing connection')->options($connections)->native(false)
+                    Select::make('connection_id')->label(__('labels.existing_connection'))->options($connections)->native(false)
                         ->helperText($connections === [] ? 'No connected account yet — connect one below.' : 'Or connect a new account below.'),
-                    TextInput::make('new_display_name')->label('New connection name'),
+                    TextInput::make('new_display_name')->label(__('labels.new_connection_name')),
                     TextInput::make('new_secret')->password()->revealable()->label($chosen?->definition()->credentialField('pat')?->label ?? 'Account token')
-                        ->helperText('Encrypted at rest, never shown again. Used for project discovery only.'),
+                        ->helperText(__('labels.encrypted_at_rest_never_shown_again_used')),
                 ]))
                 ->action(function (array $data) use ($chosen) {
                     if (! empty($data['new_secret']) && ! empty($data['new_display_name'])) {
                         $connection = $chosen->connectAccount(auth()->user(), $data['new_display_name'], $data['new_secret']);
                         $test = $chosen->testAccount($connection);
-                        Notification::make()->title('Connection test: '.$test['result'])->success($test['result'] === 'PASS')->danger($test['result'] !== 'PASS')->send();
+                        Notification::make()->title(__('labels.connection_test_frag').$test['result'])->success($test['result'] === 'PASS')->danger($test['result'] !== 'PASS')->send();
                         $this->saveStep(['connection_id' => $connection->id]);
                     } elseif (! empty($data['connection_id'])) {
                         $this->saveStep(['connection_id' => (int) $data['connection_id']]);
                     } else {
-                        Notification::make()->title('Select or connect an account first')->danger()->send();
+                        Notification::make()->title(__('labels.select_or_connect_an_account_first'))->danger()->send();
                     }
                 });
 
@@ -242,7 +242,7 @@ class OnboardingWizard extends Page
                     abort_if($discoveredProject === null, 422, 'Selected project not in discovery result.');
                     $draft = \App\Services\ControlPlane\OnboardingService::prepareImportDraft($this->session, $connection, $discoveredProject, $chosen);
                     $this->session->refresh();
-                    Notification::make()->title('Draft prepared: project + read-only source profile (no migration)')->success()->send();
+                    Notification::make()->title(__('labels.draft_prepared_project_read_only_source_'))->success()->send();
                     $this->saveStep(['selected_ref' => $data['project_ref']]);
                 });
 
@@ -257,7 +257,7 @@ class OnboardingWizard extends Page
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'migrations.manage');
                     $this->applyCredentialForm($source, $data);
                     \App\Services\ControlPlane\AdminAudit::record('SOURCE_CREDENTIAL_CHANGED', $project, 'migration_source', $source->id);
-                    Notification::make()->title('Read-only DB credential stored (vault)')->success()->send();
+                    Notification::make()->title(__('labels.read_only_db_credential_stored_vault'))->success()->send();
                 });
 
             // ── Credentials-form flow (generic, schema-driven) ──────────
@@ -271,7 +271,7 @@ class OnboardingWizard extends Page
                     $source = $chosen->createSourceProfile($project, [], $this->credentialConfiguration($chosen, $data), \App\Services\ControlPlane\EnvironmentService::defaultFor($project)->id);
                     $this->applyCredentialForm($source, $data);
                     $this->session->refresh();
-                    Notification::make()->title('Source profile created (read-only, credentials in vault)')->success()->send();
+                    Notification::make()->title(__('labels.source_profile_created_read_only_credent'))->success()->send();
                 });
 
             $actions[] = Action::make('analyze_step')->label('6. Capability probe + analyze')->icon('heroicon-o-magnifying-glass')
@@ -280,15 +280,15 @@ class OnboardingWizard extends Page
                     abort_if($project === null, 422, 'Choose a source connector and configure it first.');
                     $source = \App\Models\MigrationSource::where('project_id', $project->id)->orderByDesc('id')->first();
                     $probe = \App\Services\ControlPlane\Connectors\ConnectorCapabilityProbe::probe($source);
-                    Notification::make()->title('Capability probe: '.json_encode($probe['domains'] ?? $probe))->success()->send();
+                    Notification::make()->title(__('labels.capability_probe_frag').json_encode($probe['domains'] ?? $probe))->success()->send();
                     if (($probe['domains']['database'] ?? '') === 'PASS') {
                         $service = new \App\Services\ControlPlane\Migration\MigrationCenterService;
                         $analysis = $service->analyze($source);
                         if ($analysis->status === 'completed') {
                             $service->classify($analysis);
-                            Notification::make()->title('Analysis completed: '.collect($analysis->counts)->sum().' objects (read-only)')->success()->send();
+                            Notification::make()->title(__('labels.analysis_completed_frag').collect($analysis->counts)->sum().' objects (read-only)')->success()->send();
                         } else {
-                            Notification::make()->title('Analysis failed: '.($analysis->errors['message'] ?? ''))->danger()->send();
+                            Notification::make()->title(__('labels.analysis_failed_frag').($analysis->errors['message'] ?? ''))->danger()->send();
                         }
                     }
                 });
@@ -296,13 +296,13 @@ class OnboardingWizard extends Page
             $actions[] = Action::make('link_repository')->label('7. Link client repository')->icon('heroicon-o-folder-open')
                 ->schema([
                     TextInput::make('display_name')->required(),
-                    TextInput::make('root_path')->required()->helperText('Operator-approved local root — scanner reads stay inside it.'),
+                    TextInput::make('root_path')->required()->helperText(__('labels.operator_approved_local_root_scanner_rea')),
                 ])
                 ->action(function (array $data) {
                     $project = $this->session->project;
                     abort_if($project === null, 422, 'Select a project first.');
                     \App\Services\ControlPlane\Repository\ClientRepositoryService::linkLocal($project, $data['display_name'], $data['root_path']);
-                    Notification::make()->title('Repository linked (approved root persisted)')->success()->send();
+                    Notification::make()->title(__('labels.repository_linked_approved_root_persiste'))->success()->send();
                 });
 
             $actions[] = Action::make('scan_client')->label('8. Scan client')->icon('heroicon-o-magnifying-glass-circle')
@@ -322,21 +322,21 @@ class OnboardingWizard extends Page
                     try {
                         $analysis = \App\Models\MigrationAnalysis::where('project_id', $project->id)->where('status', 'completed')->orderByDesc('id')->first();
                         $run = (new \App\Services\ControlPlane\Ai\MigrationCopilot)->run($project, 'explain_blockers', ['analysis' => $analysis]);
-                        Notification::make()->title('Copilot plan: '.$run->status)->success($run->status === 'completed')->danger($run->status !== 'completed')->send();
+                        Notification::make()->title(__('labels.copilot_plan_frag').$run->status)->success($run->status === 'completed')->danger($run->status !== 'completed')->send();
                     } catch (\Throwable $e) {
-                        Notification::make()->title('Copilot skipped: '.\Illuminate\Support\Str::limit($e->getMessage(), 120))->warning()->send();
+                        Notification::make()->title(__('labels.copilot_skipped_frag').\Illuminate\Support\Str::limit($e->getMessage(), 120))->warning()->send();
                     }
                 });
         }
 
-        $actions[] = Action::make('next_step')->label('Next step')->icon('heroicon-o-arrow-right')->color('gray')
+        $actions[] = Action::make('next_step')->label(__('labels.next_step'))->icon('heroicon-o-arrow-right')->color('gray')
             ->action(function () {
                 $max = count($this->steps()) - 1;
                 $this->session->update(['current_step' => min($max, $this->session->current_step + 1)]);
                 $this->session->refresh();
                 $this->redirect(self::getUrl());
             });
-        $actions[] = Action::make('prev_step')->label('Back')->icon('heroicon-o-arrow-left')->color('gray')
+        $actions[] = Action::make('prev_step')->label(__('labels.back'))->icon('heroicon-o-arrow-left')->color('gray')
             ->action(function () {
                 $this->session->update(['current_step' => max(0, $this->session->current_step - 1)]);
                 $this->session->refresh();
@@ -346,28 +346,28 @@ class OnboardingWizard extends Page
         // Final confirmation — the only step that creates anything.
         $isFinish = $this->session->current_step >= count($this->steps()) - 1;
         if ($isFinish) {
-            $actions[] = Action::make('finish')->label('Finish — create everything')->icon('heroicon-o-check-circle')->color('success')
+            $actions[] = Action::make('finish')->label(__('labels.finish_create_everything'))->icon('heroicon-o-check-circle')->color('success')
                 ->requiresConfirmation()
-                ->modalDescription('This is the point where the platform actually creates the project (and migration source for imports).')
+                ->modalDescription(__('labels.this_is_the_point_where_the_platform_act'))
                 ->schema([
                     TextInput::make('confirm_name')->required()->default($state['name'] ?? '')
-                        ->helperText('Re-type the project name to confirm.'),
+                        ->helperText(__('labels.re_type_the_project_name_to_confirm')),
                 ])
                 ->action(function (array $data) {
                     $this->session->refresh();
                     if (($this->session->state['name'] ?? '') !== $data['confirm_name']) {
-                        Notification::make()->title('Confirmation name does not match')->danger()->send();
+                        Notification::make()->title(__('labels.confirmation_name_does_not_match'))->danger()->send();
 
                         return;
                     }
                     if ($this->session->flow === 'create') {
                         $project = OnboardingService::completeCreate($this->session);
-                        Notification::make()->title('Project created: '.$project->name)->success()->send();
+                        Notification::make()->title(__('labels.project_created_frag').$project->name)->success()->send();
 
                         return \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $project]);
                     }
                     $result = OnboardingService::completeImport($this->session);
-                    Notification::make()->title('Project created — continue in the Migration Center')->success()->send();
+                    Notification::make()->title(__('labels.project_created_continue_in_the_migratio'))->success()->send();
 
                     return $result['source']
                         ? \App\Filament\Resources\Projects\Pages\ProjectMigrationCenter::getUrl(['record' => $result['project']])
@@ -375,7 +375,7 @@ class OnboardingWizard extends Page
                 });
         }
 
-        $actions[] = Action::make('abandon')->label('Abandon')->icon('heroicon-o-trash')->color('danger')
+        $actions[] = Action::make('abandon')->label(__('labels.abandon'))->icon('heroicon-o-trash')->color('danger')
             ->requiresConfirmation()
             ->action(function () {
                 OnboardingService::abandon($this->session);
@@ -393,7 +393,7 @@ class OnboardingWizard extends Page
     protected function connectorCredentialForm(?\App\Services\ControlPlane\Connectors\Contracts\Connector $connector, ?array $keys, array $state): array
     {
         if ($connector === null) {
-            return [TextInput::make('placeholder')->label('Choose a source connector first')->dehydrated(false)->disabled()];
+            return [TextInput::make('placeholder')->label(__('labels.choose_a_source_connector_first'))->dehydrated(false)->disabled()];
         }
         $fields = [];
         foreach ($connector->credentialSchema() as $field) {
@@ -470,7 +470,7 @@ class OnboardingWizard extends Page
     {
         OnboardingService::saveStep($this->session, $this->session->current_step, $patch);
         $this->session->refresh();
-        Notification::make()->title('Step saved — you can leave and resume anytime')->success()->send();
+        Notification::make()->title(__('labels.step_saved_you_can_leave_and_resume_anyt'))->success()->send();
         $this->redirect(self::getUrl());
     }
 }

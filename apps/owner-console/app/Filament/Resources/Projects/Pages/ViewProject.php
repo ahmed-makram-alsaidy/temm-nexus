@@ -267,7 +267,7 @@ class ViewProject extends Page
         return [
             ActionGroup::make([
                 Action::make('health_check')
-                    ->label('Run health check')
+                    ->label(__('labels.run_health_check'))
                     ->icon('heroicon-o-heart')
                     ->action(function () {
                         $health = ProjectHealthService::for($this->project())->check();
@@ -278,10 +278,10 @@ class ViewProject extends Page
                         $this->redirect(static::getUrl(['record' => $this->project()]));
                     }),
                 Action::make('clear_cache')
-                    ->label('Clear application cache')
+                    ->label(__('labels.clear_application_cache'))
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
-                    ->modalDescription('Flushes this project\u2019s Redis namespace (cache + queues state for the prefix). Database untouched. Audit logged.')
+                    ->modalDescription(__('labels.flushes_this_project_u2019s_redis_namesp'))
                     ->action(function () {
                         $prefix = ($this->project()->redis_prefix ?? $this->project()->slug).':';
                         $deleted = 0;
@@ -293,20 +293,20 @@ class ViewProject extends Page
                         Notification::make()->title("Cleared {$deleted} keys under {$prefix}")->success()->send();
                     }),
                 Action::make('maintenance_on')
-                    ->label('Enable maintenance')
+                    ->label(__('labels.enable_maintenance'))
                     ->icon('heroicon-o-wrench-screwdriver')
                     ->color('warning')
                     ->visible(fn () => ! $this->project()->maintenance_mode)
                     ->requiresConfirmation()
                     ->action(fn () => $this->setMaintenance(true)),
                 Action::make('maintenance_off')
-                    ->label('Disable maintenance')
+                    ->label(__('labels.disable_maintenance'))
                     ->icon('heroicon-o-wrench-screwdriver')
                     ->color('danger')
                     ->visible(fn () => (bool) $this->project()->maintenance_mode)
                     ->requiresConfirmation()
                     ->action(fn () => $this->setMaintenance(false)),
-            ])->label('Actions')->icon('heroicon-o-ellipsis-horizontal')->button()->color('gray'),
+            ])->label(__('labels.actions'))->icon('heroicon-o-ellipsis-horizontal')->button()->color('gray'),
         ];
     }
 
@@ -318,12 +318,12 @@ class ViewProject extends Page
             file_put_contents($downFile, json_encode(['message' => 'Maintenance via control plane', 'time' => time()]));
             $this->project()->update(['maintenance_mode' => true]);
             $this->audit('PROJECT_MAINTENANCE_ENABLED');
-            Notification::make()->title('Maintenance mode enabled')->warning()->send();
+            Notification::make()->title(__('labels.maintenance_mode_enabled'))->warning()->send();
         } else {
             @unlink($downFile);
             $this->project()->update(['maintenance_mode' => false]);
             $this->audit('PROJECT_MAINTENANCE_DISABLED');
-            Notification::make()->title('Maintenance mode disabled')->success()->send();
+            Notification::make()->title(__('labels.maintenance_mode_disabled'))->success()->send();
         }
         $this->redirect(static::getUrl(['record' => $this->project()]));
     }

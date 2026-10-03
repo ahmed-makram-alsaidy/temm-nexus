@@ -38,7 +38,7 @@
                     <span class="nx-journey__label">
                         {{ $stage->label() }}
                         @if ($isCurrent)
-                            <span class="nx-journey__here">You are here</span>
+                            <span class="nx-journey__here">{{ __('labels.you_are_here') }}</span>
                         @endif
                     </span>
                     <span class="nx-journey__state">{{ $state->label() }}</span>

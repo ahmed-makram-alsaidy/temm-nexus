@@ -41,7 +41,7 @@ class ManageProjectUsers extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Users';
+        return __('labels.users');
     }
 
     public function getBreadcrumbs(): array
@@ -88,7 +88,7 @@ class ManageProjectUsers extends Page implements HasTable
                     ->color(fn ($state) => $state === 'disabled' ? 'danger' : 'success')
                     ->visible($hasStatus),
                 TextColumn::make('role')->badge()->visible($hasRole),
-                IconColumn::make('email_verified_at')->label('Verified')->boolean()
+                IconColumn::make('email_verified_at')->label(__('labels.verified'))->boolean()
                     ->trueIcon('heroicon-o-check-badge')->falseIcon('heroicon-o-x-mark')
                     ->getStateUsing(fn ($record) => $record->email_verified_at !== null),
                 TextColumn::make('last_login_at')->dateTime()->placeholder('—')->sortable()->toggleable(isToggledHiddenByDefault: true),
@@ -100,7 +100,7 @@ class ManageProjectUsers extends Page implements HasTable
             ])
             ->recordActions([
                 Action::make('view_user')
-                    ->label('View')
+                    ->label(__('labels.view'))
                     ->icon('heroicon-o-eye')
                     ->slideOver()
                     ->schema(fn ($record) => $this->userForm(true))
@@ -108,7 +108,7 @@ class ManageProjectUsers extends Page implements HasTable
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Close'),
                 Action::make('edit_user')
-                    ->label('Edit')
+                    ->label(__('labels.edit'))
                     ->icon('heroicon-o-pencil-square')
                     ->slideOver()
                     ->schema(fn ($record) => $this->userForm(false))
@@ -116,7 +116,7 @@ class ManageProjectUsers extends Page implements HasTable
                     ->action(function (array $data, $record) {
                         ProjectAuthManager::for($this->project())->updateUser($record->getKey(), $data);
                         $this->audit('USER_UPDATED', 'user', $record->getKey(), ['fields' => array_keys($data)]);
-                        Notification::make()->title('User updated')->success()->send();
+                        Notification::make()->title(__('labels.user_updated'))->success()->send();
                     }),
                 Action::make('toggle_status')
                     ->label(fn ($record) => ProjectAuthManager::for($this->project())->isDisabled($record) ? 'Enable' : 'Disable')
@@ -135,7 +135,7 @@ class ManageProjectUsers extends Page implements HasTable
                         Notification::make()->title($disabled ? 'User enabled' : 'User disabled, sessions revoked')->success()->send();
                     }),
                 Action::make('revoke_tokens')
-                    ->label('Revoke sessions')
+                    ->label(__('labels.revoke_sessions'))
                     ->icon('heroicon-o-arrow-right-start-on-rectangle')
                     ->requiresConfirmation()
                     ->visible(fn () => ProjectAuthManager::for($this->project())->hasTokensTable())
@@ -147,13 +147,13 @@ class ManageProjectUsers extends Page implements HasTable
             ])
             ->headerActions([
                 Action::make('create_user')
-                    ->label('New user')
+                    ->label(__('labels.new_user'))
                     ->slideOver()
                     ->schema($this->userForm(false, true))
                     ->action(function (array $data) {
                         $id = ProjectAuthManager::for($this->project())->createUser($data);
                         $this->audit('USER_CREATED', 'user', $id, ['email' => $data['email']]);
-                        Notification::make()->title('User created')->success()->send();
+                        Notification::make()->title(__('labels.user_created'))->success()->send();
                     }),
             ]);
     }
@@ -173,7 +173,7 @@ class ManageProjectUsers extends Page implements HasTable
         if (in_array('status', $cols, true)) {
             $fields[] = Select::make('status')->options(['active' => 'Active', 'disabled' => 'Disabled'])->disabled($readOnly);
         }
-        $fields[] = Toggle::make('verified')->label('Email verified')->disabled($readOnly);
+        $fields[] = Toggle::make('verified')->label(__('labels.email_verified'))->disabled($readOnly);
         if (! $readOnly) {
             $fields[] = TextInput::make('password')->password()
                 ->required($isCreate)->minLength(8)

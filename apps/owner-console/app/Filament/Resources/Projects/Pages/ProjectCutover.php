@@ -54,7 +54,7 @@ class ProjectCutover extends Page
 
     public function getTitle(): string
     {
-        return 'Cutover';
+        return __('labels.cutover');
     }
 
     public function getSubheading(): ?string
@@ -135,14 +135,14 @@ class ProjectCutover extends Page
     {
         return [
             Action::make('runPreflight')
-                ->label('Run preflight')
+                ->label(__('labels.run_preflight'))
                 ->icon('heroicon-o-clipboard-document-check')
                 ->color('gray')
                 ->visible(fn (): bool => $this->canPreflight())
                 ->requiresConfirmation()
-                ->modalHeading('Run cutover preflight')
-                ->modalDescription('Creates a new cutover plan from the current evidence. This records the gates as they are now; it changes nothing in your systems.')
-                ->modalSubmitActionLabel('Run preflight')
+                ->modalHeading(__('labels.run_cutover_preflight'))
+                ->modalDescription(__('labels.creates_a_new_cutover_plan_from_the_curr'))
+                ->modalSubmitActionLabel(__('labels.run_preflight'))
                 ->action(function (): void {
                     // Execution-time re-check (§17).
                     if (! $this->canPreflight()) {
@@ -153,8 +153,8 @@ class ProjectCutover extends Page
                     $this->readiness = null;
 
                     Notification::make()
-                        ->title('Preflight recorded')
-                        ->body('Plan '.$plan->run_id.' created. Review the gates and approve what is ready.')
+                        ->title(__('labels.preflight_recorded'))
+                        ->body(__('labels.plan_frag').$plan->run_id.' created. Review the gates and approve what is ready.')
                         ->success()
                         ->send();
                 }),

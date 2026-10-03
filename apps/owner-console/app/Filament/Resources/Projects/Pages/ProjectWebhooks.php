@@ -43,7 +43,7 @@ class ProjectWebhooks extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Webhooks';
+        return __('labels.webhooks');
     }
 
     public function getBreadcrumbs(): array
@@ -114,16 +114,16 @@ class ProjectWebhooks extends Page
             ->orderBy('name')->pluck('name', 'id')->all();
 
         return array_filter([
-            Action::make('new_webhook')->label('New webhook')->icon('heroicon-o-plus')
+            Action::make('new_webhook')->label(__('labels.new_webhook'))->icon('heroicon-o-plus')
                 ->slideOver()
                 ->schema([
                     TextInput::make('name')->required()->maxLength(120),
-                    TextInput::make('url')->label('Target URL')->required()->maxLength(2048)
+                    TextInput::make('url')->label(__('labels.target_url'))->required()->maxLength(2048)
                         ->placeholder('https://…'),
                     CheckboxList::make('events')->options(array_combine(WebhookService::EVENTS, WebhookService::EVENTS))
                         ->required()->columns(2),
-                    TextInput::make('max_attempts')->label('Max attempts')->numeric()->default(5)->minValue(1)->maxValue(10),
-                    TextInput::make('timeout_s')->label('Timeout (s)')->numeric()->default(10)->minValue(2)->maxValue(30),
+                    TextInput::make('max_attempts')->label(__('labels.max_attempts'))->numeric()->default(5)->minValue(1)->maxValue(10),
+                    TextInput::make('timeout_s')->label(__('labels.timeout_s'))->numeric()->default(10)->minValue(2)->maxValue(30),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'webhooks.manage');
@@ -138,15 +138,15 @@ class ProjectWebhooks extends Page
                         'timeout_s' => (int) ($data['timeout_s'] ?? 10),
                     ]);
                     $this->audit('WEBHOOK_CREATED', 'webhook', $webhook->id, ['name' => $webhook->name]);
-                    Notification::make()->title('Webhook created — signing secret generated server-side')->success()->send();
+                    Notification::make()->title(__('labels.webhook_created_signing_secret_generated'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $webhooks === [] ? null : Action::make('test_send')->label('Send test event')
+            $webhooks === [] ? null : Action::make('test_send')->label(__('labels.send_test_event'))
                 ->slideOver()
                 ->schema([
-                    Select::make('id')->label('Webhook')->required()->options($webhooks),
-                    Select::make('event')->label('Event')->required()->options(array_combine(WebhookService::EVENTS, WebhookService::EVENTS)),
-                    Textarea::make('payload')->label('Payload (JSON)')->rows(3)->default('{"ping": true}')
+                    Select::make('id')->label(__('labels.webhook'))->required()->options($webhooks),
+                    Select::make('event')->label(__('labels.event'))->required()->options(array_combine(WebhookService::EVENTS, WebhookService::EVENTS)),
+                    Textarea::make('payload')->label(__('labels.payload_json'))->rows(3)->default('{"ping": true}')
                         ->extraAttributes(['class' => 'cp-code', 'spellcheck' => 'false']),
                 ])
                 ->action(function (array $data) {
@@ -159,9 +159,9 @@ class ProjectWebhooks extends Page
                     $delivery->status === 'delivered' ? $note->success()->send() : $note->warning()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $webhooks === [] ? null : Action::make('toggle')->label('Enable / disable')
+            $webhooks === [] ? null : Action::make('toggle')->label(__('labels.enable_disable'))
                 ->schema([
-                    Select::make('id')->label('Webhook')->required()->options($webhooks),
+                    Select::make('id')->label(__('labels.webhook'))->required()->options($webhooks),
                     Select::make('enabled')->required()->options(['1' => 'Enabled', '0' => 'Disabled']),
                 ])
                 ->action(function (array $data) {
@@ -169,12 +169,12 @@ class ProjectWebhooks extends Page
                     $webhook = ProjectWebhook::query()->where('project_id', $this->project()->id)->findOrFail($data['id']);
                     $webhook->forceFill(['enabled' => $data['enabled'] === '1'])->save();
                     $this->audit('WEBHOOK_UPDATED', 'webhook', $webhook->id, ['enabled' => $webhook->enabled]);
-                    Notification::make()->title('Webhook updated')->success()->send();
+                    Notification::make()->title(__('labels.webhook_updated'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $webhooks === [] ? null : Action::make('delete')->label('Delete')->color('danger')
+            $webhooks === [] ? null : Action::make('delete')->label(__('labels.delete'))->color('danger')
                 ->requiresConfirmation()
-                ->schema([Select::make('id')->label('Webhook')->required()->options($webhooks)])
+                ->schema([Select::make('id')->label(__('labels.webhook'))->required()->options($webhooks)])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'webhooks.manage');
                     $webhook = ProjectWebhook::query()->where('project_id', $this->project()->id)->findOrFail($data['id']);

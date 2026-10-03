@@ -48,7 +48,7 @@ class ProjectBackups extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Backups';
+        return __('labels.backups');
     }
 
     public function getBreadcrumbs(): array
@@ -120,30 +120,30 @@ class ProjectBackups extends Page implements HasTable
 
         return $schema->components([
             Section::make('Status')->schema([
-                TextEntry::make('last')->label('Latest backup')->state($stats['last_backup'] ? $stats['last_backup']->finished_at?->toDateTimeString().' · '.$stats['last_backup']->status : 'none yet')
+                TextEntry::make('last')->label(__('labels.latest_backup'))->state($stats['last_backup'] ? $stats['last_backup']->finished_at?->toDateTimeString().' · '.$stats['last_backup']->status : 'none yet')
                     ->badge()->color($stats['last_backup'] ? 'success' : 'gray'),
-                TextEntry::make('verified')->label('Verified')->state($verifiedAt ?? 'not verified yet')
+                TextEntry::make('verified')->label(__('labels.verified'))->state($verifiedAt ?? 'not verified yet')
                     ->badge()->color($verifiedAt ? 'success' : 'warning'),
-                TextEntry::make('drill')->label('Restore drill')
+                TextEntry::make('drill')->label(__('labels.restore_drill'))
                     ->state($health['latest_restore_test_at'] ? \Illuminate\Support\Str::limit($health['latest_restore_test_at'], 16).' · passed' : 'never tested')
                     ->badge()->color($health['latest_restore_test_at'] ? 'success' : 'warning'),
-                TextEntry::make('retention')->label('Retention')->state($this->retentionLine($stats)),
-                TextEntry::make('db_size')->label('Live DB size')->state($this->bytes($stats['db_bytes'])),
+                TextEntry::make('retention')->label(__('labels.retention'))->state($this->retentionLine($stats)),
+                TextEntry::make('db_size')->label(__('labels.live_db_size'))->state($this->bytes($stats['db_bytes'])),
             ])->headerActions([
-                Action::make('trigger_backup')->label('Trigger backup now')
+                Action::make('trigger_backup')->label(__('labels.trigger_backup_now'))
                     ->icon('heroicon-o-archive-box')
                     ->requiresConfirmation()
-                    ->modalDescription('Runs pg_dump for this project database. Recorded + audit logged.')
+                    ->modalDescription(__('labels.runs_pg_dump_for_this_project_database_r'))
                     ->action(function () {
                         try {
                             $record = ProjectBackupService::for($this->project())->trigger();
                         } catch (\Throwable $e) {
-                            Notification::make()->title('Backup failed')->body($e->getMessage())->danger()->send();
+                            Notification::make()->title(__('labels.backup_failed'))->body($e->getMessage())->danger()->send();
 
                             return;
                         }
                         $this->audit('BACKUP_TRIGGERED', 'backup', $record->id, ['file' => basename((string) $record->log)]);
-                        Notification::make()->title('Backup complete')->body(number_format($record->size_bytes).' bytes')->success()->send();
+                        Notification::make()->title(__('labels.backup_complete'))->body(number_format($record->size_bytes).' bytes')->success()->send();
                     }),
             ])->compact(),
             \Filament\Schemas\Components\Html::make('<details class="cp-details"><summary>Restore policy · why there is no restore button</summary>'
@@ -178,32 +178,32 @@ class ProjectBackups extends Page implements HasTable
         $project = $this->project();
 
         return [
-            Action::make('new_policy')->label('New policy')->icon('heroicon-o-plus')
+            Action::make('new_policy')->label(__('labels.new_policy'))->icon('heroicon-o-plus')
                 ->visible(fn () => \App\Services\ControlPlane\CpAccess::allows(auth()->user(), 'backups.policy'))
                 ->schema([
                     \Filament\Forms\Components\TextInput::make('name')->required(),
                     \Filament\Forms\Components\Select::make('scope')->options(['database' => 'database', 'storage' => 'storage'])->default('database'),
                     \Filament\Forms\Components\Select::make('schedule')->options(['hourly' => 'hourly', 'daily' => 'daily', 'weekly' => 'weekly'])->default('daily'),
                     \Filament\Forms\Components\TextInput::make('retention_days')->numeric()->default(14),
-                    \Filament\Forms\Components\Select::make('destination_id')->label('Destination')
+                    \Filament\Forms\Components\Select::make('destination_id')->label(__('labels.destination'))
                         ->options(BackupDestination::where('project_id', $project->id)->pluck('name', 'id')->all())->native(false),
                     \Filament\Forms\Components\Toggle::make('encrypted')->default(false),
                 ])
                 ->action(function (array $data) {
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'backups.policy');
                     BackupCenterService::createPolicy($this->project(), $data);
-                    Notification::make()->title('Backup policy created')->success()->send();
+                    Notification::make()->title(__('labels.backup_policy_created'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('new_destination')->label('New destination')->icon('heroicon-o-cloud-arrow-up')
+            Action::make('new_destination')->label(__('labels.new_destination'))->icon('heroicon-o-cloud-arrow-up')
                 ->visible(fn () => \App\Services\ControlPlane\CpAccess::allows(auth()->user(), 'backups.policy'))
                 ->schema([
                     \Filament\Forms\Components\TextInput::make('name')->required(),
                     \Filament\Forms\Components\Select::make('driver')->options(['local' => 'local', 's3-compatible' => 's3-compatible (R2/B2/MinIO/S3)'])->default('local'),
                     \Filament\Forms\Components\TextInput::make('endpoint')->url()->placeholder('https://<account>.r2.cloudflarestorage.com'),
                     \Filament\Forms\Components\TextInput::make('bucket'),
-                    \Filament\Forms\Components\TextInput::make('secret_ref')->label('Access key vault secret name')
-                        ->helperText('Vault reference only — never paste the key.'),
+                    \Filament\Forms\Components\TextInput::make('secret_ref')->label(__('labels.access_key_vault_secret_name'))
+                        ->helperText(__('labels.vault_reference_only_never_paste_the_key')),
                 ])
                 ->action(function (array $data) {
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'backups.policy');
@@ -213,10 +213,10 @@ class ProjectBackups extends Page implements HasTable
                         'config' => array_filter(['endpoint' => $data['endpoint'] ?? null, 'bucket' => $data['bucket'] ?? null]),
                         'secret_ref' => $data['secret_ref'] ?? null,
                     ]);
-                    Notification::make()->title('Destination registered')->success()->send();
+                    Notification::make()->title(__('labels.destination_registered'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('run_policy')->label('Run policy now')->icon('heroicon-o-play')
+            Action::make('run_policy')->label(__('labels.run_policy_now'))->icon('heroicon-o-play')
                 ->visible(fn () => \App\Services\ControlPlane\CpAccess::allows(auth()->user(), 'backups.policy') && BackupPolicy::where('project_id', $project->id)->exists())
                 ->schema([
                     \Filament\Forms\Components\Select::make('policy_id')->required()->options(
@@ -227,24 +227,24 @@ class ProjectBackups extends Page implements HasTable
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'backups.policy');
                     $policy = BackupPolicy::where('project_id', $this->project()->id)->findOrFail($data['policy_id']);
                     $run = BackupCenterService::runBackup($policy, 'manual');
-                    Notification::make()->title('Policy run: '.$run->status)->success($run->status === 'completed')->danger($run->status === 'failed')->send();
+                    Notification::make()->title(__('labels.policy_run_frag').$run->status)->success($run->status === 'completed')->danger($run->status === 'failed')->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('restore_drill')->label('Restore drill')->icon('heroicon-o-lifebuoy')->color('warning')
+            Action::make('restore_drill')->label(__('labels.restore_drill'))->icon('heroicon-o-lifebuoy')->color('warning')
                 ->visible(fn () => \App\Services\ControlPlane\CpAccess::allows(auth()->user(), 'restore.local'))
                 ->requiresConfirmation()
-                ->modalDescription('Restores a completed backup into a NEW disposable database, validates, then drops it. The active database is never touched.')
+                ->modalDescription(__('labels.restores_a_completed_backup_into_a_new_d'))
                 ->schema([
                     \Filament\Forms\Components\Select::make('backup_id')->required()->options(
                         BackupRun::where('project_id', $project->id)->where('type', 'database')->where('status', 'completed')
                             ->orderByDesc('id')->limit(20)->pluck('id', 'id')->all()
-                    )->helperText('Completed database backup runs.'),
+                    )->helperText(__('labels.completed_database_backup_runs')),
                 ])
                 ->action(function (array $data) {
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'restore.local');
                     $backup = BackupRun::where('project_id', $this->project()->id)->findOrFail($data['backup_id']);
                     $drill = BackupCenterService::requestRestoreDrill($backup);
-                    Notification::make()->title('Drill: '.$drill->status)
+                    Notification::make()->title(__('labels.drill_frag').$drill->status)
                         ->body($drill->meta['tables_restored'] ?? $drill->error ?? '')
                         ->success($drill->status === 'drill_passed')->danger($drill->status === 'drill_failed')->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
@@ -268,28 +268,28 @@ class ProjectBackups extends Page implements HasTable
         return $table
             ->query(fn () => BackupRecord::where('db_name', $this->project()->db_name)->orderByDesc('finished_at'))
             ->columns([
-                TextColumn::make('finished_at')->label('Created')->dateTime()->sortable(),
+                TextColumn::make('finished_at')->label(__('labels.created'))->dateTime()->sortable(),
                 TextColumn::make('type')->badge(),
                 TextColumn::make('status')->badge()->color(fn ($s) => $s === 'ok' ? 'success' : 'danger'),
-                TextColumn::make('size_bytes')->label('Size')->formatStateUsing(fn ($s) => $this->bytes((int) $s)),
-                TextColumn::make('verified_at')->label('Verified')->dateTime()->placeholder('—'),
-                TextColumn::make('restore_test_status')->label('Restore test')->badge(),
+                TextColumn::make('size_bytes')->label(__('labels.size'))->formatStateUsing(fn ($s) => $this->bytes((int) $s)),
+                TextColumn::make('verified_at')->label(__('labels.verified'))->dateTime()->placeholder('—'),
+                TextColumn::make('restore_test_status')->label(__('labels.restore_test'))->badge(),
                 TextColumn::make('location')->badge()->color('gray'),
             ])
             ->recordActions([
-                Action::make('verify')->label('Verify')->icon('heroicon-o-check-badge')
+                Action::make('verify')->label(__('labels.verify'))->icon('heroicon-o-check-badge')
                     ->visible(fn ($record) => $record->verified_at === null)
                     ->requiresConfirmation()
                     ->action(function (BackupRecord $record) {
                         try {
                             ProjectBackupService::for($this->project())->verify($record);
                         } catch (\Throwable $e) {
-                            Notification::make()->title('Verification failed')->body($e->getMessage())->danger()->send();
+                            Notification::make()->title(__('labels.verification_failed'))->body($e->getMessage())->danger()->send();
 
                             return;
                         }
                         $this->audit('BACKUP_VERIFIED', 'backup', $record->id);
-                        Notification::make()->title('Backup verified')->success()->send();
+                        Notification::make()->title(__('labels.backup_verified'))->success()->send();
                     }),
             ])
             ->emptyStateHeading('No backups recorded for this project yet');

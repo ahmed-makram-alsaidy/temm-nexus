@@ -42,7 +42,7 @@ class ManageProjectPermissions extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Permissions';
+        return __('labels.permissions');
     }
 
     public function getBreadcrumbs(): array
@@ -68,12 +68,12 @@ class ManageProjectPermissions extends Page implements HasTable
         }
 
         return [
-            Action::make('bootstrap_permissions')->label('Setup permissions table')->icon('heroicon-o-wrench-screwdriver')
+            Action::make('bootstrap_permissions')->label(__('labels.setup_permissions_table'))->icon('heroicon-o-wrench-screwdriver')
                 ->action(function () {
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'users.manage');
                     $created = \App\Services\ControlPlane\AuthBootstrapService::ensureTables($this->project());
                     $this->audit('PERMISSION_CREATED', 'permission', null, ['bootstrapped' => $created]);
-                    Notification::make()->title('Permissions table ready')->success()->send();
+                    Notification::make()->title(__('labels.permissions_table_ready'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
         ];
@@ -101,7 +101,7 @@ class ManageProjectPermissions extends Page implements HasTable
                 TextColumn::make('created_at')->dateTime()->sortable()->toggleable(),
             ])
             ->recordActions([
-                Action::make('edit_permission')->label('Edit')->icon('heroicon-o-pencil-square')
+                Action::make('edit_permission')->label(__('labels.edit'))->icon('heroicon-o-pencil-square')
                     ->schema([
                         TextInput::make('name')->required()->maxLength(128),
                         Textarea::make('description')->rows(2)->maxLength(500),
@@ -111,21 +111,21 @@ class ManageProjectPermissions extends Page implements HasTable
                         $record->fill($data);
                         $record->save();
                         $this->audit('PERMISSION_UPDATED', 'permission', $record->getKey(), ['name' => $data['name']]);
-                        Notification::make()->title('Permission updated')->success()->send();
+                        Notification::make()->title(__('labels.permission_updated'))->success()->send();
                     }),
-                Action::make('delete_permission')->label('Delete')->icon('heroicon-o-trash')->color('danger')
+                Action::make('delete_permission')->label(__('labels.delete'))->icon('heroicon-o-trash')->color('danger')
                     ->requiresConfirmation()
                     ->action(function ($record) {
                         $name = $record->name;
                         $record->delete();
                         $this->audit('PERMISSION_DELETED', 'permission', $name);
-                        Notification::make()->title('Permission deleted')->success()->send();
+                        Notification::make()->title(__('labels.permission_deleted'))->success()->send();
                     }),
             ])
             ->headerActions([
-                Action::make('create_permission')->label('New permission')
+                Action::make('create_permission')->label(__('labels.new_permission'))
                     ->schema([
-                        TextInput::make('name')->required()->maxLength(128)->helperText('Explicit keys like orders.create beat implicit role-name logic.'),
+                        TextInput::make('name')->required()->maxLength(128)->helperText(__('labels.explicit_keys_like_orders_create_beat_im')),
                         Textarea::make('description')->rows(2)->maxLength(500),
                     ])
                     ->action(function (array $data) {
@@ -135,7 +135,7 @@ class ManageProjectPermissions extends Page implements HasTable
                         $perm->fill($data);
                         $perm->save();
                         $this->audit('PERMISSION_CREATED', 'permission', $perm->getKey(), ['name' => $data['name']]);
-                        Notification::make()->title('Permission created')->success()->send();
+                        Notification::make()->title(__('labels.permission_created'))->success()->send();
                     }),
             ]);
     }

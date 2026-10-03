@@ -42,7 +42,7 @@ class ProjectClientRepository extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Client Repository';
+        return __('labels.client_repository');
     }
 
     public function getBreadcrumbs(): array
@@ -121,40 +121,40 @@ class ProjectClientRepository extends Page
         $project = $this->project();
 
         return [
-            Action::make('link_local')->label('Link local repository')->icon('heroicon-o-folder-open')
+            Action::make('link_local')->label(__('labels.link_local_repository'))->icon('heroicon-o-folder-open')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'repositories.manage'))
                 ->schema([
                     TextInput::make('display_name')->required(),
                     TextInput::make('root_path')->required()->placeholder('/srv/client-repos/example')
-                        ->helperText('The operator approves this exact root. The scanner/patcher can never read outside it.'),
+                        ->helperText(__('labels.the_operator_approves_this_exact_root_th')),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'repositories.manage');
                     try {
                         ClientRepositoryService::linkLocal($this->project(), $data['display_name'], $data['root_path']);
-                        Notification::make()->title('Repository linked (approved root persisted)')->success()->send();
+                        Notification::make()->title(__('labels.repository_linked_approved_root_persiste'))->success()->send();
                     } catch (\Throwable $e) {
                         Notification::make()->title($e->getMessage())->danger()->send();
                     }
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('link_git')->label('Link git repository (metadata)')->icon('heroicon-o-link')
+            Action::make('link_git')->label(__('labels.link_git_repository_metadata'))->icon('heroicon-o-link')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'repositories.manage'))
                 ->schema([
                     TextInput::make('display_name')->required(),
                     TextInput::make('git_url')->required()->url(),
                     TextInput::make('git_branch')->default('main'),
-                    TextInput::make('credential_ref')->label('Credential vault ref (optional)'),
+                    TextInput::make('credential_ref')->label(__('labels.credential_vault_ref_optional')),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'repositories.manage');
                     ClientRepositoryService::linkGit($this->project(), $data['display_name'], $data['git_url'], $data['git_branch'], $data['credential_ref'] ?? null);
-                    Notification::make()->title('Git repository linked (metadata model)')->success()->send();
+                    Notification::make()->title(__('labels.git_repository_linked_metadata_model'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('scan')->label('Scan dependencies')->icon('heroicon-o-magnifying-glass')
+            Action::make('scan')->label(__('labels.scan_dependencies'))->icon('heroicon-o-magnifying-glass')
                 ->visible(fn () => ClientRepository::where('project_id', $project->id)->where('source_type', 'local')->exists())
-                ->schema([Select::make('repository_id')->label('Repository')->required()->options(
+                ->schema([Select::make('repository_id')->label(__('labels.repository'))->required()->options(
                     ClientRepository::where('project_id', $project->id)->where('source_type', 'local')->pluck('display_name', 'id')->all()
                 )])
                 ->action(function (array $data) {

@@ -22,10 +22,10 @@ class DatabaseOverviewWidget extends BaseWidget
         return $table
             ->query(fn () => $this->rows())
             ->columns([
-                TextColumn::make('db')->label('Database'),
-                TextColumn::make('size')->label('Size'),
-                TextColumn::make('conns')->label('Active conns'),
-                TextColumn::make('tables')->label('Tables'),
+                TextColumn::make('db')->label(__('labels.database')),
+                TextColumn::make('size')->label(__('labels.size')),
+                TextColumn::make('conns')->label(__('labels.active_conns')),
+                TextColumn::make('tables')->label(__('labels.tables')),
             ])
             ->paginated(false);
     }

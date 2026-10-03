@@ -134,7 +134,7 @@ class Workspaces extends Page
                 ->icon('heroicon-o-plus')
                 ->visible(fn (): bool => $this->canCreate())
                 ->modalHeading(__('workspaces.create_workspace_heading'))
-                ->modalDescription('A workspace is one client, company, or internal team. Projects live inside it.')
+                ->modalDescription(__('labels.a_workspace_is_one_client_company_or_int'))
                 ->modalSubmitActionLabel(__('workspaces.create_workspace_submit'))
                 ->schema([
                     TextInput::make('name')

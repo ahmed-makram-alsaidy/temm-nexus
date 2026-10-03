@@ -29,6 +29,10 @@
     if (!root || root.dataset.ready) return;
     root.dataset.ready = '1';
     var cfg = JSON.parse(root.dataset.config || '{}');
+    /* rc.5 localization (C.1): user-facing strings come from the server in
+       the user's locale; the JS never hard-codes English copy. */
+    var T = cfg.i18n || {};
+    function t(key, fallback) { return T[key] || fallback; }
 
     var S = {
       cfg: cfg,
@@ -94,7 +98,7 @@
     }
 
     function loadGraph() {
-      setEmpty('Loading schema…');
+      setEmpty(t('loading', 'Loading schema…'));
       var t0 = performance.now();
       return api('?schema=' + encodeURIComponent(S.schema)).then(function (j) {
         S.graph = j.graph;
@@ -112,15 +116,15 @@
         // Large schemas open with columns collapsed so the canvas stays usable.
         S.collapseAll = (S.graph.tables.length > 50) && !S.serverLayout;
         if (S.graph.tables.length > 50) {
-          showBanner('Large schema (' + S.graph.tables.length + ' tables): columns start collapsed. ' +
-            'Use search, focus mode, or hide isolated tables to narrow the view.');
+          showBanner(t('largeSchema', 'Large schema (:count tables): columns start collapsed. Use search, focus mode, or hide isolated tables to narrow the view.')
+            .replace(':count', S.graph.tables.length));
         } else { showBanner(''); }
         autoLayout(false);
         render(performance.now() - t0);
         setEmpty('');
-        if (!S.graph.tables.length) setEmpty('No tables in schema "' + S.schema + '".');
+        if (!S.graph.tables.length) setEmpty(t('noTables', 'No tables in schema ":schema".').replace(':schema', S.schema));
       }).catch(function (e) {
-        setEmpty('Could not load schema graph (' + e.message + ').');
+        setEmpty(t('couldNotLoad', 'Could not load schema graph (:reason).').replace(':reason', e.message));
       });
     }
 
@@ -502,12 +506,12 @@
         var found = null;
         edgeEls.forEach(function (o) { if (o.i === S.selectedEdge) found = o.e; });
         if (found) {
-          d.innerHTML = '<h3>Relationship</h3>' +
+          d.innerHTML = '<h3>' + esc(t('relationship', 'Relationship')) + '</h3>' +
             '<p><code>' + esc(found.from_table + '.' + found.from_column) + '</code><br>→ ' +
             '<code>' + esc(found.to_table + '.' + found.to_column) + '</code></p>' +
-            '<h4>Constraint</h4><p><code>' + esc(found.constraint) + '</code></p>' +
-            '<h4>Actions</h4><p>ON UPDATE ' + esc(found.on_update) + '<br>ON DELETE ' + esc(found.on_delete) + '</p>' +
-            '<div class="cp-erd__btnrow"><button class="cp-btn" data-act="open-from">Open ' + esc(found.from_table) + '</button></div>';
+            '<h4>' + esc(t('constraint', 'Constraint')) + '</h4><p><code>' + esc(found.constraint) + '</code></p>' +
+            '<h4>' + esc(t('actions', 'Actions')) + '</h4><p>ON UPDATE ' + esc(found.on_update) + '<br>ON DELETE ' + esc(found.on_delete) + '</p>' +
+            '<div class="cp-erd__btnrow"><button class="cp-btn" data-act="open-from">' + esc(t('open', 'Open :name').replace(':name', found.from_table)) + '</button></div>';
           bindDetailButtons(d, found.from_table);
           return;
         }
@@ -527,32 +531,33 @@
                 esc(e.to_table + '.' + e.to_column) + '</code></td></tr>';
             }).join('');
           d.innerHTML = '<h3>' + esc(t.name) + '</h3>' +
-            '<p style="color:var(--cp-text-dim)">≈' + (t.rows_estimate == null ? '—' : Number(t.rows_estimate).toLocaleString()) +
-            ' rows · PK (' + esc(t.pk.join(', ') || '—') + ')</p>' +
-            '<h4>Columns (' + t.columns.length + ')</h4>' +
-            '<table><thead><tr><th>Name</th><th>Type</th><th>Keys</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-            '<h4>Relationships (' + (fks ? S.graph.edges.filter(function (e) { return e.from_table === t.name || e.to_table === t.name; }).length : 0) + ')</h4>' +
-            (fks ? '<table><tbody>' + fks + '</tbody></table>' : '<p>None.</p>') +
+            '<p style="color:var(--cp-text-dim)">' +
+            esc(t('rowsEstimate', '≈:count rows · PK (:pk)').replace(':count', (t.rows_estimate == null ? '—' : Number(t.rows_estimate).toLocaleString())).replace(':pk', (t.pk.join(', ') || '—'))) + '</p>' +
+            '<h4>' + esc(t('columns', 'Columns (:count)').replace(':count', t.columns.length)) + '</h4>' +
+            '<table><thead><tr><th>' + esc(t('name', 'Name')) + '</th><th>' + esc(t('type', 'Type')) + '</th><th>' + esc(t('keys', 'Keys')) + '</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+            '<h4>' + esc(t('relationships', 'Relationships (:count)').replace(':count', (fks ? S.graph.edges.filter(function (e) { return e.from_table === t.name || e.to_table === t.name; }).length : 0))) + '</h4>' +
+            (fks ? '<table><tbody>' + fks + '</tbody></table>' : '<p>' + esc(t('none', 'None.')) + '</p>') +
             '<div class="cp-erd__btnrow">' +
-            '<button class="cp-btn" data-act="records">Open in Table Editor</button>' +
-            '<button class="cp-btn" data-act="schema">Open Schema</button>' +
-            '<button class="cp-btn" data-act="focus">Focus related</button></div>';
+            '<button class="cp-btn" data-act="records">' + esc(t('openInTableEditor', 'Open in Table Editor')) + '</button>' +
+            '<button class="cp-btn" data-act="schema">' + esc(t('openSchema', 'Open Schema')) + '</button>' +
+            '<button class="cp-btn" data-act="focus">' + esc(t('focusRelated', 'Focus related')) + '</button></div>';
           bindDetailButtons(d, t.name);
           return;
         }
       }
       if (S.focus) {
         var n = Object.keys(neighborsOf(S.focus)).length;
-        d.innerHTML = '<h3>Focus: ' + esc(S.focus) + '</h3><p>' + n + ' directly related table(s).</p>' +
-          '<div class="cp-erd__btnrow"><button class="cp-btn" data-act="unfocus">Clear focus</button></div>';
+        d.innerHTML = '<h3>' + esc(t('focus', 'Focus: :name').replace(':name', S.focus)) + '</h3><p>' +
+          esc(t('relatedCount', ':count directly related table(s).').replace(':count', n)) + '</p>' +
+          '<div class="cp-erd__btnrow"><button class="cp-btn" data-act="unfocus">' + esc(t('clearFocus', 'Clear focus')) + '</button></div>';
         bindDetailButtons(d, S.focus);
         return;
       }
-      d.innerHTML = '<h3>ERD</h3><p style="color:var(--cp-text-dim)">Click a table for columns, keys and ' +
-        'shortcuts. Hover a relationship line for constraint details; click it to pin them here. ' +
-        'Double-click a table to open its Schema page.</p>' +
+      d.innerHTML = '<h3>ERD</h3><p style="color:var(--cp-text-dim)">' + esc(t('help',
+        'Click a table for columns, keys and shortcuts. Hover a relationship line for constraint details; click it to pin them here. ' +
+        'Double-click a table to open its Schema page.')) + '</p>' +
         (S.graph && S.graph.enums && S.graph.enums.length
-          ? '<h4>Enums (' + S.graph.enums.length + ')</h4><p><code>' +
+          ? '<h4>' + esc(t('enums', 'Enums (:count)').replace(':count', S.graph.enums.length)) + '</h4><p><code>' +
             esc(S.graph.enums.map(function (e) { return e.name; }).join(', ')) + '</code></p>' : '');
     }
 

@@ -67,7 +67,7 @@ class ProjectLogs extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Logs Explorer';
+        return __('labels.logs_explorer');
     }
 
     public function getBreadcrumbs(): array
@@ -156,7 +156,7 @@ class ProjectLogs extends Page
                     .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Sources: laravel files · auth · audit · functions · webhooks · scheduler · realtime · sql · backups · queue. '
                     .'Click a request chip to follow one call across API → function → logs.</p>'),
             ])->headerActions([
-                Action::make('filter')->label('Filter')->icon('heroicon-o-funnel')
+                Action::make('filter')->label(__('labels.filter'))->icon('heroicon-o-funnel')
                     ->schema([
                         Select::make('source')->options(['all' => 'All sources'] + array_combine(LogExplorerService::SOURCES, LogExplorerService::SOURCES))
                             ->default($this->source ?? 'all'),
@@ -164,9 +164,9 @@ class ProjectLogs extends Page
                             'all' => 'All severities', 'debug' => 'Debug', 'info' => 'Info',
                             'warning' => 'Warning', 'error' => 'Error',
                         ])->default($this->severity ?? 'all'),
-                        TextInput::make('q')->label('Search')->placeholder('summary contains…')->default($this->search),
-                        TextInput::make('request_id')->label('Request ID')->placeholder('uuid…')->default($this->requestId),
-                        Select::make('since')->label('Time range')->options([
+                        TextInput::make('q')->label(__('labels.search'))->placeholder('summary contains…')->default($this->search),
+                        TextInput::make('request_id')->label(__('labels.request_id'))->placeholder('uuid…')->default($this->requestId),
+                        Select::make('since')->label(__('labels.time_range'))->options([
                             'all' => 'All time (history preserved)', '24h' => 'Last 24 hours',
                             '7d' => 'Last 7 days', '30d' => 'Last 30 days',
                         ])->default($this->since ?? 'all'),
@@ -182,20 +182,20 @@ class ProjectLogs extends Page
                             'show' => null,
                         ]));
                     }),
-                Action::make('test_exception')->label('Generate test exception')
+                Action::make('test_exception')->label(__('labels.generate_test_exception'))
                     ->icon('heroicon-o-bug-ant')
                     ->requiresConfirmation()
-                    ->modalDescription('Runs demo:throw-test-exception in the project (logs a harmless, clearly-labeled test error). Audit logged.')
+                    ->modalDescription(__('labels.runs_demo_throw_test_exception_in_the_pr'))
                     ->action(function () {
                         try {
                             $result = ProjectArtisan::run($this->project(), 'demo:throw-test-exception');
                         } catch (\Throwable $e) {
-                            Notification::make()->title('Not available')->body($e->getMessage())->warning()->send();
+                            Notification::make()->title(__('labels.not_available'))->body($e->getMessage())->warning()->send();
 
                             return;
                         }
                         $this->audit('PROJECT_HEALTH_CHECKED', 'logs', 'test-exception');
-                        Notification::make()->title('Test exception logged')->body(mb_substr($result['output'], 0, 200))->success()->send();
+                        Notification::make()->title(__('labels.test_exception_logged'))->body(mb_substr($result['output'], 0, 200))->success()->send();
                         $this->redirect($this->self(['source' => 'laravel', 'severity' => 'error']));
                     }),
             ]),

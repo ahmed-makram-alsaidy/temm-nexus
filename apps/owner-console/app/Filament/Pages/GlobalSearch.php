@@ -40,7 +40,7 @@ class GlobalSearch extends Page
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'Search';
+        return __('labels.search');
     }
 
     public function getBreadcrumbs(): array

@@ -42,7 +42,7 @@ class ProjectFunctions extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Functions';
+        return __('labels.functions');
     }
 
     public function getBreadcrumbs(): array
@@ -103,12 +103,12 @@ class ProjectFunctions extends Page
         }
 
         return [
-            Action::make('new_function')->label('New function')->icon('heroicon-o-plus')
+            Action::make('new_function')->label(__('labels.new_function'))->icon('heroicon-o-plus')
                 ->slideOver()
                 ->schema([
                     TextInput::make('name')->required()->maxLength(120),
                     TextInput::make('slug')->required()->regex('/^[a-z0-9][a-z0-9\-]{1,118}$/')
-                        ->helperText('URL slug, e.g. hello-platform.'),
+                        ->helperText(__('labels.url_slug_e_g_hello_platform')),
                     Textarea::make('description')->rows(2),
                     Select::make('type')->required()->options(FunctionRunner::types())->default('static'),
                     Select::make('auth_mode')->required()->options([

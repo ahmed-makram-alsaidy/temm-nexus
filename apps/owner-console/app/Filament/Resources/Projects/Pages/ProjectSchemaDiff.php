@@ -42,7 +42,7 @@ class ProjectSchemaDiff extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Schema Diff';
+        return __('labels.schema_diff');
     }
 
     public function getBreadcrumbs(): array
@@ -110,10 +110,10 @@ class ProjectSchemaDiff extends Page
         $envOptions = $project->environments()->orderBy('id')->pluck('name', 'id')->all();
 
         return [
-            Action::make('capture_snapshot')->label('Capture snapshot')->icon('heroicon-o-camera')
+            Action::make('capture_snapshot')->label(__('labels.capture_snapshot'))->icon('heroicon-o-camera')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'database.read'))
                 ->schema([
-                    \Filament\Forms\Components\Select::make('environment_id')->label('Environment')->options($envOptions),
+                    \Filament\Forms\Components\Select::make('environment_id')->label(__('labels.environment'))->options($envOptions),
                 ])
                 ->action(function (array $data) {
                     $project = $this->project();
@@ -129,25 +129,25 @@ class ProjectSchemaDiff extends Page
                             (string) ($config['password'] ?? '')
                         );
                     } catch (\Throwable $e) {
-                        Notification::make()->title('Live introspection unavailable')->body(\Illuminate\Support\Str::limit($e->getMessage(), 200))->danger()->send();
+                        Notification::make()->title(__('labels.live_introspection_unavailable'))->body(\Illuminate\Support\Str::limit($e->getMessage(), 200))->danger()->send();
 
                         return;
                     }
                     SchemaDiffService::snapshot($project, $env?->id, 'live', $inventory, now()->format('M j H:i'), auth()->id());
-                    Notification::make()->title('Snapshot captured')->success()->send();
+                    Notification::make()->title(__('labels.snapshot_captured'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $project]));
                 }),
-            Action::make('compare_envs')->label('Compare environments')->icon('heroicon-o-arrows-right-left')
+            Action::make('compare_envs')->label(__('labels.compare_environments'))->icon('heroicon-o-arrows-right-left')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'database.read'))
                 ->schema([
-                    \Filament\Forms\Components\Select::make('a')->label('Environment A')->options($envOptions)->required(),
-                    \Filament\Forms\Components\Select::make('b')->label('Environment B')->options($envOptions)->required()->different('a'),
+                    \Filament\Forms\Components\Select::make('a')->label(__('labels.environment_a'))->options($envOptions)->required(),
+                    \Filament\Forms\Components\Select::make('b')->label(__('labels.environment_b'))->options($envOptions)->required()->different('a'),
                 ])
                 ->action(function (array $data) use ($project) {
                     $snapA = SchemaSnapshot::where('project_id', $project->id)->where('environment_id', $data['a'])->orderByDesc('id')->first();
                     $snapB = SchemaSnapshot::where('project_id', $project->id)->where('environment_id', $data['b'])->orderByDesc('id')->first();
                     if (! $snapA || ! $snapB) {
-                        Notification::make()->title('Both environments need a snapshot first')->danger()->send();
+                        Notification::make()->title(__('labels.both_environments_need_a_snapshot_first'))->danger()->send();
 
                         return;
                     }

@@ -92,7 +92,7 @@ class ProjectTableSchema extends Page
                         TextEntry::make('type'),
                         TextEntry::make('nullable')->formatStateUsing(fn ($s) => $s ? 'yes' : 'no'),
                         TextEntry::make('default')->placeholder('—'),
-                        TextEntry::make('pk')->label('PK')->formatStateUsing(fn ($s) => $s ? '✓' : '—'),
+                        TextEntry::make('pk')->label(__('labels.pk'))->formatStateUsing(fn ($s) => $s ? '✓' : '—'),
                     ])->columns(5)->contained(false),
                 ]);
             $fks = array_map(
@@ -135,7 +135,7 @@ class ProjectTableSchema extends Page
     protected function schemaPageActions(string $table): array
     {
         $actions = [
-            Action::make('browse_records')->label('Browse records')
+            Action::make('browse_records')->label(__('labels.browse_records'))
                 ->url(ProjectTableRecords::getUrl(['record' => $this->project(), 'table' => $table])),
         ];
         if (! \App\Services\ControlPlane\CpAccess::allows(auth()->user(), 'database.write')) {
@@ -148,7 +148,7 @@ class ProjectTableSchema extends Page
             fn ($t) => $t['type'] === 'table'
         ));
 
-        $actions[] = Action::make('add_column')->label('Add column')
+        $actions[] = Action::make('add_column')->label(__('labels.add_column'))
             ->schema([
                 TextInput::make('name')->required()->regex('/^[a-z_][a-z0-9_]{0,62}$/'),
                 Select::make('type')->required()->options([
@@ -156,8 +156,8 @@ class ProjectTableSchema extends Page
                     'bigint' => 'BIGINT', 'boolean' => 'BOOLEAN', 'timestamptz' => 'TIMESTAMPTZ',
                     'date' => 'DATE', 'numeric' => 'NUMERIC', 'jsonb' => 'JSONB', 'uuid' => 'UUID',
                 ]),
-                Toggle::make('nullable')->label('Nullable')->default(true),
-                TextInput::make('default')->label('Default')->placeholder('NULL / NOW() / …'),
+                Toggle::make('nullable')->label(__('labels.nullable'))->default(true),
+                TextInput::make('default')->label(__('labels.default'))->placeholder(__('labels.null_now')),
             ])
             ->action(function (array $data) use ($table) {
                 \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'database.write');
@@ -171,11 +171,11 @@ class ProjectTableSchema extends Page
                 $this->redirect(static::getUrl(['record' => $this->project(), 'table' => $table]));
             });
 
-        $actions[] = Action::make('add_fk')->label('Add relationship')
+        $actions[] = Action::make('add_fk')->label(__('labels.add_relationship'))
             ->schema([
-                Select::make('column')->label('This table · column')->required()->options(array_combine($columns, $columns)),
-                Select::make('to_table')->label('References table')->required()->options(array_combine($tables, $tables)),
-                TextInput::make('to_column')->label('References column')->default('id')->required(),
+                Select::make('column')->label(__('labels.this_table_column'))->required()->options(array_combine($columns, $columns)),
+                Select::make('to_table')->label(__('labels.references_table'))->required()->options(array_combine($tables, $tables)),
+                TextInput::make('to_column')->label(__('labels.references_column'))->default('id')->required(),
             ])
             ->action(function (array $data) use ($table) {
                 \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'database.write');
@@ -183,7 +183,7 @@ class ProjectTableSchema extends Page
                     $this->project(), $table, $data['column'], $data['to_table'], $data['to_column']
                 );
                 $this->audit('FK_CREATED', $table, null, ['column' => $data['column'], 'references' => $data['to_table'].'.'.$data['to_column']]);
-                Notification::make()->title('Relationship created')->success()->send();
+                Notification::make()->title(__('labels.relationship_created'))->success()->send();
                 $this->redirect(static::getUrl(['record' => $this->project(), 'table' => $table]));
             });
 
@@ -196,7 +196,7 @@ class ProjectTableSchema extends Page
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'database.write');
                     \App\Services\ControlPlane\DdlService::dropForeignKey($this->project(), $table, $constraint);
                     $this->audit('FK_DROPPED', $table, $constraint);
-                    Notification::make()->title('Relationship removed')->success()->send();
+                    Notification::make()->title(__('labels.relationship_removed'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project(), 'table' => $table]));
                 });
         }

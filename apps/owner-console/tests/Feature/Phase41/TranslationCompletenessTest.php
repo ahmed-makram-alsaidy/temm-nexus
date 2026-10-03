@@ -120,9 +120,11 @@ class TranslationCompletenessTest extends TestCase
     }
 
     /**
-     * Recursively diff the key sets of two locales.
+     * Recursively diff the key sets of two locales. Paths are compared as
+     * RAW key segments — a file may legitimately contain a literal key like
+     * `home.hero` (one level), which a naive dot-split would mangle.
      *
-     * @return list<string> dot-keys present in $from but missing in $to
+     * @return list<string> human-readable paths present in $from but missing in $to
      */
     protected function missingKeys(string $from, string $to): array
     {
@@ -130,49 +132,38 @@ class TranslationCompletenessTest extends TestCase
 
         foreach (glob(lang_path($from.'/*.php')) as $file) {
             $group = basename($file, '.php');
-            $fromLines = require $file;
+            $fromPaths = $this->keyPaths((array) require $file);
             $toFile = lang_path($to.'/'.$group.'.php');
-            $toLines = is_file($toFile) ? require $toFile : [];
+            $toPaths = is_file($toFile) ? $this->keyPaths((array) require $toFile) : [];
 
-            foreach ($this->flatten((array) $fromLines) as $key => $_) {
-                if ($this->hasKey((array) $toLines, explode('.', $key))) {
-                    continue;
+            foreach (array_keys($fromPaths) as $path) {
+                if (! isset($toPaths[$path])) {
+                    $missing[] = $group.'.'.str_replace("\x1f", '.', $path);
                 }
-                $missing[] = $group.'.'.$key;
             }
         }
 
         return $missing;
     }
 
-    /** @return array<string, mixed> dot-key => leaf value */
-    protected function flatten(array $items, string $prefix = ''): array
+    /**
+     * All leaf paths of a translation array, keyed by the raw segment path
+     * (segments joined with a unit separator — never a dot).
+     *
+     * @return array<string, true>
+     */
+    protected function keyPaths(array $items, array $prefix = []): array
     {
         $out = [];
         foreach ($items as $key => $value) {
-            $dot = $prefix === '' ? (string) $key : $prefix.'.'.$key;
+            $path = array_merge($prefix, [(string) $key]);
             if (is_array($value)) {
-                $out += $this->flatten($value, $dot);
+                $out += $this->keyPaths($value, $path);
             } else {
-                $out[$dot] = $value;
+                $out[implode("\x1f", $path)] = true;
             }
         }
 
         return $out;
-    }
-
-    protected function hasKey(array $items, array $segments): bool
-    {
-        $segment = array_shift($segments);
-
-        if (! array_key_exists($segment, $items)) {
-            return false;
-        }
-
-        if ($segments === []) {
-            return ! is_array($items[$segment]);
-        }
-
-        return is_array($items[$segment]) && $this->hasKey($items[$segment], $segments);
     }
 }

@@ -43,7 +43,7 @@ class ProjectAuthSecurity extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Providers';
+        return __('labels.providers');
     }
 
     public function getBreadcrumbs(): array
@@ -133,22 +133,22 @@ class ProjectAuthSecurity extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('edit_providers')->label('Providers')
+            Action::make('edit_providers')->label(__('labels.providers'))
                 ->schema([
-                    Toggle::make('providers.email_password')->label('Email + password'),
+                    Toggle::make('providers.email_password')->label(__('labels.email_password')),
                     Toggle::make('providers.google')->label('Google'),
-                    TextInput::make('providers.google_secret')->label('Google client secret (vault ref name)')
+                    TextInput::make('providers.google_secret')->label(__('labels.google_client_secret_vault_ref_name'))
                         ->placeholder('GOOGLE_CLIENT_SECRET'),
                     Toggle::make('providers.apple')->label('Apple'),
-                    TextInput::make('providers.apple_secret')->label('Apple client secret (vault ref name)'),
+                    TextInput::make('providers.apple_secret')->label(__('labels.apple_client_secret_vault_ref_name')),
                     Toggle::make('providers.github')->label('GitHub'),
-                    TextInput::make('providers.github_secret')->label('GitHub client secret (vault ref name)'),
+                    TextInput::make('providers.github_secret')->label(__('labels.github_client_secret_vault_ref_name')),
                 ])
                 ->fillForm(['providers' => $this->config()->providers ?? []])
                 ->action(function (array $data) {
                     $this->saveConfig(['providers' => $this->cleanProviders($data['providers'] ?? [])]);
                 }),
-            Action::make('edit_policy')->label('Password & session policy')
+            Action::make('edit_policy')->label(__('labels.password_session_policy'))
                 ->schema([
                     TextInput::make('password_policy.min_length')->numeric()->minValue(8)->maxValue(64)->required(),
                     TextInput::make('password_policy.reset_expiry_hours')->numeric()->minValue(1)->maxValue(72)->required(),
@@ -162,7 +162,7 @@ class ProjectAuthSecurity extends Page
                     'session_policy' => $this->config()->session_policy ?? [],
                 ])
                 ->action(fn (array $data) => $this->saveConfig($data)),
-            Action::make('edit_templates')->label('Email templates')
+            Action::make('edit_templates')->label(__('labels.email_templates'))
                 ->schema(array_merge(...array_map(
                     fn ($key, $label) => [
                         TextInput::make("email_templates.{$key}.subject")->label("{$label} subject")->required()->maxLength(160),
@@ -195,7 +195,7 @@ class ProjectAuthSecurity extends Page
         $cfg = $this->config();
         $cfg->fill($data)->save();
         $this->audit('PROJECT_SETTINGS_UPDATED', 'auth_config', null, ['fields' => array_keys($data)]);
-        Notification::make()->title('Auth configuration saved')->success()->send();
+        Notification::make()->title(__('labels.auth_configuration_saved'))->success()->send();
         $this->redirect(static::getUrl(['record' => $this->project()]));
     }
 }

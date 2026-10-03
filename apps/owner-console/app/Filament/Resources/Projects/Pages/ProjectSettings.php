@@ -37,7 +37,7 @@ class ProjectSettings extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Settings';
+        return __('labels.settings');
     }
 
     public function getBreadcrumbs(): array
@@ -70,7 +70,7 @@ class ProjectSettings extends Page
                     TextEntry::make('notes')->placeholder('—'),
                 ])->columns(3)
                     ->headerActions([
-                        Action::make('edit_settings')->label('Edit settings')
+                        Action::make('edit_settings')->label(__('labels.edit_settings'))
                             ->schema([
                                 TextInput::make('name')->required()->maxLength(128),
                                 Select::make('status')->options(['planned' => 'Planned', 'active' => 'Active', 'paused' => 'Paused', 'archived' => 'Archived'])->required(),
@@ -86,17 +86,17 @@ class ProjectSettings extends Page
                             ->action(function (array $data) {
                                 $this->project()->update($data);
                                 $this->audit('PROJECT_SETTINGS_UPDATED', 'project', $this->project()->id, ['fields' => array_keys($data)]);
-                                Notification::make()->title('Settings saved')->success()->send();
+                                Notification::make()->title(__('labels.settings_saved'))->success()->send();
                                 $this->redirect(static::getUrl(['record' => $this->project()]));
                             }),
                     ]),
                 Section::make('Secrets (states only — values never displayed)')->schema([
-                    TextEntry::make('db_password')->label('DB password')->state($states['DB_PASSWORD'] ?? 'Unknown')->badge(),
+                    TextEntry::make('db_password')->label(__('labels.db_password'))->state($states['DB_PASSWORD'] ?? 'Unknown')->badge(),
                     TextEntry::make('app_key')->label('APP_KEY')->state($states['APP_KEY'] ?? 'Unknown')->badge(),
-                    TextEntry::make('redis')->label('Redis password')->state($states['REDIS_PASSWORD'] ?? 'Unknown')->badge(),
-                    TextEntry::make('reverb')->label('Reverb secret')->state($states['REVERB_APP_SECRET'] ?? 'Unknown')->badge(),
-                    TextEntry::make('mail')->label('Mail password')->state($states['MAIL_PASSWORD'] ?? 'Unknown')->badge(),
-                    TextEntry::make('hint')->label('Rotation')->state('Rotate via create-project/rotation runbooks; values are never shown here.'),
+                    TextEntry::make('redis')->label(__('labels.redis_password'))->state($states['REDIS_PASSWORD'] ?? 'Unknown')->badge(),
+                    TextEntry::make('reverb')->label(__('labels.reverb_secret'))->state($states['REVERB_APP_SECRET'] ?? 'Unknown')->badge(),
+                    TextEntry::make('mail')->label(__('labels.mail_password'))->state($states['MAIL_PASSWORD'] ?? 'Unknown')->badge(),
+                    TextEntry::make('hint')->label(__('labels.rotation'))->state('Rotate via create-project/rotation runbooks; values are never shown here.'),
                 ])->columns(3),
             ]);
     }

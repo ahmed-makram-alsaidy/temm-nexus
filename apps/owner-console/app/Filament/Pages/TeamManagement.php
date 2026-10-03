@@ -47,7 +47,7 @@ class TeamManagement extends Page implements HasTable
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'Team';
+        return __('labels.team');
     }
 
     public function getBreadcrumbs(): array
@@ -129,15 +129,15 @@ class TeamManagement extends Page implements HasTable
             ->columns([
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('email')->searchable()->copyable(),
-                TextColumn::make('is_admin')->label('Owner login')->badge()
+                TextColumn::make('is_admin')->label(__('labels.owner_login'))->badge()
                     ->color(fn ($s) => $s ? 'success' : 'gray')
                     ->formatStateUsing(fn ($s) => $s ? 'yes' : 'no'),
-                TextColumn::make('cp_role')->label('Team role')->badge()->placeholder('—'),
+                TextColumn::make('cp_role')->label(__('labels.team_role'))->badge()->placeholder('—'),
             ])
             ->recordActions([
-                Action::make('assign_role')->label('Assign role')
+                Action::make('assign_role')->label(__('labels.assign_role'))
                     ->schema([
-                        Select::make('cp_role')->label('Team role')->required()->options([
+                        Select::make('cp_role')->label(__('labels.team_role'))->required()->options([
                             'owner' => 'Owner (full power — use sparingly)',
                             'admin' => 'Admin (everything except team)',
                             'developer' => 'Developer (read + invoke + tasks/webhooks/storage)',

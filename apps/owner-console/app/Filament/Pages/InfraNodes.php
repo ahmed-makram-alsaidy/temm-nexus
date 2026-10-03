@@ -36,7 +36,7 @@ class InfraNodes extends Page implements HasTable
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'Infrastructure Nodes';
+        return __('labels.infrastructure_nodes');
     }
 
     public function getBreadcrumbs(): array
@@ -67,16 +67,16 @@ class InfraNodes extends Page implements HasTable
                 TextColumn::make('name')->searchable()->sortable()->badge(),
                 TextColumn::make('roles')->state(fn (InfrastructureNode $r) => implode(' · ', $r->roles ?? []))->wrap(),
                 TextColumn::make('environment')->badge(),
-                TextColumn::make('live')->label('Status')
+                TextColumn::make('live')->label(__('labels.status'))
                     ->state(fn (InfrastructureNode $r) => $r->computedStatus())->badge()
                     ->color(fn ($s) => $s === 'healthy' ? 'success' : ($s === 'unknown' ? 'warning' : 'danger')),
-                TextColumn::make('cpu_pct')->label('CPU %')->placeholder('—'),
-                TextColumn::make('ram_pct')->label('RAM %')->placeholder('—'),
-                TextColumn::make('disk_pct')->label('Disk %')->placeholder('—'),
-                TextColumn::make('last_seen_at')->label('Last seen')->dateTime()->placeholder('never'),
+                TextColumn::make('cpu_pct')->label(__('labels.cpu'))->placeholder('—'),
+                TextColumn::make('ram_pct')->label(__('labels.ram'))->placeholder('—'),
+                TextColumn::make('disk_pct')->label(__('labels.disk'))->placeholder('—'),
+                TextColumn::make('last_seen_at')->label(__('labels.last_seen'))->dateTime()->placeholder('never'),
             ])
             ->recordActions([
-                Action::make('open')->label('Detail')->icon('heroicon-o-arrow-top-right-on-square')
+                Action::make('open')->label(__('labels.detail'))->icon('heroicon-o-arrow-top-right-on-square')
                     ->url(fn (InfrastructureNode $record) => InfraNodeDetail::getUrl(['node' => $record->name])),
             ])
             ->paginated(false);

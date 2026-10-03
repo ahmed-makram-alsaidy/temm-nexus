@@ -265,7 +265,28 @@ final class ComponentRegistry
     /** @return array<string, mixed>|null */
     public static function definition(string $key): ?array
     {
-        return self::COMPONENTS[$key] ?? null;
+        $definition = self::COMPONENTS[$key] ?? null;
+
+        return $definition === null ? null : self::localized($key, $definition);
+    }
+
+    /**
+     * rc.5 localization (C.1): labels/descriptions translate at READ time —
+     * the const stays a compile-time-safe canonical English fallback.
+     *
+     * @param  array<string, mixed>  $definition
+     * @return array<string, mixed>
+     */
+    private static function localized(string $key, array $definition): array
+    {
+        $definition['label'] = __("components.{$key}.label") !== "components.{$key}.label"
+            ? __("components.{$key}.label")
+            : $definition['label'];
+        $definition['description'] = __("components.{$key}.description") !== "components.{$key}.description"
+            ? __("components.{$key}.description")
+            : $definition['description'];
+
+        return $definition;
     }
 
     /** @return list<string> */
@@ -323,7 +344,7 @@ final class ComponentRegistry
         $out = [];
         foreach (self::COMPONENTS as $key => $definition) {
             if ($definition['page'] === $page) {
-                $out[] = ['key' => $key] + $definition;
+                $out[] = ['key' => $key] + self::localized($key, $definition);
             }
         }
 

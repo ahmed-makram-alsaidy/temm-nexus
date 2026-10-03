@@ -38,7 +38,7 @@ class ProjectSwitcher extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Project Switcher';
+        return __('labels.project_switcher');
     }
 
     public function getBreadcrumbs(): array
@@ -87,7 +87,7 @@ class ProjectSwitcher extends Page implements HasTable
                     ->color(fn ($s) => $s === 'healthy' ? 'success' : ($s === 'unhealthy' ? 'danger' : 'warning')),
             ])
             ->recordActions([
-                Action::make('open')->label('Open workspace')->icon('heroicon-o-arrow-top-right-on-square')
+                Action::make('open')->label(__('labels.open_workspace'))->icon('heroicon-o-arrow-top-right-on-square')
                     ->url(fn (Project $record) => ProjectResource::getUrl('overview', ['record' => $record])),
             ])
             ->paginated(false);

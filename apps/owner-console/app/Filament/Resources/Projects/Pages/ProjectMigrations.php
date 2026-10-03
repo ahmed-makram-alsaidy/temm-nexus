@@ -39,7 +39,7 @@ class ProjectMigrations extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Migrations';
+        return __('labels.migrations');
     }
 
     public function getBreadcrumbs(): array
@@ -109,20 +109,20 @@ class ProjectMigrations extends Page
         }
 
         return [
-            Action::make('migrate_run')->label('Run pending migrations')
+            Action::make('migrate_run')->label(__('labels.run_pending_migrations'))
                 ->requiresConfirmation()
-                ->modalDescription('Runs migrate --force in the project checkout. Take a backup first if this is not a disposable project.')
+                ->modalDescription(__('labels.runs_migrate_force_in_the_project_checko'))
                 ->action(function () {
                     CpAccess::require(auth()->user(), 'database.write');
                     $result = ProjectArtisan::run($this->project(), 'migrate', ['--force' => true]);
                     abort_unless($result['ok'], 422, 'Migration failed: '.mb_substr($result['output'], 0, 400));
                     $this->audit('MIGRATION_RUN', 'migration', null, ['output' => mb_substr($result['output'], 0, 500)]);
-                    Notification::make()->title('Migrations applied')->success()->send();
+                    Notification::make()->title(__('labels.migrations_applied'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('migrate_rollback')->label('Rollback last batch')
+            Action::make('migrate_rollback')->label(__('labels.rollback_last_batch'))
                 ->color('danger')->requiresConfirmation()
-                ->modalDescription('Rolls back the last migration batch. Blind production rollback is dangerous — verify backups first.')
+                ->modalDescription(__('labels.rolls_back_the_last_migration_batch_blin'))
                 ->action(function () {
                     CpAccess::require(auth()->user(), 'database.write');
                     $backup = ProjectBackupService::for($this->project())->lastBackup();
@@ -130,7 +130,7 @@ class ProjectMigrations extends Page
                     $result = ProjectArtisan::run($this->project(), 'migrate:rollback', ['--force' => true]);
                     abort_unless($result['ok'], 422, 'Rollback failed: '.mb_substr($result['output'], 0, 400));
                     $this->audit('MIGRATION_ROLLED_BACK', 'migration', null, ['output' => mb_substr($result['output'], 0, 500)]);
-                    Notification::make()->title('Rollback complete')->success()->send();
+                    Notification::make()->title(__('labels.rollback_complete'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
         ];

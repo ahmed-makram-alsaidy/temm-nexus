@@ -43,7 +43,7 @@ class ProjectEnvironments extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Environments';
+        return __('labels.environments');
     }
 
     public function getBreadcrumbs(): array
@@ -126,9 +126,9 @@ class ProjectEnvironments extends Page
         $project = $this->project();
 
         return [
-            Action::make('switch_environment')->label('Switch environment')->icon('heroicon-o-arrows-pointing-out')
+            Action::make('switch_environment')->label(__('labels.switch_environment'))->icon('heroicon-o-arrows-pointing-out')
                 ->schema([
-                    Select::make('environment_id')->label('Environment')->required()->options(
+                    Select::make('environment_id')->label(__('labels.environment'))->required()->options(
                         $project->environments()->where('status', 'active')->orderBy('id')->pluck('name', 'id')->all()
                     )->default(EnvironmentContext::active($project)->id),
                 ])
@@ -137,7 +137,7 @@ class ProjectEnvironments extends Page
                     Notification::make()->title($ok ? 'Environment switched — scoped modules updated' : 'Switch failed')->success($ok)->danger(! $ok)->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('new_environment')->label('New environment')->icon('heroicon-o-plus')
+            Action::make('new_environment')->label(__('labels.new_environment'))->icon('heroicon-o-plus')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'environments.manage'))
                 ->schema([
                     TextInput::make('name')->required(),
@@ -145,9 +145,9 @@ class ProjectEnvironments extends Page
                         'development' => 'Development', 'staging' => 'Staging', 'production' => 'Production',
                     ])->default('development'),
                     TextInput::make('api_base_url')->url()->placeholder('https://api.example.test'),
-                    TextInput::make('database')->label('Database name'),
-                    TextInput::make('database_secret_ref')->label('DB password vault ref')->placeholder('DB_PASSWORD_STAGING'),
-                    Toggle::make('disposable')->default(true)->helperText('Disposable targets may be reset by drills/clean runs.'),
+                    TextInput::make('database')->label(__('labels.database_name')),
+                    TextInput::make('database_secret_ref')->label(__('labels.db_password_vault_ref'))->placeholder('DB_PASSWORD_STAGING'),
+                    Toggle::make('disposable')->default(true)->helperText(__('labels.disposable_targets_may_be_reset_by_drill')),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'environments.manage');
@@ -160,19 +160,19 @@ class ProjectEnvironments extends Page
                         'database_secret_ref' => $data['database_secret_ref'] ?? null,
                         'disposable' => $data['disposable'] ?? false,
                     ]);
-                    Notification::make()->title('Environment created')->success()->send();
+                    Notification::make()->title(__('labels.environment_created'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('promote')->label('Promote to Production')->icon('heroicon-o-rocket-launch')->color('danger')
+            Action::make('promote')->label(__('labels.promote_to_production'))->icon('heroicon-o-rocket-launch')->color('danger')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'environments.manage'))
                 ->requiresConfirmation()
-                ->modalDescription('Production promotion is STRONGLY guarded and currently local-only. Type the confirmation phrase in the field below.')
+                ->modalDescription(__('labels.production_promotion_is_strongly_guarded'))
                 ->schema([
-                    Select::make('from')->label('From environment')->options(
+                    Select::make('from')->label(__('labels.from_environment'))->options(
                         $project->environments()->whereIn('type', ['development', 'staging'])->pluck('name', 'id')->all()
                     )->required(),
                     TextInput::make('confirmation')->placeholder('PROMOTE '.$project->slug.' TO PRODUCTION')
-                        ->helperText('Must match: PROMOTE '.$project->slug.' TO PRODUCTION'),
+                        ->helperText(__('labels.must_match_promote_frag').$project->slug.' TO PRODUCTION'),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'environments.manage');

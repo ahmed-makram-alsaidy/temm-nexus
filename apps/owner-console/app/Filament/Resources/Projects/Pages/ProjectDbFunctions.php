@@ -40,7 +40,7 @@ class ProjectDbFunctions extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Database Functions';
+        return __('labels.database_functions');
     }
 
     public function getBreadcrumbs(): array
@@ -157,7 +157,7 @@ class ProjectDbFunctions extends Page
         }
 
         return array_filter([
-            Action::make('new_function')->label('New function')->icon('heroicon-o-plus')
+            Action::make('new_function')->label(__('labels.new_function'))->icon('heroicon-o-plus')
                 ->schema($this->functionForm())
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'database.write');
@@ -169,10 +169,10 @@ class ProjectDbFunctions extends Page
                     Notification::make()->title("Function {$data['name']} saved")->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $options === [] ? null : Action::make('test_function')->label('Test / invoke')
+            $options === [] ? null : Action::make('test_function')->label(__('labels.test_invoke'))
                 ->schema([
-                    Select::make('oid')->label('Function')->required()->options($options),
-                    Textarea::make('args_json')->label('Arguments (JSON array, max 10)')
+                    Select::make('oid')->label(__('labels.function'))->required()->options($options),
+                    Textarea::make('args_json')->label(__('labels.arguments_json_array_max_10'))
                         ->default('[]')->rows(2)
                         ->extraAttributes(['class' => 'cp-code', 'spellcheck' => 'false']),
                 ])
@@ -182,16 +182,16 @@ class ProjectDbFunctions extends Page
                     $result = DbFunctionService::invoke($this->project(), (int) $data['oid'], array_values($args));
                     $this->audit('DB_FUNCTION_TESTED', 'function', $data['oid'], ['ok' => $result['ok']]);
                     if (! $result['ok']) {
-                        Notification::make()->title('Invocation failed')->body(mb_substr((string) $result['error'], 0, 300))->danger()->send();
+                        Notification::make()->title(__('labels.invocation_failed'))->body(mb_substr((string) $result['error'], 0, 300))->danger()->send();
 
                         return;
                     }
                     Notification::make()->title("OK in {$result['duration_ms']} ms · ".count($result['rows']).' row(s)')
                         ->body(mb_substr(json_encode($result['rows']), 0, 500))->success()->send();
                 }),
-            $options === [] ? null : Action::make('edit_function')->label('Edit')
+            $options === [] ? null : Action::make('edit_function')->label(__('labels.edit'))
                 ->schema(array_merge(
-                    [Select::make('oid')->label('Function')->required()->options($options)->live()],
+                    [Select::make('oid')->label(__('labels.function'))->required()->options($options)->live()],
                     $this->functionForm(true)
                 ))
                 ->fillForm(fn () => [])
@@ -205,10 +205,10 @@ class ProjectDbFunctions extends Page
                     Notification::make()->title("Function {$data['name']} updated")->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $options === [] ? null : Action::make('delete_function')->label('Delete')
+            $options === [] ? null : Action::make('delete_function')->label(__('labels.delete'))
                 ->color('danger')->requiresConfirmation()
-                ->modalDescription('Drops the function. Dependent triggers/views may break. Audit logged.')
-                ->schema([Select::make('oid')->label('Function')->required()->options($options)])
+                ->modalDescription(__('labels.drops_the_function_dependent_triggers_vi'))
+                ->schema([Select::make('oid')->label(__('labels.function'))->required()->options($options)])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'database.write');
                     $name = DbFunctionService::drop($this->project(), (int) $data['oid']);
@@ -225,24 +225,24 @@ class ProjectDbFunctions extends Page
         $fields = [];
         if ($withName) {
             // Edit flow keeps the catalog name (renames via DROP+CREATE, explicit).
-            $fields[] = TextInput::make('name')->label('Function name')->required()
+            $fields[] = TextInput::make('name')->label(__('labels.function_name'))->required()
                 ->regex('/^[a-z_][a-z0-9_]{0,62}$/')
-                ->helperText('Lowercase identifier. Must match the selected function when editing.');
+                ->helperText(__('labels.lowercase_identifier_must_match_the_sele'));
         } else {
-            $fields[] = TextInput::make('name')->label('Function name')->required()
+            $fields[] = TextInput::make('name')->label(__('labels.function_name'))->required()
                 ->regex('/^[a-z_][a-z0-9_]{0,62}$/');
         }
 
         return array_merge($fields, [
-            TextInput::make('args')->label('Arguments')->placeholder('user_id integer, tag text')
-                ->helperText('Comma-separated "name type" pairs. Empty = no arguments.'),
-            TextInput::make('returns')->label('Return type')->default('void')->placeholder('void / integer / text / …'),
+            TextInput::make('args')->label(__('labels.arguments'))->placeholder('user_id integer, tag text')
+                ->helperText(__('labels.comma_separated_name_type_pairs_empty_no')),
+            TextInput::make('returns')->label(__('labels.return_type'))->default('void')->placeholder('void / integer / text / …'),
             Select::make('language')->required()->options(['sql' => 'SQL', 'plpgsql' => 'PL/pgSQL'])->default('sql'),
             Select::make('security')->required()->options(['INVOKER' => 'INVOKER (safe default)', 'DEFINER' => 'DEFINER (privileged — read the warning)'])
                 ->default('INVOKER'),
-            Textarea::make('body')->label('Body')->required()->rows(10)
+            Textarea::make('body')->label(__('labels.body'))->required()->rows(10)
                 ->extraAttributes(['class' => 'cp-code', 'spellcheck' => 'false'])
-                ->helperText('SQL or PL/pgSQL body. No $cp$ delimiter inside.'),
+                ->helperText(__('labels.sql_or_pl_pgsql_body_no_cp_delimiter_ins')),
         ]);
     }
 }

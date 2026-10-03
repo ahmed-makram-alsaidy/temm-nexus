@@ -30,7 +30,7 @@ class InfraTopology extends Page
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'Infrastructure Topology';
+        return __('labels.infrastructure_topology');
     }
 
     public function getBreadcrumbs(): array

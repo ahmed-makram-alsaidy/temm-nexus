@@ -22,8 +22,8 @@ class QueueSummaryWidget extends BaseWidget
         return $table
             ->records(fn () => $this->rows())
             ->columns([
-                TextColumn::make('queue')->label('Queue key'),
-                TextColumn::make('pending')->label('Pending'),
+                TextColumn::make('queue')->label(__('labels.queue_key')),
+                TextColumn::make('pending')->label(__('labels.pending')),
             ])
             ->paginated(false);
     }

@@ -46,7 +46,7 @@ class ProjectCopilot extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'AI Copilot';
+        return __('labels.ai_copilot');
     }
 
     public function getBreadcrumbs(): array
@@ -155,7 +155,7 @@ class ProjectCopilot extends Page
         $hasProvider = AiProviderConfig::where('enabled', true)->where(fn ($q) => $q->whereNull('project_id')->orWhere('project_id', $project->id))->exists();
 
         return array_filter([
-            Action::make('add_provider')->label('Add AI provider')->icon('heroicon-o-plus')
+            Action::make('add_provider')->label(__('labels.add_ai_provider'))->icon('heroicon-o-plus')
                 ->schema([
                     // 0.4.0-rc.5 (A.7): fake/test providers never appear in a
                     // production UI — NexusAiConfig filters them.
@@ -163,9 +163,9 @@ class ProjectCopilot extends Page
                         ->map(fn ($label, $key) => $key === 'openai_compatible' ? $label.' (custom URL)' : $label)
                         ->all())->required(),
                     TextInput::make('display_name')->required(),
-                    TextInput::make('base_url')->url()->helperText('Required for openai_compatible (HTTPS only).'),
+                    TextInput::make('base_url')->url()->helperText(__('labels.required_for_openai_compatible_https_onl')),
                     TextInput::make('model')->required(),
-                    TextInput::make('api_key')->password()->revealable()->helperText('Encrypted at rest, never displayed again.'),
+                    TextInput::make('api_key')->password()->revealable()->helperText(__('labels.encrypted_at_rest_never_displayed_again')),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'copilot.run');
@@ -179,38 +179,38 @@ class ProjectCopilot extends Page
                         'project_id' => $this->project()->id,
                     ]);
                     \App\Services\ControlPlane\AdminAudit::record('AI_PROVIDER_SAVED', $this->project(), 'ai_provider_config', null, ['provider' => $data['provider']]);
-                    Notification::make()->title('AI provider saved (key encrypted)')->success()->send();
+                    Notification::make()->title(__('labels.ai_provider_saved_key_encrypted'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
             $hasProvider ? null : null,
-            Action::make('explain_blockers')->label('Explain blockers')->icon('heroicon-o-light-bulb')
+            Action::make('explain_blockers')->label(__('labels.explain_blockers'))->icon('heroicon-o-light-bulb')
                 ->visible(fn () => $hasProvider && $analysis)
-                ->requiresConfirmation()->modalDescription('Runs the Copilot advisor (read-only).')
+                ->requiresConfirmation()->modalDescription(__('labels.runs_the_copilot_advisor_read_only'))
                 ->action(fn () => $this->runAction('explain_blockers')),
-            Action::make('analyze_rls')->label('Analyze RLS')->icon('heroicon-o-shield-check')
+            Action::make('analyze_rls')->label(__('labels.analyze_rls'))->icon('heroicon-o-shield-check')
                 ->visible(fn () => $hasProvider && $analysis)
                 ->action(fn () => $this->runAction('analyze_rls')),
-            Action::make('classify_rpc')->label('Map RPCs')->icon('heroicon-o-variable')
+            Action::make('classify_rpc')->label(__('labels.map_rpcs'))->icon('heroicon-o-variable')
                 ->visible(fn () => $hasProvider && $analysis)
                 ->action(fn () => $this->runAction('classify_rpc')),
-            Action::make('classify_edge')->label('Analyze Edge Functions')->icon('heroicon-o-cloud')
+            Action::make('classify_edge')->label(__('labels.analyze_edge_functions'))->icon('heroicon-o-cloud')
                 ->visible(fn () => $hasProvider && $analysis)
                 ->action(fn () => $this->runAction('classify_edge')),
-            Action::make('map_client_calls')->label('Analyze client calls')->icon('heroicon-o-device-phone-mobile')
+            Action::make('map_client_calls')->label(__('labels.analyze_client_calls'))->icon('heroicon-o-device-phone-mobile')
                 ->visible(fn () => $hasProvider && $repo)
                 ->action(fn () => $this->runAction('map_client_calls')),
-            Action::make('generate_patch')->label('Generate patch')->icon('heroicon-o-code-bracket')->color('warning')
+            Action::make('generate_patch')->label(__('labels.generate_patch'))->icon('heroicon-o-code-bracket')->color('warning')
                 ->visible(fn () => $hasProvider && $repo)
-                ->requiresConfirmation()->modalDescription('Patches go to the isolated AI workspace and require review + approval before apply.')
+                ->requiresConfirmation()->modalDescription(__('labels.patches_go_to_the_isolated_ai_workspace_'))
                 ->schema([
-                    \Filament\Forms\Components\Textarea::make('focus_files')->rows(2)->placeholder('lib/data/api_client.dart')->helperText('Optional: files to include (one per line).'),
+                    \Filament\Forms\Components\Textarea::make('focus_files')->rows(2)->placeholder('lib/data/api_client.dart')->helperText(__('labels.optional_files_to_include_one_per_line')),
                 ])
                 ->action(function (array $data) {
                     $repo = ClientRepository::where('project_id', $this->project()->id)->orderByDesc('id')->first();
                     $focus = array_values(array_filter(array_map('trim', explode("\n", (string) $data['focus_files']))));
                     $this->runAction('generate_patch', ['repository' => $repo, 'focus_files' => $focus]);
                 }),
-            Action::make('approve_patch')->label('Review & approve patch')->icon('heroicon-o-check-badge')->color('success')
+            Action::make('approve_patch')->label(__('labels.review_approve_patch'))->icon('heroicon-o-check-badge')->color('success')
                 ->visible(fn () => AiPatchRun::where('project_id', $project->id)->where('status', 'proposed')->exists())
                 ->schema([
                     Select::make('patch_run_id')->required()->options(
@@ -224,12 +224,12 @@ class ProjectCopilot extends Page
                     $listing = $files->map(fn ($f) => $f->action.' '.e($f->path).' ('.$f->risk.') — '.\Illuminate\Support\Str::limit((string) $f->reason, 80))->implode("\n");
                     session(["cp_patch_listing_{$this->project()->id}" => $listing]);
                     \App\Services\ControlPlane\Ai\PatchWorkspace::approve($run, auth()->user());
-                    Notification::make()->title('Patch approved — use Apply to write it into the approved tree')->success()->send();
+                    Notification::make()->title(__('labels.patch_approved_use_apply_to_write_it_int'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('apply_patch')->label('Apply approved patch')->icon('heroicon-o-arrow-down-tray')->color('danger')
+            Action::make('apply_patch')->label(__('labels.apply_approved_patch'))->icon('heroicon-o-arrow-down-tray')->color('danger')
                 ->visible(fn () => AiPatchRun::where('project_id', $project->id)->where('status', 'approved')->exists())
-                ->requiresConfirmation()->modalDescription('Applies the approved patch into the approved working tree. Nothing unrelated is touched.')
+                ->requiresConfirmation()->modalDescription(__('labels.applies_the_approved_patch_into_the_appr'))
                 ->schema([
                     Select::make('patch_run_id')->required()->options(
                         AiPatchRun::where('project_id', $project->id)->where('status', 'approved')->pluck('run_id', 'id')->all()
@@ -239,7 +239,7 @@ class ProjectCopilot extends Page
                     CpAccess::require(auth()->user(), 'repositories.manage');
                     $run = AiPatchRun::where('project_id', $this->project()->id)->findOrFail($data['patch_run_id']);
                     $applied = \App\Services\ControlPlane\Ai\PatchWorkspace::apply($run, auth()->user());
-                    Notification::make()->title('Patch apply: '.$applied->status)->success($applied->status === 'applied')->danger($applied->status !== 'applied')->send();
+                    Notification::make()->title(__('labels.patch_apply_frag').$applied->status)->success($applied->status === 'applied')->danger($applied->status !== 'applied')->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
         ]);
@@ -254,7 +254,7 @@ class ProjectCopilot extends Page
                 'repository' => ClientRepository::where('project_id', $project->id)->orderByDesc('id')->first(),
             ];
             $run = (new MigrationCopilot(new AiGateway))->run($project, $action, $context);
-            Notification::make()->title('Copilot '.$action.': '.$run->status)
+            Notification::make()->title(__('labels.copilot_frag').$action.': '.$run->status)
                 ->body($run->status === 'completed' ? 'Result stored — see run history.' : (string) ($run->result['error'] ?? ''))
                 ->success($run->status === 'completed')->danger($run->status === 'failed')->send();
         } catch (\Throwable $e) {

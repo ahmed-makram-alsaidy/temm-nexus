@@ -20,7 +20,7 @@ class ProjectForm
                 Select::make('environment')->options(['local' => 'Local', 'staging' => 'Staging', 'production' => 'Production'])->required(),
                 TextInput::make('domain')->maxLength(255)->nullable(),
                 TextInput::make('api_domain')->maxLength(255)->nullable(),
-                TextInput::make('db_name')->maxLength(64)->helperText('Managed by onboarding; edit only to attach an existing database.'),
+                TextInput::make('db_name')->maxLength(64)->helperText(__('labels.managed_by_onboarding_edit_only_to_attac')),
                 TextInput::make('redis_prefix')->maxLength(64),
                 Select::make('storage_disk')->options(['local' => 'Local', 's3' => 'S3-compatible'])->required(),
                 // Defaults are prefilled in the form AND normalized server-side

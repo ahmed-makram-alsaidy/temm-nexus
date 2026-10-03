@@ -42,7 +42,7 @@ class ProjectDbAdvanced extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Inspector';
+        return __('labels.inspector');
     }
 
     public function getBreadcrumbs(): array
@@ -152,16 +152,16 @@ class ProjectDbAdvanced extends Page
         }
 
         return array_filter([
-            Action::make('create_index')->label('New index')
+            Action::make('create_index')->label(__('labels.new_index'))
                 ->schema([
                     Select::make('table')->required()->options(array_combine($tables, $tables)),
-                    CheckboxList::make('columns')->label('Columns (1–5)')->required()->columns(2)
+                    CheckboxList::make('columns')->label(__('labels.columns_1_5'))->required()->columns(2)
                         ->options(fn ($get) => $get('table')
                             ? array_combine(
                                 array_column($explorer->columns($get('table')), 'name'),
                                 array_column($explorer->columns($get('table')), 'name')
                             ) : []),
-                    Toggle::make('unique')->label('Unique'),
+                    Toggle::make('unique')->label(__('labels.unique')),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'database.write');
@@ -170,13 +170,13 @@ class ProjectDbAdvanced extends Page
                     Notification::make()->title("Index {$name} created")->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $functions === [] ? null : Action::make('create_trigger')->label('New trigger')
+            $functions === [] ? null : Action::make('create_trigger')->label(__('labels.new_trigger'))
                 ->schema([
                     TextInput::make('name')->required()->regex('/^[a-z_][a-z0-9_]{0,62}$/'),
                     Select::make('table')->required()->options(array_combine($tables, $tables)),
                     Select::make('timing')->required()->options(['BEFORE' => 'BEFORE', 'AFTER' => 'AFTER']),
                     Select::make('event')->required()->options(['INSERT' => 'INSERT', 'UPDATE' => 'UPDATE', 'DELETE' => 'DELETE']),
-                    Select::make('function')->label('Trigger function (must return trigger)')->required()
+                    Select::make('function')->label(__('labels.trigger_function_must_return_trigger'))->required()
                         ->options(array_combine($functions, $functions)),
                 ])
                 ->action(function (array $data) {
@@ -189,9 +189,9 @@ class ProjectDbAdvanced extends Page
                     Notification::make()->title("Trigger {$data['name']} created")->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $trgOptions === [] ? null : Action::make('drop_trigger')->label('Drop trigger')
+            $trgOptions === [] ? null : Action::make('drop_trigger')->label(__('labels.drop_trigger'))
                 ->color('danger')->requiresConfirmation()
-                ->schema([Select::make('ref')->label('Trigger')->required()->options($trgOptions)])
+                ->schema([Select::make('ref')->label(__('labels.trigger'))->required()->options($trgOptions)])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'database.write');
                     [$table, $name] = explode('.', $data['ref'], 2);
@@ -200,9 +200,9 @@ class ProjectDbAdvanced extends Page
                     Notification::make()->title("Trigger {$name} dropped")->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('install_extension')->label('Install extension')
+            Action::make('install_extension')->label(__('labels.install_extension'))
                 ->schema([
-                    Select::make('name')->label('Allowlisted extension')->required()->options(
+                    Select::make('name')->label(__('labels.allowlisted_extension'))->required()->options(
                         array_combine(array_keys(DbAdvancedService::EXTENSION_ALLOWLIST), array_keys(DbAdvancedService::EXTENSION_ALLOWLIST))
                     ),
                 ])

@@ -73,7 +73,7 @@ class ProjectStorage extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Storage';
+        return __('labels.storage');
     }
 
     public function getBreadcrumbs(): array
@@ -297,7 +297,7 @@ class ProjectStorage extends Page
         }
 
         return [
-            Action::make('create_bucket')->label('New bucket')
+            Action::make('create_bucket')->label(__('labels.new_bucket'))
                 ->schema([
                     TextInput::make('name')->required()->regex('/^[A-Za-z0-9][A-Za-z0-9._\-]{0,127}$/'),
                     Select::make('visibility')->options(['private' => 'Private', 'public' => 'Public'])->default('private'),
@@ -306,7 +306,7 @@ class ProjectStorage extends Page
                     CpAccess::require(auth()->user(), 'storage.manage');
                     $this->storage()->createBucket($data['name'], $data['visibility']);
                     $this->audit('STORAGE_BUCKET_CREATED', 'bucket', $data['name'], ['visibility' => $data['visibility']]);
-                    Notification::make()->title('Bucket created')->success()->send();
+                    Notification::make()->title(__('labels.bucket_created'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
         ];
@@ -316,11 +316,11 @@ class ProjectStorage extends Page
     protected function fileActions(array $files): array
     {
         $actions = [
-            Action::make('up')->label('Up')->visible(fn () => $this->prefix !== '')
+            Action::make('up')->label(__('labels.up'))->visible(fn () => $this->prefix !== '')
                 ->url(static::getUrl(['record' => $this->project(), 'bucket' => $this->bucket, 'prefix' => $this->parentPrefix()])),
-            Action::make('back')->label('Buckets')->url(static::getUrl(['record' => $this->project()])),
-            Action::make('search')->label('Search')
-                ->schema([TextInput::make('q')->label('Filename contains')->default($this->search)])
+            Action::make('back')->label(__('labels.buckets'))->url(static::getUrl(['record' => $this->project()])),
+            Action::make('search')->label(__('labels.search'))
+                ->schema([TextInput::make('q')->label(__('labels.filename_contains'))->default($this->search)])
                 ->action(function (array $data) {
                     $this->redirect(static::getUrl(['record' => $this->project(), 'bucket' => $this->bucket, 'prefix' => $this->prefix, 'q' => $data['q'] ?: null]));
                 }),
@@ -336,7 +336,7 @@ class ProjectStorage extends Page
             }
         }
 
-        $actions[] = Action::make('upload')->label('Upload')
+        $actions[] = Action::make('upload')->label(__('labels.upload'))
             ->schema([FileUpload::make('file')->required()->maxSize(24 * 1024)->storeFiles(false)])
             ->action(function (array $data) {
                 CpAccess::require(auth()->user(), 'storage.manage');
@@ -349,56 +349,56 @@ class ProjectStorage extends Page
                 $dest = $this->storage()->store($this->bucket, $this->prefix, $name, $contents);
                 @unlink($tmp);
                 $this->audit('STORAGE_FILE_UPLOADED', 'file', $dest);
-                Notification::make()->title('Uploaded')->success()->send();
+                Notification::make()->title(__('labels.uploaded'))->success()->send();
                 $this->redirect(static::getUrl(['record' => $this->project(), 'bucket' => $this->bucket, 'prefix' => $this->prefix]));
             });
 
         if ($fileOptions !== []) {
             $self = ['record' => $this->project(), 'bucket' => $this->bucket, 'prefix' => $this->prefix ?: null];
-            $actions[] = Action::make('preview')->label('Preview')
-                ->schema([Select::make('file')->label('File')->options($fileOptions)->required()->searchable()])
+            $actions[] = Action::make('preview')->label(__('labels.preview'))
+                ->schema([Select::make('file')->label(__('labels.file'))->options($fileOptions)->required()->searchable()])
                 ->action(function (array $data) use ($self) {
                     $this->redirect(static::getUrl($self + ['preview' => $data['file'], 'share' => null]));
                 });
-            $actions[] = Action::make('signed_url')->label('Signed URL')
+            $actions[] = Action::make('signed_url')->label(__('labels.signed_url'))
                 ->schema([
-                    Select::make('file')->label('File')->options($fileOptions)->required()->searchable(),
-                    Select::make('ttl')->label('Expires in')->options(['300' => '5 minutes', '3600' => '1 hour', '86400' => '24 hours'])->default('3600'),
+                    Select::make('file')->label(__('labels.file'))->options($fileOptions)->required()->searchable(),
+                    Select::make('ttl')->label(__('labels.expires_in'))->options(['300' => '5 minutes', '3600' => '1 hour', '86400' => '24 hours'])->default('3600'),
                 ])
                 ->action(function (array $data) use ($self) {
                     CpAccess::require(auth()->user(), 'storage.manage');
                     $this->redirect(static::getUrl($self + ['share' => $data['file'], 'ttl' => $data['ttl'], 'preview' => null]));
                 });
-            $actions[] = Action::make('move')->label('Move / rename')
+            $actions[] = Action::make('move')->label(__('labels.move_rename'))
                 ->schema([
-                    Select::make('file')->label('File')->options($fileOptions)->required()->searchable(),
-                    TextInput::make('folder')->label('Target folder (empty = bucket root)')->default($this->prefix),
-                    TextInput::make('name')->label('New name')->required()->regex('/^[A-Za-z0-9][A-Za-z0-9._\-]{0,127}$/'),
+                    Select::make('file')->label(__('labels.file'))->options($fileOptions)->required()->searchable(),
+                    TextInput::make('folder')->label(__('labels.target_folder_empty_bucket_root'))->default($this->prefix),
+                    TextInput::make('name')->label(__('labels.new_name'))->required()->regex('/^[A-Za-z0-9][A-Za-z0-9._\-]{0,127}$/'),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'storage.manage');
                     $dest = $this->storage()->move($this->bucket, $data['file'], trim($data['folder'], '/'), $data['name']);
                     $this->audit('STORAGE_FILE_MOVED', 'file', $data['file'], ['to' => $dest]);
-                    Notification::make()->title('Moved')->success()->send();
+                    Notification::make()->title(__('labels.moved'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project(), 'bucket' => $this->bucket, 'prefix' => $this->prefix]));
                 });
-            $actions[] = Action::make('delete')->label('Delete')->color('danger')
-                ->schema([Select::make('file')->label('File')->options($fileOptions)->required()])
+            $actions[] = Action::make('delete')->label(__('labels.delete'))->color('danger')
+                ->schema([Select::make('file')->label(__('labels.file'))->options($fileOptions)->required()])
                 ->requiresConfirmation()
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'storage.manage');
                     $this->storage()->delete($this->bucket, $data['file']);
                     $this->audit('STORAGE_FILE_DELETED', 'file', $data['file']);
-                    Notification::make()->title('Deleted')->success()->send();
+                    Notification::make()->title(__('labels.deleted'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project(), 'bucket' => $this->bucket, 'prefix' => $this->prefix]));
                 });
         }
 
-        $actions[] = Action::make('bucket_settings')->label('Bucket policy')
+        $actions[] = Action::make('bucket_settings')->label(__('labels.bucket_policy'))
             ->schema([
                 Select::make('visibility')->options(['private' => 'Private', 'public' => 'Public'])->default('private'),
-                TextInput::make('max_size_mb')->label('Max file size (MB)')->numeric()->default(25)->minValue(1)->maxValue(1024),
-                TextInput::make('allowed_mimes')->label('Allowed MIME prefixes (comma separated, empty = all)')
+                TextInput::make('max_size_mb')->label(__('labels.max_file_size_mb'))->numeric()->default(25)->minValue(1)->maxValue(1024),
+                TextInput::make('allowed_mimes')->label(__('labels.allowed_mime_prefixes_comma_separated_em'))
                     ->placeholder('image/, text/, application/pdf')->maxLength(500),
             ])
             ->fillForm(fn () => ($s = $this->settings($this->bucket ?? '')) ? [
@@ -412,17 +412,17 @@ class ProjectStorage extends Page
                     ['project_id' => $this->project()->id, 'bucket' => $this->bucket],
                     ['visibility' => $data['visibility'], 'max_size_mb' => (int) $data['max_size_mb'], 'allowed_mimes' => $mimes ?: null]
                 );
-                Notification::make()->title('Bucket policy saved')->success()->send();
+                Notification::make()->title(__('labels.bucket_policy_saved'))->success()->send();
                 $this->redirect(static::getUrl(['record' => $this->project(), 'bucket' => $this->bucket, 'prefix' => $this->prefix]));
             });
 
-        $actions[] = Action::make('delete_bucket')->label('Delete bucket')->color('danger')
-            ->requiresConfirmation()->modalDescription('Deletes the bucket and ALL files inside.')
+        $actions[] = Action::make('delete_bucket')->label(__('labels.delete_bucket'))->color('danger')
+            ->requiresConfirmation()->modalDescription(__('labels.deletes_the_bucket_and_all_files_inside'))
             ->action(function () {
                 CpAccess::require(auth()->user(), 'storage.manage');
                 $this->storage()->deleteBucket($this->bucket);
                 $this->audit('STORAGE_BUCKET_DELETED', 'bucket', $this->bucket);
-                Notification::make()->title('Bucket deleted')->success()->send();
+                Notification::make()->title(__('labels.bucket_deleted'))->success()->send();
                 $this->redirect(static::getUrl(['record' => $this->project()]));
             });
 

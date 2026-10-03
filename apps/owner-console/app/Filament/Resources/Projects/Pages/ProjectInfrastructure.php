@@ -41,7 +41,7 @@ class ProjectInfrastructure extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Infrastructure';
+        return __('labels.infrastructure');
     }
 
     public function getBreadcrumbs(): array
@@ -120,10 +120,10 @@ class ProjectInfrastructure extends Page
         }
 
         return [
-            Action::make('db_endpoint')->label('Set DB endpoint')
+            Action::make('db_endpoint')->label(__('labels.set_db_endpoint'))
                 ->schema([
-                    TextInput::make('host')->label('DB host (empty = env default)')->placeholder('postgres'),
-                    TextInput::make('port')->label('DB port (empty = env default)')->placeholder('5432')
+                    TextInput::make('host')->label(__('labels.db_host_empty_env_default'))->placeholder('postgres'),
+                    TextInput::make('port')->label(__('labels.db_port_empty_env_default'))->placeholder('5432')
                         ->rule('nullable|integer|min:1|max:65535'),
                 ])
                 ->action(function (array $data) {
@@ -135,13 +135,13 @@ class ProjectInfrastructure extends Page
                     ])->save();
                     \App\Services\ControlPlane\ProjectConnectionManager::forget($p);
                     $this->audit('PROJECT_ENDPOINT_UPDATED', 'database', $p->db_host.':'.$p->db_port);
-                    Notification::make()->title('DB endpoint updated')->success()->send();
+                    Notification::make()->title(__('labels.db_endpoint_updated'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $p]));
                 }),
-            Action::make('redis_endpoint')->label('Set Redis endpoint')
+            Action::make('redis_endpoint')->label(__('labels.set_redis_endpoint'))
                 ->schema([
-                    TextInput::make('host')->label('Redis host (empty = env default)')->placeholder('redis'),
-                    TextInput::make('port')->label('Redis port (empty = env default)')->placeholder('6379')
+                    TextInput::make('host')->label(__('labels.redis_host_empty_env_default'))->placeholder('redis'),
+                    TextInput::make('port')->label(__('labels.redis_port_empty_env_default'))->placeholder('6379')
                         ->rule('nullable|integer|min:1|max:65535'),
                 ])
                 ->action(function (array $data) {
@@ -152,12 +152,12 @@ class ProjectInfrastructure extends Page
                         'redis_port' => ($data['port'] ?? '') !== '' ? (int) $data['port'] : null,
                     ])->save();
                     $this->audit('PROJECT_ENDPOINT_UPDATED', 'redis', $p->redis_host.':'.$p->redis_port);
-                    Notification::make()->title('Redis endpoint updated')->success()->send();
+                    Notification::make()->title(__('labels.redis_endpoint_updated'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $p]));
                 }),
-            Action::make('profile')->label('Set profile')
+            Action::make('profile')->label(__('labels.set_profile'))
                 ->schema([
-                    Select::make('profile')->label('Architecture profile (descriptive)')->required()
+                    Select::make('profile')->label(__('labels.architecture_profile_descriptive'))->required()
                         ->options(['single' => 'Single node', 'split' => 'Split database', 'distributed' => 'Distributed']),
                 ])
                 ->action(function (array $data) {
@@ -165,7 +165,7 @@ class ProjectInfrastructure extends Page
                     $p = $this->project();
                     $p->forceFill(['infra_profile' => $data['profile']])->save();
                     $this->audit('PROJECT_PROFILE_UPDATED', 'profile', $data['profile']);
-                    Notification::make()->title('Profile set to '.$data['profile'])->success()->send();
+                    Notification::make()->title(__('labels.profile_set_to_frag').$data['profile'])->success()->send();
                     $this->redirect(static::getUrl(['record' => $p]));
                 }),
         ];

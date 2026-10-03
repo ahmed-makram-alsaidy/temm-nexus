@@ -55,7 +55,7 @@ class ProjectFunctionEditor extends Page
         try {
             return 'Function · '.$this->function()->slug;
         } catch (\Throwable) {
-            return 'Function';
+            return __('labels.function');
         }
     }
 
@@ -134,13 +134,13 @@ class ProjectFunctionEditor extends Page
         }
         $versions = $fn->versions()->orderByDesc('version')->pluck('version', 'version')->all();
 
-        $actions[] = Action::make('deploy_version')->label('Deploy new version')
+        $actions[] = Action::make('deploy_version')->label(__('labels.deploy_new_version'))
             ->schema([
-                Textarea::make('config_json')->label('Version config (JSON)')
+                Textarea::make('config_json')->label(__('labels.version_config_json'))
                     ->required()->rows(12)
                     ->default(json_encode($fn->versions()->where('id', $fn->current_version_id)->value('config') ?? [], JSON_PRETTY_PRINT))
                     ->extraAttributes(['class' => 'cp-code', 'spellcheck' => 'false'])
-                    ->helperText('Validated per executor type before deploy. Secrets by reference ({{secrets.NAME}}) only — never paste values.'),
+                    ->helperText(__('labels.validated_per_executor_type_before_deplo')),
             ])
             ->action(function (array $data) use ($fn) {
                 CpAccess::require(auth()->user(), 'functions.deploy');
@@ -148,15 +148,15 @@ class ProjectFunctionEditor extends Page
                 abort_unless(is_array($config), 422, 'Invalid JSON.');
                 self::validateConfig($fn->type, $config);
                 FunctionRunner::deploy($fn, $config, $fn->type);
-                Notification::make()->title('New version deployed')->success()->send();
+                Notification::make()->title(__('labels.new_version_deployed'))->success()->send();
                 $this->redirect(static::getUrl(['record' => $this->project(), 'fn' => $fn->id]));
             });
 
         if (count($versions) > 1) {
-            $actions[] = Action::make('rollback')->label('Rollback')
+            $actions[] = Action::make('rollback')->label(__('labels.rollback'))
                 ->color('warning')->requiresConfirmation()
-                ->modalDescription('Points the function at a previous version. The newer version stays archived.')
-                ->schema([Select::make('version')->label('Version')->required()->options($versions)])
+                ->modalDescription(__('labels.points_the_function_at_a_previous_versio'))
+                ->schema([Select::make('version')->label(__('labels.version'))->required()->options($versions)])
                 ->action(function (array $data) use ($fn) {
                     CpAccess::require(auth()->user(), 'functions.deploy');
                     FunctionRunner::rollback($fn, (int) $data['version']);
@@ -174,7 +174,7 @@ class ProjectFunctionEditor extends Page
                 $this->redirect(static::getUrl(['record' => $this->project(), 'fn' => $fn->id]));
             });
 
-        $actions[] = Action::make('settings')->label('Settings')
+        $actions[] = Action::make('settings')->label(__('labels.settings'))
             ->schema([
                 TextInput::make('name')->default($fn->name)->required()->maxLength(120),
                 Select::make('auth_mode')->options([
@@ -195,14 +195,14 @@ class ProjectFunctionEditor extends Page
                     'timeout_s' => max(1, (int) ($data['timeout_s'] ?? 10)),
                     'rate_limit_per_min' => max(1, (int) ($data['rate_limit_per_min'] ?? 60)),
                 ])->save();
-                Notification::make()->title('Settings saved')->success()->send();
+                Notification::make()->title(__('labels.settings_saved'))->success()->send();
                 $this->redirect(static::getUrl(['record' => $this->project(), 'fn' => $fn->id]));
             });
 
-        $actions[] = Action::make('delete')->label('Delete')->color('danger')
+        $actions[] = Action::make('delete')->label(__('labels.delete'))->color('danger')
             ->requiresConfirmation()
-            ->modalDescription('Deletes the function, all versions and invocation logs. Type the slug to confirm.')
-            ->schema([TextInput::make('confirm')->label('Type the function slug')->required()])
+            ->modalDescription(__('labels.deletes_the_function_all_versions_and_in'))
+            ->schema([TextInput::make('confirm')->label(__('labels.type_the_function_slug'))->required()])
             ->action(function (array $data) use ($fn) {
                 CpAccess::require(auth()->user(), 'functions.deploy');
                 abort_unless($data['confirm'] === $fn->slug, 422, 'Slug does not match.');

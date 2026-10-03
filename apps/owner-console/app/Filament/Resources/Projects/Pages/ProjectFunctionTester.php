@@ -56,7 +56,7 @@ class ProjectFunctionTester extends Page
         try {
             return 'Test · '.$this->function()->slug;
         } catch (\Throwable) {
-            return 'Function tester';
+            return __('labels.function_tester');
         }
     }
 
@@ -135,14 +135,14 @@ class ProjectFunctionTester extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('send')->label('Send request')
+            Action::make('send')->label(__('labels.send_request'))
                 ->schema([
                     Select::make('method')->options(['GET' => 'GET', 'POST' => 'POST', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE'])
                         ->default('GET')->required(),
-                    TextInput::make('query')->label('Query string')->placeholder('key=1&debug=true'),
-                    Textarea::make('body_json')->label('JSON body (for POST/PUT/PATCH)')->rows(4)
+                    TextInput::make('query')->label(__('labels.query_string'))->placeholder('key=1&debug=true'),
+                    Textarea::make('body_json')->label(__('labels.json_body_for_post_put_patch'))->rows(4)
                         ->extraAttributes(['class' => 'cp-code', 'spellcheck' => 'false']),
-                    TextInput::make('credential')->label('API key / user token (as required by auth mode)')
+                    TextInput::make('credential')->label(__('labels.api_key_user_token_as_required_by_auth_m'))
                         ->password()->revealable(),
                 ])
                 ->action(function (array $data) {

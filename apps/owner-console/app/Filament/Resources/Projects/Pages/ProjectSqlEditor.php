@@ -34,7 +34,7 @@ class ProjectSqlEditor extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'SQL Editor';
+        return __('labels.sql_editor');
     }
 
     public function getBreadcrumbs(): array

@@ -40,7 +40,7 @@ class ProjectSessions extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Sessions';
+        return __('labels.sessions');
     }
 
     public function getBreadcrumbs(): array
@@ -75,20 +75,20 @@ class ProjectSessions extends Page implements HasTable
                 ->orderByDesc('personal_access_tokens.created_at'))
             ->columns([
                 TextColumn::make('email')->searchable()->sortable(),
-                TextColumn::make('name')->label('Device / client')->searchable(),
+                TextColumn::make('name')->label(__('labels.device_client'))->searchable(),
                 TextColumn::make('abilities')->limit(40)->placeholder('—'),
                 TextColumn::make('last_used_at')->dateTime()->placeholder('never')->sortable(),
                 TextColumn::make('expires_at')->dateTime()->placeholder('—')->toggleable(),
                 TextColumn::make('created_at')->dateTime()->sortable(),
             ])
             ->recordActions([
-                Action::make('revoke_session')->label('Revoke')->icon('heroicon-o-arrow-right-start-on-rectangle')
+                Action::make('revoke_session')->label(__('labels.revoke'))->icon('heroicon-o-arrow-right-start-on-rectangle')
                     ->color('danger')->requiresConfirmation()
                     ->action(function ($record) {
                         DB::connection(\App\Services\ControlPlane\ProjectConnectionManager::connection($this->project()))
                             ->table('personal_access_tokens')->where('id', $record->id)->limit(1)->delete();
                         $this->audit('TOKEN_REVOKED', 'session', $record->id, ['email' => $record->email]);
-                        Notification::make()->title('Session revoked')->success()->send();
+                        Notification::make()->title(__('labels.session_revoked'))->success()->send();
                     }),
             ])
             ->emptyStateHeading('No active sessions');

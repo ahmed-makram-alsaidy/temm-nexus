@@ -69,9 +69,30 @@ No unrelated features; rc.4 is not modified.
 - **Guest surfaces (setup wizard, login, landing) get localized
   `<html lang dir>`, Arabic font stacks, and a language switcher.**
 
+### Localization closure (final rc.5)
+
+- **Every normal authenticated product surface now ships Arabic**: a
+  450-string audit of all 60 Filament pages/resources/widgets converted
+  deep-page titles, action labels, modal headings/descriptions, helper
+  texts, placeholders, notifications, and `return`-style getters to
+  translation keys (437 `labels.*` keys + component catalogue), covering
+  Database, Schema, ERD (including the canvas JS via injected i18n), SQL
+  Editor, Functions, Table Editor, Migration Center, CDC/Validation/
+  Cutover details, Backups, Logs, Audit, Infrastructure, Security,
+  Operations, and project/workspaces settings. Technical identifiers
+  (PostgreSQL, WAL, HTTP, PROMOTE, env-var names, vendor names) stay
+  canonical per C.10.
+- **Inspect Mode component catalogue** localizes labels/descriptions at
+  READ time (`lang/{en,ar}/components.php`); the registry const keeps a
+  compile-time-safe English fallback (a `__()` call inside a class const
+  compiles to a hard process death — found by the localization matrix).
+- `NoUntranslatedStringsTest` — a regression gate that fails the build on
+  any NEW hard-coded user-visible string in the product surface, with a
+  technical-identifier allowlist.
+
 ### Tests
 
-- `tests/Feature/Phase41/` — 48 new tests: locale resolution order,
+- `tests/Feature/Phase41/` — 50 new tests: locale resolution order,
   RTL/LTR direction on the panel, session/cookie/user persistence,
   platform default, Arabic pluralization, translation-key parity,
   AI settings authorization + API-key encryption/masking + safe test

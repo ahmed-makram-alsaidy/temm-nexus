@@ -40,7 +40,7 @@ class ProjectSecrets extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Secrets';
+        return __('labels.secrets');
     }
 
     public function getBreadcrumbs(): array
@@ -94,24 +94,24 @@ class ProjectSecrets extends Page
             ->orderBy('name')->pluck('name', 'id')->all();
 
         return array_filter([
-            Action::make('new_secret')->label('New secret')->icon('heroicon-o-plus')
+            Action::make('new_secret')->label(__('labels.new_secret'))->icon('heroicon-o-plus')
                 ->schema([
                     TextInput::make('name')->required()->placeholder('STRIPE_SECRET')
-                        ->helperText('UPPER_SNAKE_CASE. The value can never be viewed again.'),
-                    Textarea::make('value')->label('Value')->required()->rows(3),
+                        ->helperText(__('labels.upper_snake_case_the_value_can_never_be_')),
+                    Textarea::make('value')->label(__('labels.value'))->required()->rows(3),
                     TextInput::make('description')->maxLength(255),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'secrets.manage');
                     SecretService::create($this->project(), $data['name'], $data['value'], $data['description'] ?? null);
-                    Notification::make()->title('Secret stored (write-only)')->success()->send();
+                    Notification::make()->title(__('labels.secret_stored_write_only'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $options === [] ? null : Action::make('rotate')->label('Rotate')
+            $options === [] ? null : Action::make('rotate')->label(__('labels.rotate'))
                 ->color('warning')->requiresConfirmation()
                 ->schema([
-                    Select::make('id')->label('Secret')->required()->options($options),
-                    Textarea::make('value')->label('New value')->required()->rows(3),
+                    Select::make('id')->label(__('labels.secret'))->required()->options($options),
+                    Textarea::make('value')->label(__('labels.new_value'))->required()->rows(3),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'secrets.manage');
@@ -120,15 +120,15 @@ class ProjectSecrets extends Page
                     Notification::make()->title("Secret {$secret->name} rotated")->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $options === [] ? null : Action::make('delete')->label('Delete')
+            $options === [] ? null : Action::make('delete')->label(__('labels.delete'))
                 ->color('danger')->requiresConfirmation()
-                ->modalDescription('Removes the secret. Functions referencing it will resolve to empty. Audit logged.')
-                ->schema([Select::make('id')->label('Secret')->required()->options($options)])
+                ->modalDescription(__('labels.removes_the_secret_functions_referencing'))
+                ->schema([Select::make('id')->label(__('labels.secret'))->required()->options($options)])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'secrets.manage');
                     $secret = ProjectSecret::query()->where('project_id', $this->project()->id)->findOrFail($data['id']);
                     SecretService::delete($secret);
-                    Notification::make()->title('Secret deleted')->success()->send();
+                    Notification::make()->title(__('labels.secret_deleted'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
         ]);

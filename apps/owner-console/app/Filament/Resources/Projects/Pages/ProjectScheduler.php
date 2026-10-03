@@ -48,7 +48,7 @@ class ProjectScheduler extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Scheduler';
+        return __('labels.scheduler');
     }
 
     public function getBreadcrumbs(): array
@@ -139,18 +139,18 @@ class ProjectScheduler extends Page
             ->orderBy('name')->pluck('name', 'id')->all();
 
         return array_filter([
-            Action::make('new_job')->label('New scheduled job')->icon('heroicon-o-plus')
+            Action::make('new_job')->label(__('labels.new_scheduled_job'))->icon('heroicon-o-plus')
                 ->schema([
                     TextInput::make('name')->required()->maxLength(120)->regex('/^[A-Za-z0-9 _\-]{2,120}$/'),
-                    Select::make('preset')->label('Schedule preset')->options(
+                    Select::make('preset')->label(__('labels.schedule_preset'))->options(
                         array_combine(array_keys(CronService::PRESETS), array_values(CronService::PRESETS))
                     )->live(),
-                    TextInput::make('cron')->label('Cron expression')->required()->maxLength(60)
+                    TextInput::make('cron')->label(__('labels.cron_expression'))->required()->maxLength(60)
                         ->helperText('5-field cron, e.g. */5 * * * *. Validated + previewed below.'),
-                    Select::make('target_type')->label('Target')->required()->options([
+                    Select::make('target_type')->label(__('labels.target'))->required()->options([
                         'artisan' => 'Artisan command (allowlisted)', 'function' => 'Server function',
                     ])->live(),
-                    Select::make('target_ref')->label('Command / function')->required()->options(
+                    Select::make('target_ref')->label(__('labels.command_function'))->required()->options(
                         fn ($get) => $get('target_type') === 'function' ? $functions
                             : array_combine(TaskRunner::ARTISAN_ALLOWLIST, TaskRunner::ARTISAN_ALLOWLIST)
                     ),
@@ -172,21 +172,21 @@ class ProjectScheduler extends Page
                     Notification::make()->title("Job {$task->name} created — ".CronService::describe($task->cron))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $tasks === [] ? null : Action::make('run_now')->label('Run now')->icon('heroicon-o-play')
+            $tasks === [] ? null : Action::make('run_now')->label(__('labels.run_now'))->icon('heroicon-o-play')
                 ->requiresConfirmation()
-                ->schema([Select::make('id')->label('Job')->required()->options($tasks)])
+                ->schema([Select::make('id')->label(__('labels.job'))->required()->options($tasks)])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'tasks.manage');
                     $task = ProjectTask::query()->where('project_id', $this->project()->id)->findOrFail($data['id']);
                     $result = TaskRunner::run($task, 'owner:'.auth()->id());
-                    $note = Notification::make()->title('Run '.$result['status'].' in '.$result['duration_ms'].' ms');
+                    $note = Notification::make()->title(__('labels.run_frag').$result['status'].' in '.$result['duration_ms'].' ms');
                     $result['status'] === 'ok' ? $note->success()->send() : $note->danger()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            $tasks === [] ? null : Action::make('toggle_job')->label('Enable / disable')
+            $tasks === [] ? null : Action::make('toggle_job')->label(__('labels.enable_disable'))
                 ->schema([
-                    Select::make('id')->label('Job')->required()->options($tasks),
-                    Select::make('enabled')->label('State')->required()->options(['1' => 'Enabled', '0' => 'Disabled']),
+                    Select::make('id')->label(__('labels.job'))->required()->options($tasks),
+                    Select::make('enabled')->label(__('labels.state'))->required()->options(['1' => 'Enabled', '0' => 'Disabled']),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'tasks.manage');
@@ -194,7 +194,7 @@ class ProjectScheduler extends Page
                     $task->forceFill(['enabled' => $data['enabled'] === '1'])->save();
                     TaskRunner::scheduleNext($task);
                     $this->audit($task->enabled ? 'TASK_UPDATED' : 'TASK_DISABLED', 'task', $task->id, ['name' => $task->name]);
-                    Notification::make()->title('Job '.($task->enabled ? 'enabled' : 'disabled'))->success()->send();
+                    Notification::make()->title(__('labels.job_frag').($task->enabled ? 'enabled' : 'disabled'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
         ]);

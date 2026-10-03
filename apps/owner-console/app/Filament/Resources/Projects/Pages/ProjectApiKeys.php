@@ -40,7 +40,7 @@ class ProjectApiKeys extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'API Keys';
+        return __('labels.api_keys');
     }
 
     public function getBreadcrumbs(): array
@@ -105,13 +105,13 @@ class ProjectApiKeys extends Page
         }
 
         return array_filter([
-            Action::make('new_key')->label('New key')->icon('heroicon-o-plus')
+            Action::make('new_key')->label(__('labels.new_key'))->icon('heroicon-o-plus')
                 ->slideOver()
                 ->schema([
                     TextInput::make('name')->required()->maxLength(120),
                     CheckboxList::make('scopes')->options(array_combine(ApiKeyService::SCOPES, ApiKeyService::SCOPES))
                         ->required()->columns(2)->default(['functions:invoke']),
-                    DateTimePicker::make('expires_at')->label('Expires (optional)'),
+                    DateTimePicker::make('expires_at')->label(__('labels.expires_optional')),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'keys.manage');
@@ -119,17 +119,17 @@ class ProjectApiKeys extends Page
                         $this->project(), $data['name'], array_values($data['scopes'] ?? []),
                         $data['expires_at'] ?? null
                     );
-                    Notification::make()->title('Key created — copy it now, it will never be shown again')->warning()->send();
+                    Notification::make()->title(__('labels.key_created_copy_it_now_it_will_never_be'))->warning()->send();
                     $this->redirect(static::getUrl([
                         'record' => $this->project(),
                         'reveal' => $created['reveal'],
                         'id' => $created['key']->id,
                     ]));
                 }),
-            $options === [] ? null : Action::make('rotate')->label('Rotate')
+            $options === [] ? null : Action::make('rotate')->label(__('labels.rotate'))
                 ->color('warning')->requiresConfirmation()
-                ->modalDescription('Revokes the selected key and creates a replacement. Update clients immediately.')
-                ->schema([\Filament\Forms\Components\Select::make('id')->label('Key')->required()->options($options)])
+                ->modalDescription(__('labels.revokes_the_selected_key_and_creates_a_r'))
+                ->schema([\Filament\Forms\Components\Select::make('id')->label(__('labels.key'))->required()->options($options)])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'keys.manage');
                     $key = ProjectApiKey::query()->where('project_id', $this->project()->id)->findOrFail($data['id']);
@@ -139,9 +139,9 @@ class ProjectApiKeys extends Page
                         'record' => $this->project(), 'reveal' => $created['reveal'], 'id' => $created['key']->id,
                     ]));
                 }),
-            $options === [] ? null : Action::make('revoke')->label('Revoke')
+            $options === [] ? null : Action::make('revoke')->label(__('labels.revoke'))
                 ->color('danger')->requiresConfirmation()
-                ->schema([\Filament\Forms\Components\Select::make('id')->label('Key')->required()->options($options)])
+                ->schema([\Filament\Forms\Components\Select::make('id')->label(__('labels.key'))->required()->options($options)])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'keys.manage');
                     $key = ProjectApiKey::query()->where('project_id', $this->project()->id)->findOrFail($data['id']);

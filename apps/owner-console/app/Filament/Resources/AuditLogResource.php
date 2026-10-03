@@ -43,27 +43,27 @@ class AuditLogResource extends Resource
         return $table
             ->query(fn (): Builder => AdminAuditEntry::query()->orderByDesc('id'))
             ->columns([
-                TextColumn::make('created_at')->label('Time')->dateTime()->sortable(),
-                TextColumn::make('owner.email')->label('Owner')->placeholder('system')->searchable(),
-                TextColumn::make('project_slug')->label('Project')->badge()->searchable(),
+                TextColumn::make('created_at')->label(__('labels.time'))->dateTime()->sortable(),
+                TextColumn::make('owner.email')->label(__('labels.owner'))->placeholder('system')->searchable(),
+                TextColumn::make('project_slug')->label(__('labels.project'))->badge()->searchable(),
                 TextColumn::make('action')->badge()->searchable(),
                 TextColumn::make('target_type')->placeholder('—')->toggleable(),
                 TextColumn::make('target_id')->placeholder('—')->toggleable(),
                 TextColumn::make('ip')->placeholder('—')->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('owner_user_id')->label('Actor')
+                SelectFilter::make('owner_user_id')->label(__('labels.actor'))
                     ->relationship('owner', 'email')->searchable()->preload(),
                 SelectFilter::make('action')->options(array_combine(AdminAuditEntry::ACTIONS, AdminAuditEntry::ACTIONS)),
-                SelectFilter::make('project_slug')->label('Project')
+                SelectFilter::make('project_slug')->label(__('labels.project'))
                     ->options(fn () => \App\Models\Project::pluck('slug', 'slug')->all()),
-                SelectFilter::make('target_type')->label('Resource')
+                SelectFilter::make('target_type')->label(__('labels.resource'))
                     ->options(fn () => AdminAuditEntry::query()->distinct()
                         ->whereNotNull('target_type')->pluck('target_type', 'target_type')->all()),
-                Filter::make('created_at')->label('Time')
+                Filter::make('created_at')->label(__('labels.time'))
                     ->schema([
-                        DatePicker::make('from')->label('From'),
-                        DatePicker::make('until')->label('Until'),
+                        DatePicker::make('from')->label(__('labels.from')),
+                        DatePicker::make('until')->label(__('labels.until')),
                     ])
                     ->query(function (Builder $query, array $data) {
                         return $query
@@ -72,7 +72,7 @@ class AuditLogResource extends Resource
                     }),
             ])
             ->recordActions([
-                Action::make('view_entry')->label('Detail')->icon('heroicon-o-eye')
+                Action::make('view_entry')->label(__('labels.detail'))->icon('heroicon-o-eye')
                     ->slideOver()->modalSubmitAction(false)->modalCancelActionLabel('Close')
                     ->modalContent(fn (AdminAuditEntry $record) => new HtmlString(
                         '<dl class="cp-kv">'

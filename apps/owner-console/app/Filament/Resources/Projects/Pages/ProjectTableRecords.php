@@ -59,7 +59,7 @@ class ProjectTableRecords extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Table Editor';
+        return __('labels.table_editor');
     }
 
     public function getBreadcrumbs(): array
@@ -190,7 +190,7 @@ class ProjectTableRecords extends Page implements HasTable
             ->columns($tableColumns)
             ->recordActions($canWrite ? [
                 Action::make('edit_record')
-                    ->label('Edit')
+                    ->label(__('labels.edit'))
                     ->icon('heroicon-o-pencil-square')
                     ->slideOver()
                     ->schema(fn ($record) => $this->recordForm($columns, $pk))
@@ -199,45 +199,45 @@ class ProjectTableRecords extends Page implements HasTable
                         $payload = $this->formPayload($data, $columns, $pk, false);
                         $this->explorer()->update($tableName, $record->getKey(), $payload);
                         $this->audit('RECORD_UPDATED', $tableName, $record->getKey(), ['fields' => array_keys($payload)]);
-                        Notification::make()->title('Record updated')->success()->send();
+                        Notification::make()->title(__('labels.record_updated'))->success()->send();
                     }),
                 Action::make('delete_record')
-                    ->label('Delete')
+                    ->label(__('labels.delete'))
                     ->icon('heroicon-o-trash')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalHeading('Delete this record?')
-                    ->modalDescription('Single-row delete only. This is audit logged.')
+                    ->modalHeading(__('labels.delete_this_record'))
+                    ->modalDescription(__('labels.single_row_delete_only_this_is_audit_log'))
                     ->action(function ($record) use ($tableName) {
                         $this->explorer()->delete($tableName, $record->getKey());
                         $this->audit('RECORD_DELETED', $tableName, $record->getKey());
-                        Notification::make()->title('Record deleted')->success()->send();
+                        Notification::make()->title(__('labels.record_deleted'))->success()->send();
                     }),
             ] : [])
             ->headerActions(array_merge([
                 Action::make('export_csv')
-                    ->label('Export CSV')
+                    ->label(__('labels.export_csv'))
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('gray')
                     ->url(route('control-plane.csv-export', ['project' => $this->project()->id, 'table' => $tableName]), true),
             ], $canWrite ? [
                 Action::make('create_record')
-                    ->label('New record')
+                    ->label(__('labels.new_record'))
                     ->slideOver()
                     ->schema($this->recordForm($columns, $pk, true))
                     ->action(function (array $data) use ($tableName, $pk) {
                         $id = $this->explorer()->insert($tableName, $this->formPayload($data, $columns, $pk, true));
                         $this->audit('RECORD_CREATED', $tableName, $id);
-                        Notification::make()->title('Record created')->success()->send();
+                        Notification::make()->title(__('labels.record_created'))->success()->send();
                     }),
                 Action::make('import_csv')
-                    ->label('Import CSV')
+                    ->label(__('labels.import_csv'))
                     ->icon('heroicon-o-arrow-up-tray')
                     ->color('gray')
                     ->slideOver()
                     ->schema([
                         FileUpload::make('file')
-                            ->label('CSV file (max 1000 rows, headers must match visible columns)')
+                            ->label(__('labels.csv_file_max_1000_rows_headers_must_matc'))
                             ->acceptedFileTypes(['text/csv', 'text/plain', '.csv'])
                             ->maxSize(5120)
                             ->required(),
@@ -278,12 +278,12 @@ class ProjectTableRecords extends Page implements HasTable
                 // only appears once one or more rows are selected (Phase 20.7).
                 BulkActionGroup::make([
                     BulkAction::make('bulk_delete')
-                        ->label('Delete selected')
+                        ->label(__('labels.delete_selected'))
                         ->icon('heroicon-o-trash')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->modalHeading('Delete selected records?')
-                        ->modalDescription('Every selected row is deleted. There is no undo. This is audit logged.')
+                        ->modalHeading(__('labels.delete_selected_records'))
+                        ->modalDescription(__('labels.every_selected_row_is_deleted_there_is_n'))
                         ->action(function ($records) use ($tableName) {
                             $n = 0;
                             foreach ($records as $record) {

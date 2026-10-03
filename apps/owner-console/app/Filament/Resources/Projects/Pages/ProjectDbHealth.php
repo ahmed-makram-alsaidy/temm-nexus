@@ -37,7 +37,7 @@ class ProjectDbHealth extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Health';
+        return __('labels.health');
     }
 
     public function getBreadcrumbs(): array
@@ -90,7 +90,7 @@ class ProjectDbHealth extends Page
                 Section::make('Server')->schema([
                     TextEntry::make('pg')->state($this->shortVersion($version)),
                     TextEntry::make('uptime')->state((string) ($up->up ?? '—')),
-                    TextEntry::make('slow_src')->label('Slow queries')->state($slow === null ? 'pg_stat_statements unavailable' : count($slow).' slowest shown'),
+                    TextEntry::make('slow_src')->label(__('labels.slow_queries'))->state($slow === null ? 'pg_stat_statements unavailable' : count($slow).' slowest shown'),
                 ]),
                 Section::make('Tables')->schema([
                     TextEntry::make('count')->state(count($largest).' largest shown below'),
@@ -109,7 +109,7 @@ class ProjectDbHealth extends Page
             if ($slow !== null && $slow !== []) {
                 $sections[] = Section::make('Slowest queries (mean)')->schema([
                     RepeatableEntry::make('slow')->state(array_map(fn ($r) => (array) $r, $slow))
-                        ->schema([TextEntry::make('query'), TextEntry::make('calls'), TextEntry::make('mean_ms')->label('Mean ms')])
+                        ->schema([TextEntry::make('query'), TextEntry::make('calls'), TextEntry::make('mean_ms')->label(__('labels.mean_ms'))])
                         ->contained(false),
                 ]);
             }

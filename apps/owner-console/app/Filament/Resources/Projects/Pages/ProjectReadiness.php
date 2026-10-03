@@ -43,7 +43,7 @@ class ProjectReadiness extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Readiness';
+        return __('labels.readiness');
     }
 
     public function getBreadcrumbs(): array
@@ -133,33 +133,33 @@ class ProjectReadiness extends Page
         $project = $this->project();
 
         return [
-            Action::make('evaluate')->label('Evaluate now')->icon('heroicon-o-play')
+            Action::make('evaluate')->label(__('labels.evaluate_now'))->icon('heroicon-o-play')
                 ->action(function () {
                     $summary = ReadinessService::evaluate($this->project(), EnvironmentContext::active($this->project()));
                     Notification::make()->title("{$summary['counts']['green']} green, {$summary['counts']['yellow']} yellow, {$summary['counts']['red']} red")
                         ->warning($summary['counts']['red'] > 0)->success($summary['counts']['red'] === 0)->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('acknowledge')->label('Acknowledge check')->icon('heroicon-o-check-badge')
+            Action::make('acknowledge')->label(__('labels.acknowledge_check'))->icon('heroicon-o-check-badge')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'readiness.acknowledge'))
                 ->schema([
                     Select::make('check_key')->required()->options(
                         \App\Models\ReadinessCheck::where('project_id', $project->id)
                             ->where('origin', 'manual')->pluck('title', 'check_key')->all()
-                    )->helperText('Machine checks: only YELLOW can be acknowledged; RED must be resolved.'),
-                    Textarea::make('note')->required()->rows(2)->placeholder('Who verified what, and how'),
+                    )->helperText(__('labels.machine_checks_only_yellow_can_be_acknow')),
+                    Textarea::make('note')->required()->rows(2)->placeholder(__('labels.who_verified_what_and_how')),
                 ])
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'readiness.acknowledge');
                     try {
                         ReadinessService::acknowledge($this->project(), EnvironmentContext::active($this->project()), $data['check_key'], $data['note']);
-                        Notification::make()->title('Acknowledgement recorded')->success()->send();
+                        Notification::make()->title(__('labels.acknowledgement_recorded'))->success()->send();
                     } catch (\Throwable $e) {
                         Notification::make()->title($e->getMessage())->danger()->send();
                     }
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('add_manual')->label('Add manual check')->icon('heroicon-o-plus')
+            Action::make('add_manual')->label(__('labels.add_manual_check'))->icon('heroicon-o-plus')
                 ->visible(fn () => CpAccess::allows(auth()->user(), 'readiness.acknowledge'))
                 ->schema([
                     Select::make('category')->required()->options(array_combine(ReadinessService::CATEGORIES, ReadinessService::CATEGORIES)),
@@ -169,13 +169,13 @@ class ProjectReadiness extends Page
                 ->action(function (array $data) {
                     CpAccess::require(auth()->user(), 'readiness.acknowledge');
                     ReadinessService::addManualCheck($this->project(), EnvironmentContext::active($this->project()), $data);
-                    Notification::make()->title('Manual check added')->success()->send();
+                    Notification::make()->title(__('labels.manual_check_added'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
-            Action::make('snapshot')->label('Record snapshot')->icon('heroicon-o-clock')
+            Action::make('snapshot')->label(__('labels.record_snapshot'))->icon('heroicon-o-clock')
                 ->action(function () {
                     ReadinessService::snapshot($this->project(), EnvironmentContext::active($this->project()));
-                    Notification::make()->title('Readiness snapshot recorded')->success()->send();
+                    Notification::make()->title(__('labels.readiness_snapshot_recorded'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
         ];

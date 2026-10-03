@@ -35,7 +35,7 @@ class InfraServices extends Page implements HasTable
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'Infrastructure Services';
+        return __('labels.infrastructure_services');
     }
 
     public function getBreadcrumbs(): array
@@ -65,13 +65,13 @@ class InfraServices extends Page implements HasTable
             ->columns([
                 TextColumn::make('key')->badge()->searchable(),
                 TextColumn::make('label')->placeholder('—'),
-                TextColumn::make('node.name')->label('Node')->badge(),
+                TextColumn::make('node.name')->label(__('labels.node'))->badge(),
                 TextColumn::make('scope')->badge(),
                 TextColumn::make('status')->badge()
                     ->color(fn ($s) => $s === 'healthy' ? 'success' : ($s === 'unknown' ? 'warning' : 'danger')),
                 TextColumn::make('endpoint')->placeholder('—'),
                 TextColumn::make('version')->placeholder('—'),
-                TextColumn::make('last_check_at')->label('Last check')->dateTime()->placeholder('—'),
+                TextColumn::make('last_check_at')->label(__('labels.last_check'))->dateTime()->placeholder('—'),
             ])
             ->paginated(false);
     }

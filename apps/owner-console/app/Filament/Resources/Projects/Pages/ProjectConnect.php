@@ -41,7 +41,7 @@ class ProjectConnect extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Connect';
+        return __('labels.connect');
     }
 
     public function getBreadcrumbs(): array
@@ -248,7 +248,7 @@ class ProjectConnect extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('test_connection')->label('Test connection')->icon('heroicon-o-signal')
+            Action::make('test_connection')->label(__('labels.test_connection'))->icon('heroicon-o-signal')
                 ->action(function () {
                     $p = $this->project();
                     $env = \App\Services\ControlPlane\EnvironmentContext::active($p);
@@ -261,7 +261,7 @@ class ProjectConnect extends Page
                         $rows .= '<tr><td><code>'.e($check['target']).'</code></td><td><span class="cp-badge '.$badge.'">'.e($check['status']).'</span></td>'
                             .'<td style="font-size:.75rem">'.e((string) ($check['detail'] ?? $check['http_status'] ?? '')).'</td></tr>';
                     }
-                    Notification::make()->title('Connection test: '.$result['overall'])
+                    Notification::make()->title(__('labels.connection_test_frag').$result['overall'])
                         ->success($result['overall'] === 'ok')->warning($result['overall'] !== 'ok')->send();
                     session(["cp_connect_test_{$p->id}" => $rows]);
                     $this->redirect(static::getUrl(['record' => $p]));

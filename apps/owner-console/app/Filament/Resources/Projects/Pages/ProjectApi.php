@@ -128,7 +128,7 @@ class ProjectApi extends Page
     {
         $actions = [];
         if (CpAccess::allows(auth()->user(), 'settings.manage')) {
-            $actions[] = Action::make('refresh_snapshot')->label('Refresh snapshot')
+            $actions[] = Action::make('refresh_snapshot')->label(__('labels.refresh_snapshot'))
                 ->icon('heroicon-o-arrow-path')
                 ->action(function () {
                     $routes = ApiStudioService::refreshSnapshot($this->project());
@@ -137,16 +137,16 @@ class ProjectApi extends Page
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 });
         }
-        $actions[] = Action::make('send_request')->label('Send request')
+        $actions[] = Action::make('send_request')->label(__('labels.send_request'))
             ->slideOver()
             ->schema([
                 Select::make('method')->options(['GET' => 'GET', 'POST' => 'POST', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE'])
                     ->default('GET')->required(),
                 TextInput::make('url')->label('URL')->required()
                     ->placeholder('https://console.test/f/'.$this->project()->slug.'/hello-platform'),
-                Textarea::make('body_json')->label('JSON body')->rows(3)
+                Textarea::make('body_json')->label(__('labels.json_body'))->rows(3)
                     ->extraAttributes(['class' => 'cp-code', 'spellcheck' => 'false']),
-                TextInput::make('credential')->label('API key (if required)')->password()->revealable(),
+                TextInput::make('credential')->label(__('labels.api_key_if_required'))->password()->revealable(),
             ])
             ->action(function (array $data) {
                 $body = trim((string) ($data['body_json'] ?? ''));

@@ -35,7 +35,7 @@ class ProjectMonitoring extends Page
 
     public function getTitle(): string|Htmlable
     {
-        return 'Monitoring';
+        return __('labels.monitoring');
     }
 
     public function getBreadcrumbs(): array

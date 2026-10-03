@@ -43,7 +43,7 @@ class ManageProjectRoles extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Roles';
+        return __('labels.roles');
     }
 
     public function getBreadcrumbs(): array
@@ -69,12 +69,12 @@ class ManageProjectRoles extends Page implements HasTable
         }
 
         return [
-            Action::make('bootstrap_roles')->label('Setup roles table')->icon('heroicon-o-wrench-screwdriver')
+            Action::make('bootstrap_roles')->label(__('labels.setup_roles_table'))->icon('heroicon-o-wrench-screwdriver')
                 ->action(function () {
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'users.manage');
                     $created = \App\Services\ControlPlane\AuthBootstrapService::ensureTables($this->project());
                     $this->audit('ROLE_CREATED', 'role', null, ['bootstrapped' => $created]);
-                    Notification::make()->title('Roles table ready')->success()->send();
+                    Notification::make()->title(__('labels.roles_table_ready'))->success()->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
         ];
@@ -102,7 +102,7 @@ class ManageProjectRoles extends Page implements HasTable
                 TextColumn::make('created_at')->dateTime()->sortable()->toggleable(),
             ])
             ->recordActions([
-                Action::make('edit_role')->label('Edit')->icon('heroicon-o-pencil-square')
+                Action::make('edit_role')->label(__('labels.edit'))->icon('heroicon-o-pencil-square')
                     ->schema([
                         TextInput::make('name')->required()->maxLength(64),
                         Textarea::make('description')->rows(2)->maxLength(500),
@@ -112,20 +112,20 @@ class ManageProjectRoles extends Page implements HasTable
                         $record->fill($data);
                         $record->save();
                         $this->audit('ROLE_UPDATED', 'role', $record->getKey(), ['name' => $data['name']]);
-                        Notification::make()->title('Role updated')->success()->send();
+                        Notification::make()->title(__('labels.role_updated'))->success()->send();
                     }),
-                Action::make('delete_role')->label('Delete')->icon('heroicon-o-trash')->color('danger')
+                Action::make('delete_role')->label(__('labels.delete'))->icon('heroicon-o-trash')->color('danger')
                     ->requiresConfirmation()
-                    ->modalDescription('Deleting a role does not touch users. Reassign users first if needed.')
+                    ->modalDescription(__('labels.deleting_a_role_does_not_touch_users_rea'))
                     ->action(function ($record) {
                         $name = $record->name;
                         $record->delete();
                         $this->audit('ROLE_DELETED', 'role', $name);
-                        Notification::make()->title('Role deleted')->success()->send();
+                        Notification::make()->title(__('labels.role_deleted'))->success()->send();
                     }),
             ])
             ->headerActions([
-                Action::make('create_role')->label('New role')
+                Action::make('create_role')->label(__('labels.new_role'))
                     ->schema([
                         TextInput::make('name')->required()->maxLength(64),
                         Textarea::make('description')->rows(2)->maxLength(500),
@@ -139,7 +139,7 @@ class ManageProjectRoles extends Page implements HasTable
                         $role->fill($data);
                         $role->save();
                         $this->audit('ROLE_CREATED', 'role', $role->getKey(), ['name' => $data['name']]);
-                        Notification::make()->title('Role created')->success()->send();
+                        Notification::make()->title(__('labels.role_created'))->success()->send();
                     }),
             ]);
     }

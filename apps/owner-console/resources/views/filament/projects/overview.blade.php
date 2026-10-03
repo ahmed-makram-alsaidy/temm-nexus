@@ -217,9 +217,9 @@
 
             @if ($sync['lagSeconds'] !== null)
                 <div class="nx-fact">
-                    <span class="nx-fact__label">Live Sync lag</span>
+                    <span class="nx-fact__label">{{ __('labels.live_sync_lag') }}</span>
                     <span class="nx-fact__value nx-num">{{ $sync['lagSeconds'] }}s</span>
-                    <span class="nx-fact__detail">Time since the last applied change.</span>
+                    <span class="nx-fact__detail">{{ __('labels.time_since_the_last_applied_change') }}</span>
                 </div>
             @endif
         </div>
