@@ -193,11 +193,18 @@ class OpenAiCompatibleDriver implements AiDriver
     {
         $lower = strtolower($body);
 
-        if ($status === 401 || $status === 403
+        if ($status === 401
             || str_contains($lower, 'unauthorized_client_error')
             || str_contains($lower, 'unauthorized client')) {
             return 'Provider authentication/client identification failed. '
                 .'Check the API key and any required client headers (for example User-Agent) in Settings → Nexus AI.';
+        }
+
+        if ($status === 403) {
+            // Gateways refuse 403 both for bad credentials and for tokens
+            // that lack the configured model — name both operator actions.
+            return 'The provider refused access (HTTP 403). Check the API key, '
+                .'any required client headers, and that the token is allowed to use the configured model.';
         }
 
         return match (true) {

@@ -213,6 +213,20 @@ class ProviderCustomHeadersTest extends TestCase
         $result = $this->engine($this->owner())->turn('Reply exactly with HELLO');
 
         $this->assertFalse($result['ok']);
+        $this->assertStringContainsString('The provider refused access (HTTP 403)', $result['error']);
+    }
+
+    public function test_http_403_client_refusal_keeps_the_auth_message(): void
+    {
+        // A 403 that IS a client-identification refusal (AgentRouter shape).
+        Http::fake(['*' => Http::response([
+            'error' => ['message' => 'unauthorized client detected'],
+        ], 403)]);
+        $config = $this->agentRouterConfig();
+
+        $result = $this->engine($this->owner())->turn('Reply exactly with HELLO');
+
+        $this->assertFalse($result['ok']);
         $this->assertStringContainsString('Provider authentication/client identification failed', $result['error']);
     }
 
