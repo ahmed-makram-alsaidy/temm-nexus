@@ -60,9 +60,19 @@ class Workspaces extends Page
      * refused. Entry is granted to anyone who can reach at least one workspace.
      * The listing itself is then filtered by `accessibleWorkspaces()`, so a user
      * with reach sees exactly their own clients and nothing else.
+     *
+     * 0.4.0-rc.6 — fresh-install bootstrap: this page is the ONLY place a
+     * workspace (client) can be created, so a user who holds the platform
+     * create capability must reach it even when zero workspaces exist —
+     * otherwise the first workspace is uncreatable through the UI and the
+     * New Project wizard cannot start. Everyone else stays fail-closed.
      */
     public static function canAccess(): bool
     {
+        if (PlatformAccess::current()->allowsPlatform(Capability::WORKSPACES_CREATE)) {
+            return true;
+        }
+
         return PlatformAccess::current()->access()->accessibleWorkspaces()->isNotEmpty();
     }
 
