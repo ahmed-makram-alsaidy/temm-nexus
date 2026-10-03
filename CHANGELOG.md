@@ -1,3 +1,21 @@
+## [0.4.0-rc.6] — 2026-10-03
+
+**PRE-RELEASE — release candidate.** One fresh-install bootstrap fix on
+top of the accepted v0.4.0-rc.5 (which stays frozen and published). Found
+by the v0.4.0 stable-closure artifact-only fresh-install gate; v0.4.0
+stable remains unpublished pending this RC's acceptance.
+
+### Fixed
+
+- **A fresh install had no UI path to create its first workspace
+  (client).** The Clients & Workspaces page is the only place workspaces
+  are created, but its entry check required reaching at least one
+  workspace — so the page returned 403 on a fresh install and the
+  New Project wizard (which requires an existing workspace) could not
+  start. Entry is now also granted to holders of the `workspaces.create`
+  platform capability (the Platform Owner); everyone else stays
+  fail-closed. Regression-tested (`WorkspaceBootstrapAccessTest`).
+
 ## [0.4.0-rc.5] — 2026-10-03
 
 **PRE-RELEASE — release candidate.** Product UX closure on top of the
