@@ -1,3 +1,61 @@
+## [0.4.0-rc.7] — 2026-10-03
+
+**PRE-RELEASE — release candidate.** AgentRouter transport closure: the
+custom-header / client-identification feature, safe wire-level transport
+telemetry, and the Test Connection probe fix. The API key, endpoint and
+model configuration are untouched; this changes only HOW the transport is
+built, observed and classified.
+
+### Added
+
+- **Safe wire-level telemetry for every AI provider call**
+  (`TransportTelemetry` + the `nexus-ai` log channel,
+  `NEXUS_AI_TELEMETRY`/`NEXUS_AI_TELEMETRY_CHANNEL`): final URL, HTTP
+  method, status code, response Content-Type, effective User-Agent, request
+  JSON FIELD NAMES and the `stream` value — for both Test Connection and
+  real chat. Header VALUES are logged only for User-Agent/Content-Type/
+  Accept; `Authorization` is always `[protected]`, every other custom header
+  value `[redacted]`, non-2xx body previews have the configured key
+  redacted, and the API key is structurally excluded from every entry.
+  Regression-covered by `TransportTelemetryTest` (including a leak probe).
+- **Raw-wire regression for the effective User-Agent** — a loopback socket
+  capture server (`tests/Feature/Phase42/Fixtures/`) drives the real driver
+  beyond `Http::fake()` and asserts the outgoing wire header is exactly
+  `codex_cli_rs/0.149.1` on BOTH `test()` and `complete()`, that Guzzle
+  stamps its own `GuzzleHttp/7` default only when no custom UA is
+  configured, that the credential header appears exactly once, and that the
+  request JSON shape is `model/messages/max_tokens/stream`.
+- **AgentRouter acceptance runner** — `scripts/agentrouter-acceptance.php`
+  runs the five acceptance gates (HELLO visible / Test Connection /
+  normal reply / no blank bubble / secret leakage 0) against the configured
+  provider row through the production code paths and prints the transport
+  comparison block from the safe telemetry. `--mock` runs the identical
+  flow fully offline against the new `scripts/mock-agentrouter.php` gateway
+  stub (which refuses non-codex User-Agents exactly like the real router).
+
+### Fixed
+
+- **Header merge order is now an explicit contract**: framework defaults
+  first, validated custom provider headers LAST (so a gateway that
+  identifies clients by User-Agent receives the configured value), and the
+  vault credential re-asserted AFTER the merge (Authorization can never be
+  displaced by stored state).
+- **Test Connection no longer misclassifies a starved reasoning model.**
+  The probe sent `max_tokens: 1`; reasoning-style models burn the whole
+  budget on reasoning and answer HTTP 200 with EMPTY `content`, which the
+  old classifier reported as PROVIDER_ERROR — exactly the observed
+  "Connection failed / The provider returned an error." on a router where
+  the same key/endpoint/model works from codex_cli_rs. The probe now sends
+  a small sane budget (≤ 32) and treats `finish_reason: "length"` as
+  CONNECTED (auth, model and pipeline proven); real chat still refuses
+  empty content.
+- Every wire call now sends `"stream": false` explicitly, so the request
+  shape is identical across providers regardless of their defaults.
+- `AiNetworkGuard` gained a local-development-only allowance
+  (`AI_ALLOW_LOOPBACK_ENDPOINTS=true`, default false) so the acceptance
+  flow can run against the mock gateway offline; production behavior is
+  byte-for-byte unchanged and regression-tested.
+
 ## [0.4.0-rc.6] — 2026-10-03
 
 **PRE-RELEASE — release candidate.** One fresh-install bootstrap fix on
