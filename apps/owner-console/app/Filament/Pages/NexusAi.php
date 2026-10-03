@@ -726,6 +726,15 @@ class NexusAi extends Page
             return;
         }
 
+        // rc.7 hard guard — an empty reply is a provider failure, never a
+        // successful blank bubble: refuse it like any other error.
+        if (trim((string) $result['reply']) === '') {
+            $this->error = 'The AI provider returned an empty response. Check the provider configuration in Settings → Nexus AI.';
+            array_pop($this->transcript);
+
+            return;
+        }
+
         $this->lastRoute = [
             'provider' => $result['provider'],
             'model' => $result['model'],

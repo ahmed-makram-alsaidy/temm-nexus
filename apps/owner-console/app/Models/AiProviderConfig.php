@@ -12,13 +12,13 @@ class AiProviderConfig extends Model
 
     protected $fillable = [
         'provider', 'display_name', 'base_url', 'model', 'secret_encrypted', 'secret_ref', 'enabled',
-        'timeout_seconds', 'max_output_tokens', 'pricing', 'project_id', 'status',
+        'timeout_seconds', 'max_output_tokens', 'pricing', 'project_id', 'status', 'custom_headers',
     ];
 
     protected function casts(): array
     {
         return [
-            'last_tested_at' => 'datetime','enabled' => 'boolean', 'pricing' => 'array', 'max_output_tokens' => 'integer', 'timeout_seconds' => 'integer', 'secret_encrypted' => 'encrypted'];
+            'last_tested_at' => 'datetime','enabled' => 'boolean', 'pricing' => 'array', 'max_output_tokens' => 'integer', 'timeout_seconds' => 'integer', 'secret_encrypted' => 'encrypted', 'custom_headers' => 'encrypted:array'];
     }
 
     public function project(): BelongsTo

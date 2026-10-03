@@ -2683,3 +2683,29 @@ html[dir="rtl"] body * {
 }
 
 .nx-ai-help { margin-inline-start: auto; }
+
+/* rc.7 — custom HTTP header rows (Settings → Nexus AI, advanced). */
+.nx-advanced .nx-hint {
+    padding: 0 var(--nx-space-4);
+}
+
+.nx-advanced > .nx-card__actions {
+    padding: var(--nx-space-3) var(--nx-space-4);
+}
+
+.nx-header-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(220px, 2fr) auto;
+    gap: var(--nx-space-3);
+    align-items: start;
+    padding: 0 var(--nx-space-4) var(--nx-space-3);
+}
+
+.nx-header-row .nx-btn {
+    margin-top: 26px;
+}
+
+.nx-btn--small {
+    padding: 4px 10px;
+    font-size: 12px;
+}

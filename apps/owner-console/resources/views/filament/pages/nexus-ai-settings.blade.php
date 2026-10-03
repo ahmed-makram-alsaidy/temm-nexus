@@ -141,6 +141,45 @@
             </label>
         </div>
 
+        {{-- rc.7 — Advanced: custom HTTP headers (client identification). --}}
+        <details class="nx-advanced" @if (! empty($this->providerForm['custom_headers'])) open @endif>
+            <summary class="nx-advanced__summary">{{ __('ai.custom_headers_section') }}</summary>
+            <p class="nx-hint">{{ __('ai.custom_headers_help') }}</p>
+
+            @if ($this->providerForm['provider'] === 'openai_compatible')
+                <div class="nx-card__actions">
+                    <button type="button" wire:click="applyAgentRouterPreset" class="nx-btn nx-btn--small">{{ __('ai.preset_agentrouter') }}</button>
+                </div>
+            @endif
+
+            @foreach ($this->providerForm['custom_headers'] as $i => $row)
+                <div class="nx-header-row">
+                    <label class="nx-field">
+                        <span class="nx-field__label">{{ __('ai.header_name') }}</span>
+                        <input type="text" wire:model="providerForm.custom_headers.{{ $i }}.name"
+                               class="nx-field__input" maxlength="64" placeholder="User-Agent" />
+                        @error('providerForm.custom_headers.'.$i.'.name')<span class="nx-field__error">{{ $message }}</span>@enderror
+                    </label>
+                    <label class="nx-field">
+                        <span class="nx-field__label">{{ __('ai.header_value') }}</span>
+                        {{-- Write-only. Never carries the stored value back to the browser. --}}
+                        <input type="password" wire:model="providerForm.custom_headers.{{ $i }}.value"
+                               class="nx-field__input" autocomplete="new-password" value="" />
+                        <span class="nx-field__hint">{{ __('ai.header_value_saved') }}</span>
+                        @error('providerForm.custom_headers.'.$i.'.value')<span class="nx-field__error">{{ $message }}</span>@enderror
+                    </label>
+                    <button type="button" wire:click="removeCustomHeader({{ $i }})" class="nx-btn nx-btn--small"
+                            title="{{ __('ai.header_remove') }}">✕</button>
+                </div>
+            @endforeach
+
+            @error('providerForm.custom_headers')<span class="nx-field__error">{{ $message }}</span>@enderror
+
+            <div class="nx-card__actions">
+                <button type="button" wire:click="addCustomHeader" class="nx-btn nx-btn--small">+ {{ __('ai.header_add') }}</button>
+            </div>
+        </details>
+
         <div class="nx-card__actions">
             <button type="button" wire:click="saveProvider" class="nx-btn nx-btn--primary">{{ __('ai.save_provider') }}</button>
             <button type="button" wire:click="runTest" class="nx-btn">{{ __('ai.test_button') }}</button>

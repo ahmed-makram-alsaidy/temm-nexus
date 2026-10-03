@@ -9,6 +9,7 @@ use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\Ai\AiGateway;
 use App\Services\ControlPlane\Ai\AiNetworkGuard;
 use App\Services\ControlPlane\Ai\FakeAiDriver;
+use App\Services\ControlPlane\Ai\OpenAiCompatibleDriver;
 use App\Services\ControlPlane\SecretVaultService;
 use App\Models\AiModelProfile;
 use App\Models\AiProviderConfig;
@@ -58,6 +59,7 @@ class NexusAiSettings extends Page
         'api_key' => '',
         'timeout_seconds' => 60,
         'max_output_tokens' => 4096,
+        'custom_headers' => [],
     ];
 
     /** Optional per-role model overrides, keyed by ModelRouter role. */
@@ -155,6 +157,10 @@ class NexusAiSettings extends Page
             'providerForm.max_output_tokens' => ['nullable', 'integer', 'min:64', 'max:200000'],
         ]);
 
+        if (! $this->validateCustomHeaders()) {
+            return;
+        }
+
         $provider = $this->providerForm['provider'];
         $existing = self::globalProvider($provider);
 
@@ -200,11 +206,16 @@ class NexusAiSettings extends Page
             $config->secret_encrypted = $this->providerForm['api_key'];
         }
 
+        $config->custom_headers = $this->mergeCustomHeaders($existing);
+
         $config->save();
 
         AdminAudit::record('AI_PROVIDER_SAVED', null, 'ai_provider_config', $config->getKey(), [
             'provider' => $provider,
             'scope' => 'platform',
+            // Header NAMES only — values are credential-class material and
+            // are never audited, logged, or displayed.
+            'custom_header_names' => array_keys((array) $config->custom_headers),
         ]);
 
         // Write-only field: wiped after save; UI shows the masked hint only.
@@ -335,6 +346,148 @@ class NexusAiSettings extends Page
         return NexusAiConfig::selectableProviders();
     }
 
+    // ── Custom HTTP headers (rc.7) ──────────────────────────────────────
+
+    /**
+     * Strict per-row validation of the custom header map. Returns false and
+     * attaches per-field errors when anything is off; the save then aborts.
+     */
+    protected function validateCustomHeaders(): bool
+    {
+        $rows = array_values((array) ($this->providerForm['custom_headers'] ?? []));
+
+        if (count($rows) > 8) {
+            $this->addError('providerForm.custom_headers', __('ai.header_too_many'));
+
+            return false;
+        }
+
+        $seen = [];
+        foreach ($rows as $i => $row) {
+            $name = trim((string) ($row['name'] ?? ''));
+            $value = (string) ($row['value'] ?? '');
+
+            if ($name === '') {
+                continue; // empty rows are ignored at save, not an error
+            }
+
+            if (! preg_match('/^[A-Za-z][A-Za-z0-9-]{0,63}$/', $name)) {
+                $this->addError("providerForm.custom_headers.{$i}.name", __('ai.header_name_invalid'));
+
+                return false;
+            }
+
+            $lower = strtolower($name);
+            if (in_array($lower, OpenAiCompatibleDriver::FORBIDDEN_CUSTOM_HEADERS, true)) {
+                $this->addError("providerForm.custom_headers.{$i}.name", __('ai.header_name_invalid'));
+
+                return false;
+            }
+
+            if (isset($seen[$lower])) {
+                $this->addError("providerForm.custom_headers.{$i}.name", __('ai.header_name_invalid'));
+
+                return false;
+            }
+            $seen[$lower] = true;
+
+            if ($value !== '' && (strlen($value) > 512 || preg_match('/[\r\n]/', $value))) {
+                $this->addError("providerForm.custom_headers.{$i}.value", __('ai.header_value_invalid'));
+
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Build the stored map from the form. Values are write-only: a row whose
+     * value is left blank KEEPS the stored value for that header (the same
+     * posture as the API key); a blank-name row is dropped.
+     *
+     * @return array<string, string>
+     */
+    protected function mergeCustomHeaders(?AiProviderConfig $existing): array
+    {
+        $stored = (array) ($existing?->custom_headers ?? []);
+        $map = [];
+
+        foreach (array_values((array) ($this->providerForm['custom_headers'] ?? [])) as $row) {
+            $name = trim((string) ($row['name'] ?? ''));
+            $value = (string) ($row['value'] ?? '');
+
+            if ($name === '') {
+                continue;
+            }
+
+            if ($value !== '') {
+                $map[$name] = $value;
+            } elseif (array_key_exists($name, $stored)) {
+                $map[$name] = (string) $stored[$name];
+            }
+        }
+
+        return $map;
+    }
+
+    /** Add an empty custom header row to the form. */
+    public function addCustomHeader(): void
+    {
+        if (count($this->providerForm['custom_headers']) >= 8) {
+            return;
+        }
+
+        $this->providerForm['custom_headers'][] = ['name' => '', 'value' => ''];
+    }
+
+    /** Remove one custom header row (removal deletes the stored header on save). */
+    public function removeCustomHeader(int $index): void
+    {
+        unset($this->providerForm['custom_headers'][$index]);
+        $this->providerForm['custom_headers'] = array_values($this->providerForm['custom_headers']);
+    }
+
+    /**
+     * AgentRouter compatibility preset for the OpenAI-compatible provider.
+     * Fills the gateway base URL, the recommended model and the required
+     * client identification header. The generic custom-header mechanism
+     * remains the source of truth — this only prefills the form.
+     */
+    public function applyAgentRouterPreset(): void
+    {
+        if ($this->providerForm['provider'] !== 'openai_compatible') {
+            Notification::make()->title(__('ai.preset_platform_only'))->warning()->send();
+
+            return;
+        }
+
+        $genericName = NexusAiConfig::selectableProviders()['openai_compatible'] ?? 'OpenAI-compatible';
+        if (trim($this->providerForm['display_name']) === '' || $this->providerForm['display_name'] === $genericName) {
+            $this->providerForm['display_name'] = 'AgentRouter';
+        }
+        $this->providerForm['base_url'] = 'https://agentrouter.org/v1';
+
+        if (trim((string) $this->providerForm['model']) === '') {
+            $this->providerForm['model'] = 'deepseek-v4-flash';
+        }
+
+        foreach ($this->providerForm['custom_headers'] as $row) {
+            if (strcasecmp(trim((string) ($row['name'] ?? '')), 'User-Agent') === 0) {
+                Notification::make()->title(__('ai.preset_agentrouter_applied'))->success()->send();
+
+                return;
+            }
+        }
+
+        $this->providerForm['custom_headers'][] = [
+            'name' => 'User-Agent',
+            'value' => 'codex_cli_rs/0.149.1',
+        ];
+
+        Notification::make()->title(__('ai.preset_agentrouter_applied'))->success()->send();
+    }
+
     /** ── Internals ──────────────────────────────────────────────────── */
 
     protected function safeTestMessage(string $result): string
@@ -364,6 +517,7 @@ class NexusAiSettings extends Page
             $this->providerForm['model'] = '';
             $this->providerForm['timeout_seconds'] = 60;
             $this->providerForm['max_output_tokens'] = 4096;
+            $this->providerForm['custom_headers'] = [];
 
             return;
         }
@@ -374,6 +528,14 @@ class NexusAiSettings extends Page
         $this->providerForm['model'] = (string) ($config->model ?? '');
         $this->providerForm['timeout_seconds'] = (int) ($config->timeout_seconds ?? 60);
         $this->providerForm['max_output_tokens'] = (int) ($config->max_output_tokens ?? 4096);
+
+        // Header NAMES repopulate; values are write-only credential-class
+        // material and never travel back to the browser. A row left with an
+        // empty value keeps the stored value on save.
+        $this->providerForm['custom_headers'] = array_values(array_map(
+            fn (string $name): array => ['name' => $name, 'value' => ''],
+            array_keys((array) ($config->custom_headers ?? []))
+        ));
     }
 
     protected function loadRoleModels(?string $provider = null): void

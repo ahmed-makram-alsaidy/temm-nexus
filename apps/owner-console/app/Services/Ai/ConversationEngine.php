@@ -8,6 +8,7 @@ use App\Services\Ai\Actions\ActionRegistry;
 use App\Services\Ai\Tools\ReadToolHandlers;
 use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\Ai\AiGateway;
+use App\Services\ControlPlane\Ai\AiProviderException;
 use App\Services\Product\InspectionContext;
 use Illuminate\Support\Facades\Log;
 
@@ -213,6 +214,17 @@ final class ConversationEngine
                 'usage' => $usage,
                 'context' => $this->context->auditPayload(),
             ];
+        } catch (AiProviderException $e) {
+            // Provider-side failure (auth/client identification, model, rate
+            // limit, error envelope, empty completion). The safe message is
+            // classified by the driver — never a raw body, never a blank
+            // reply that could look like a successful empty answer.
+            Log::warning('Nexus AI provider call failed', [
+                'scope' => $this->context->scope->value,
+                'user_id' => $this->context->access->user()->getKey(),
+            ]);
+
+            return $this->failure($e->safeMessage);
         } catch (\Throwable $e) {
             Log::warning('Nexus Copilot turn failed', [
                 'error' => $e->getMessage(),
