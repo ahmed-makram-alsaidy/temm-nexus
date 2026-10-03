@@ -4,14 +4,13 @@ A pragmatic software bill of materials. This is an inventory, not a
 vulnerability audit — do not assume it is vulnerability-free; run your own
 scanner (e.g. `composer audit`, `npm audit`, Trivy/Grype on the images).
 
-Generated for `0.4.0-rc.1` · Regenerate on every release.
+Generated for `0.4.0` · Regenerate on every release.
 
-> 0.4.0-rc.1 note: the dependency inventory is UNCHANGED from 0.3.0 — Phases
-> A–J added no new PHP or npm runtime dependency (the workspace layer, the
-> product redesign, Inspect Mode and the action layer are all built on the
-> existing framework and first-party code). 455 packages in the lock at
-> rc.1 (vendor tree growth from transitive resolution).
-> `composer audit` at rc.1: **0 security advisories**.
+> 0.4.0 note: the dependency inventory is UNCHANGED from 0.3.0 — Phases
+> A–K and the Phase 41 product closure (AI settings, New Project wizard,
+> Arabic/English localization) added no new PHP or npm runtime dependency.
+> 133 runtime + 33 dev entries in the lock at 0.4.0.
+> `composer audit` at 0.4.0: **0 security advisories**.
 
 ## Application (owner-console) — PHP
 
