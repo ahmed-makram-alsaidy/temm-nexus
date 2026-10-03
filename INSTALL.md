@@ -110,3 +110,26 @@ docker compose -f docker-compose.prod.yml down --volumes  # DELETE all data
 
 `--volumes` deletes PostgreSQL data, Redis data, uploads and TLS
 certificates. There is no undo.
+
+
+## Manual artifact install (no compose)
+
+If you deploy the tarball without `scripts/install.sh` (e.g. behind your own
+web server):
+
+```bash
+tar -xzf platform-*.tar.gz -C /opt/temm-nexus && cd /opt/temm-nexus/apps/owner-console
+cp .env.example .env            # then edit DB/Redis/APP_URL values
+composer install --no-dev --no-interaction
+php artisan key:generate --force
+mkdir -p bootstrap/cache storage/framework/{views,cache/data,sessions} storage/app/private
+touch database/database.sqlite  # sqlite only; Postgres needs a created database
+php artisan migrate --force     # or open /setup, which verifies the stack
+php artisan serve               # or your PHP-FPM / web server unit
+```
+
+`bootstrap/cache` and `storage/framework/*` are intentionally absent from the
+tarball and MUST exist before the first artisan command. Upgrading from
+v0.3.0: quote any unquoted space-containing values (e.g. `PLATFORM_NAME="My
+Nexus"`) in your existing `.env` once — v0.3.0's template shipped them
+unquoted and today's dotenv parser rejects them.
