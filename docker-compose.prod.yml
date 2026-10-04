@@ -156,7 +156,9 @@ services:
   horizon:
     <<: *app
     command: ["php", "artisan", "horizon"]
-    mem_limit: 512m
+    # 1g: the Phase 43 `agents` supervisor adds resident workers to the
+    # default fleet; 512m OOM-killed horizon on the VPS (dogfood finding).
+    mem_limit: 1g
     depends_on:
       migrate:
         condition: service_completed_successfully
