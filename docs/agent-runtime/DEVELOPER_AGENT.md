@@ -165,6 +165,26 @@ during a task live in the task's bounded event/command ledger
 never stored, only byte size and truncation state. Secrets never appear in
 any ledger, notification, or log line.
 
+## Session filesystem isolation (Landlock)
+
+Every shell the runtime spawns for a session runs through `ll-sh`, a
+Landlock (LSM) wrapper baked into the managed image. It fail-closes unless
+the working directory is beneath TEMM's agent-workspaces root, scrubs the
+inherited environment (the runtime auth password and provider
+configuration are invisible to sessions), and grants filesystem access
+ONLY to the session workspace (rw), the worktree's own gitdir (rw) plus
+the repository common store (read-only — `git status`/`git diff` work but
+a session cannot commit into the authoritative repository), system paths
+(rx), /proc (r), /dev and /tmp (rw). Sibling workspaces, app_storage,
+HOME, and everything else are denied by default; cross-directory
+rename/link is not granted; symlink escapes are blocked by real-path
+evaluation. Tool-level access outside the workspace is separately denied
+by the session permission ruleset (`external_directory: deny` — the
+runtime auto-rejects such tool calls). Host filesystem, Docker socket and
+the platform database remain unreachable at the container and network
+level. Kernels without Landlock ABI >= 3 (kernel < 6.2) get no session
+shell at all — the wrapper fails closed.
+
 ## Workspaces & retention
 
 Every task gets a unique worktree; paths are guarded against traversal,

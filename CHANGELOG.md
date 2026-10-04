@@ -75,6 +75,15 @@ existing 0.4.0-rc.7 work on `develop/0.4.0` is preserved unchanged.
   cross-project, oversized, secret-leakage scans), transport wire proofs,
   settings/UI authorization, CLI flows, EN/AR parity gates. Hermetic
   release suite green (823 tests at introduction).
+- **Session filesystem isolation (final hardening)** — every session shell
+  runs through a Landlock (LSM) wrapper (`ll-sh`, baked into the managed
+  image): fail-closed outside the workspaces root, scrubbed environment,
+  filesystem grants only for the session workspace + its worktree gitdir
+  (common store read-only), system paths, /proc, /dev, /tmp. Verified on
+  the disposable VPS: sibling-workspace enumeration, cross-project reads,
+  runtime-secret reads (file AND environment) and app_storage access are
+  all denied inside a real model session, while `git status` keeps working
+  and the full run→diff→approve→apply→verify lifecycle is unchanged.
 - **Docs** — `docs/agent-runtime/OPENCODE_INTEGRATION.md` (Gate B record)
   and `docs/agent-runtime/DEVELOPER_AGENT.md` (operator manual).
 
