@@ -120,6 +120,40 @@ services:
       start_period: 15s
     logging: *default-logging
 
+  # Phase 43 — managed OpenCode agent runtime. INTERNAL ONLY: no `ports:`,
+  # never routed through Caddy, never host-published. It sees exactly one
+  # host path — TEMM's isolated task-workspace root — mounted at the SAME
+  # absolute path as in the app container so `?directory=` stays consistent.
+  # Provider credentials for the agent come from the .env passthrough below.
+  opencode:
+    build:
+      context: ./infrastructure/docker/opencode
+      args:
+        OPENCODE_VERSION: ${OPENCODE_VERSION:-1.18.34}
+    image: backend-infra/opencode:${OPENCODE_VERSION:-1.18.34}
+    restart: unless-stopped
+    mem_limit: 1g
+    env_file: [.env]
+    environment:
+      TZ: ${TZ:-UTC}
+      OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:?set OPENCODE_SERVER_PASSWORD in .env}
+      # Model-provider credentials, passed through only when defined.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+    volumes:
+      - ./apps/owner-console/storage/app/private/agent-workspaces:/var/www/html/storage/app/private/agent-workspaces
+    networks:
+      - application
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4096/global/health').then(r=>r.json()).then(j=>process.exit(j.healthy?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *default-logging
+
   caddy:
     image: caddy:2.10.2-alpine
     restart: unless-stopped

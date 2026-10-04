@@ -1,3 +1,83 @@
+## [Unreleased — 0.5.0 development line] — Phase 43
+
+**DEVELOPMENT PREVIEW — not a release.** The Agent Runtime Platform: a new
+"Developer Agent" capability on the `develop/0.5.0` branch, with OpenCode as
+the first supported runtime. Tasks run in isolated git worktrees, produce
+deterministic fingerprint-bound changesets, and never touch authoritative
+source without an explicit human approval. Everything below is additive;
+existing 0.4.0-rc.7 work on `develop/0.4.0` is preserved unchanged.
+
+### Added
+
+- **Runtime abstraction layer** (`App\Services\Agent`) —
+  `AgentRuntimeContract`/`AgentRuntimeManager` (driver registry, the only
+  place a runtime name is resolved), normalized
+  capabilities/connection/model/event DTOs, structured error categories
+  (`RUNTIME_UNAVAILABLE`, `RUNTIME_AUTH_FAILED`, `MODEL_UNAVAILABLE`,
+  `SESSION_FAILED`, `WORKSPACE_FAILED`, `COMMAND_FAILED`, `TASK_CANCELLED`,
+  `INVALID_RUNTIME_RESPONSE`, `TIMEOUT`), the v1 `AgentExecutionPolicy`
+  (read/write/execute inside the assigned workspace only; apply requires
+  approval; deploy denied) and `AgentNetworkGuard` (external endpoints
+  HTTPS-only, private/metadata ranges refused).
+- **OpenCode adapter** (`Runtimes\OpenCode`) — HTTP transport for the
+  official server API verified against OpenCode 1.18.34's own OpenAPI
+  schema (`docs/agent-runtime/OPENCODE_INTEGRATION.md`): health/version
+  gate (MAJOR 1, MINOR ≥ 18), live provider/model discovery (ids verbatim),
+  per-directory session creation (`?directory=`), official session
+  permission ruleset (external-directory DENIED), async prompts
+  (`parts` shape), SSE event streaming with idle/total caps, permission
+  replies under platform policy, per-session diff, abort. Event normalizer
+  enforces the privacy boundary: hidden reasoning is never surfaced, command
+  output is reduced to byte counts.
+- **Workspace isolation** (`AgentWorkspaceService`) — unique disposable
+  `git worktree` per task under `storage/app/private/agent-workspaces`,
+  realpath containment, traversal/absolute/`.git`/symlink-escape guards,
+  retention sweep, deletion confined to the workspace root.
+- **Changeset / approval / apply / verify** — deterministic workspace
+  `git diff --binary` changesets with SHA-256 fingerprints; single-use
+  fingerprint- and revision-bound approvals; apply via whole-patch
+  `git apply --check` + apply with a stash recovery snapshot recorded;
+  STALE (source moved) and TAMPERED (content changed) refusals; oversized
+  changesets require manual review; per-project verification policy
+  (operator-defined, never agent-proposed, deploy excluded) recorded
+  honestly (`passed`/`failed`/`error`/`skipped`).
+- **Task orchestration** (`AgentTaskService` + `RunAgentTask` job on the
+  new Horizon `supervisor-agents` queue) — bounded event ledger (500
+  events), command ledger (metadata only), usage capture, concurrency
+  limits, cancellation (in-flight abort included), truthful outcomes (an
+  empty result is never reported as success).
+- **Schema** — additive Phase 43 migration: `agent_runtimes`,
+  `agent_tasks`, `agent_workspaces`, `agent_task_events`,
+  `agent_task_commands`, `agent_changesets`, `agent_approvals`,
+  `agent_verifications`.
+- **Permissions** — new `agents.view/run/configure/cancel/approve/apply/
+  audit` capabilities mapped across platform/workspace/project scopes
+  (`agents.configure` is platform-only); audit actions
+  `AGENT_*` in `AdminAuditEntry`.
+- **Web UI** — Settings → Developer Agents (runtime CRUD, managed/external,
+  write-only secrets, real connection test, live model discovery) and the
+  Developer Agent workbench (task creation, live polling of activity,
+  commands, diff, approval, apply, verification); full EN/AR with true RTL
+  and LTR-preserved technical identifiers.
+- **CLI** — `agent:status`, `agent:runtimes`, `agent:models`,
+  `agent:run`, `agent:show`, `agent:diff`, `agent:approve`, `agent:apply`,
+  `agent:cancel`, `agent:verify` — the same service layer as the web.
+- **Managed OpenCode service** — pinned image build
+  (`infrastructure/docker/opencode`, official `opencode-ai` npm package,
+  non-root, gosu drop) added to dev and prod compose as an internal-only
+  service (no published ports, not routed by Caddy) sharing exactly the
+  isolated-workspace path; `OPENCODE_SERVER_PASSWORD` required.
+- **Tests** — 3 unit + 9 feature Phase 43 suites (76 tests): runtime
+  registry, event normalization/SSE parsing, policy, workspace isolation
+  (traversal/symlink/VCS guards), full mock-runtime lifecycle
+  (run→diff→approve→apply→verify, cancel, timeout, permission reply,
+  structured failures), security suite (SSRF, replay, tamper, stale,
+  cross-project, oversized, secret-leakage scans), transport wire proofs,
+  settings/UI authorization, CLI flows, EN/AR parity gates. Hermetic
+  release suite green (823 tests at introduction).
+- **Docs** — `docs/agent-runtime/OPENCODE_INTEGRATION.md` (Gate B record)
+  and `docs/agent-runtime/DEVELOPER_AGENT.md` (operator manual).
+
 ## [0.4.0-rc.7] — 2026-10-03
 
 **PRE-RELEASE — release candidate.** AgentRouter transport closure: the
