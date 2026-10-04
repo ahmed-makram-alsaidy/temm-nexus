@@ -30,6 +30,7 @@ RUN apt-get update \
 RUN useradd --create-home --uid 2100 agent
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY healthcheck.mjs /usr/local/bin/healthcheck.mjs
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /var/www/html/storage/app/private/agent-workspaces
