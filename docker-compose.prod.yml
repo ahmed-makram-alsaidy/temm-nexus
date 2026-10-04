@@ -156,6 +156,11 @@ services:
   horizon:
     <<: *app
     command: ["php", "artisan", "horizon"]
+    # Run the queue worker as the SAME uid as php-fpm (www-data): the agent
+    # runtime creates git worktrees from web requests and computes changesets
+    # from queue jobs — one owner means git never hits dubious-ownership
+    # refusals and opencode shares file ownership with every PHP writer.
+    user: "82:82"
     # 1g: the Phase 43 `agents` supervisor adds resident workers to the
     # default fleet; 512m OOM-killed horizon on the VPS (dogfood finding).
     mem_limit: 1g
