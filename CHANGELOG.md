@@ -1,3 +1,10 @@
+## [0.5.0] — 2026-10-04
+
+**STABLE.** First stable release of the Agent Runtime Platform. Identical
+application code to the accepted v0.5.0-rc.1 (release-closure metadata
+only); the rc.1 release notes below describe the feature set in full and
+remain frozen as historical evidence.
+
 ## [0.5.0-rc.1] — 2026-10-04
 
 **PRE-RELEASE — release candidate.** The Agent Runtime Platform: a new
