@@ -134,6 +134,23 @@ final class Capability
 
     public const AI_CONFIGURE = 'ai.configure';
 
+    // ── Developer Agents (Phase 43) ────────────────────────────────────
+    // agents.configure is PLATFORM-scope only: a project-level user must
+    // never be able to configure a platform runtime.
+    public const AGENTS_VIEW = 'agents.view';
+
+    public const AGENTS_RUN = 'agents.run';
+
+    public const AGENTS_CONFIGURE = 'agents.configure';
+
+    public const AGENTS_CANCEL = 'agents.cancel';
+
+    public const AGENTS_APPROVE = 'agents.approve';
+
+    public const AGENTS_APPLY = 'agents.apply';
+
+    public const AGENTS_AUDIT = 'agents.audit';
+
     // ── Team / platform administration ─────────────────────────────────
     public const TEAM_VIEW = 'team.view';
 
@@ -186,6 +203,9 @@ final class Capability
 
                 self::AI_USE, self::AI_PLATFORM, self::AI_WORKSPACE, self::AI_PROJECT,
                 self::AI_APPROVE_ACTIONS, self::AI_INSPECT, self::AI_CONFIGURE,
+
+                self::AGENTS_VIEW, self::AGENTS_RUN, self::AGENTS_CONFIGURE,
+                self::AGENTS_CANCEL, self::AGENTS_APPROVE, self::AGENTS_APPLY, self::AGENTS_AUDIT,
 
                 self::TEAM_VIEW, self::TEAM_MANAGE, self::SETTINGS_MANAGE,
             ];

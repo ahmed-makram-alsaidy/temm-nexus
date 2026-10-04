@@ -20,6 +20,15 @@ class AppServiceProvider extends ServiceProvider
         // first-party packages (app/Connectors/*) runs lazily on first use
         // and is idempotent within a request lifecycle.
         $this->app->singleton(ConnectorRegistry::class);
+
+        // Phase 43 — agent runtime registry is a singleton: the driver map
+        // is process-stable and the ONLY place runtime names are resolved.
+        $this->app->singleton(\App\Services\Agent\AgentRuntimeManager::class, function () {
+            $manager = new \App\Services\Agent\AgentRuntimeManager;
+            $manager->registerDefaults();
+
+            return $manager;
+        });
     }
 
     public function boot(): void

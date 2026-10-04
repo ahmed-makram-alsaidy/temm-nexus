@@ -128,6 +128,12 @@ final class Roles
                     Capability::AI_PROJECT,
                     Capability::AI_INSPECT,
                     Capability::AI_APPROVE_ACTIONS,
+                    Capability::AGENTS_VIEW,
+                    Capability::AGENTS_RUN,
+                    Capability::AGENTS_CANCEL,
+                    Capability::AGENTS_APPROVE,
+                    Capability::AGENTS_APPLY,
+                    Capability::AGENTS_AUDIT,
                 ]),
 
                 // Runs day-to-day work but cannot approve cutover or see secrets.
@@ -154,6 +160,12 @@ final class Roles
                     Capability::AI_PROJECT,
                     Capability::AI_INSPECT,
                     Capability::AI_APPROVE_ACTIONS,
+                    Capability::AGENTS_VIEW,
+                    Capability::AGENTS_RUN,
+                    Capability::AGENTS_CANCEL,
+                    Capability::AGENTS_APPROVE,
+                    Capability::AGENTS_APPLY,
+                    Capability::AGENTS_AUDIT,
                 ]),
 
                 // Default for a client contact: read the workspace, nothing more.
@@ -161,6 +173,7 @@ final class Roles
                     Capability::WORKSPACE_MEMBERS_VIEW,
                     Capability::AI_WORKSPACE,
                     Capability::AI_PROJECT,
+                    Capability::AGENTS_VIEW,
                 ]),
             ],
 
@@ -185,6 +198,12 @@ final class Roles
                     Capability::AI_PROJECT,
                     Capability::AI_INSPECT,
                     Capability::AI_APPROVE_ACTIONS,
+                    Capability::AGENTS_VIEW,
+                    Capability::AGENTS_RUN,
+                    Capability::AGENTS_CANCEL,
+                    Capability::AGENTS_APPROVE,
+                    Capability::AGENTS_APPLY,
+                    Capability::AGENTS_AUDIT,
                 ]),
 
                 // Writes code/schema and runs migrations. No approval rights.
@@ -199,6 +218,8 @@ final class Roles
                     Capability::JOBS_RETRY,
                     Capability::AI_PROJECT,
                     Capability::AI_INSPECT,
+                    Capability::AGENTS_VIEW,
+                    Capability::AGENTS_RUN,
                 ]),
 
                 // Runs operations and Live Sync. No schema or code changes.
@@ -211,10 +232,12 @@ final class Roles
                     Capability::JOBS_RETRY,
                     Capability::DATA_READ,
                     Capability::AI_PROJECT,
+                    Capability::AGENTS_VIEW,
                 ]),
 
                 self::VIEWER => array_merge(self::READ_ONLY, [
                     Capability::AI_PROJECT,
+                    Capability::AGENTS_VIEW,
                 ]),
             ],
         ];

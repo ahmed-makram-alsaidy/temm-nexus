@@ -75,6 +75,15 @@ class AdminAuditEntry extends Model
         'AI_INSPECT_CONTEXT_ATTACHED',
         'AI_ACTION_PROPOSED', 'AI_ACTION_APPROVED', 'AI_ACTION_REJECTED',
         'AI_ACTION_APPLIED', 'AI_ACTION_VERIFIED',
+        // Phase 43 — Developer Agent runtime surfaces. Command/file activity
+        // during a task lives in agent_task_events (bounded telemetry); the
+        // ADMIN ledger records lifecycle decisions and source-impacting acts.
+        'AGENT_RUNTIME_CREATED', 'AGENT_RUNTIME_UPDATED', 'AGENT_RUNTIME_TESTED', 'AGENT_RUNTIME_DELETED',
+        'AGENT_TASK_CREATED', 'AGENT_TASK_CANCELLED', 'AGENT_TASK_FAILED',
+        'AGENT_CHANGESET_GENERATED',
+        'AGENT_APPROVAL_GRANTED', 'AGENT_APPROVAL_REJECTED',
+        'AGENT_APPLY_FAILED', 'AGENT_CHANGESET_APPLIED', 'AGENT_FILE_APPLIED',
+        'AGENT_VERIFICATION_RECORDED',
     ];
 
     protected $fillable = [

@@ -210,6 +210,23 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+
+        // Phase 43 — Developer Agent task runner. Coding sessions are slow,
+        // so this supervisor runs the dedicated `agents` queue with a long
+        // (but bounded) timeout; the task service enforces its own deadline
+        // inside that envelope.
+        'supervisor-agents' => [
+            'connection' => 'redis',
+            'queue' => ['agents'],
+            'balance' => 'static',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 7200,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -219,11 +236,17 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+            'supervisor-agents' => [
+                'maxProcesses' => 2,
+            ],
         ],
 
         'local' => [
             'supervisor-1' => [
                 'maxProcesses' => 3,
+            ],
+            'supervisor-agents' => [
+                'maxProcesses' => 1,
             ],
         ],
     ],
