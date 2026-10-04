@@ -257,7 +257,11 @@ class OpenCodeClient
                 continue;
             }
 
-            $deadline = microtime(true) + $idleTimeoutSeconds; // activity resets the idle window
+            // NOTE: raw bytes (SSE comments/keepalives) deliberately do NOT
+            // reset the idle window — only PARSED frames below do. Found live
+            // on the VPS: the runtime streams periodic keepalives, and
+            // counting them as activity kept a finished session "live" until
+            // the total task budget expired.
             $buffer .= $chunk;
 
             while (($pos = strpos($buffer, "\n")) !== false) {
@@ -266,6 +270,7 @@ class OpenCodeClient
 
                 $frame = self::parseSseLine($line);
                 if ($frame !== null) {
+                    $deadline = microtime(true) + $idleTimeoutSeconds; // a real frame resets the idle window
                     yield $frame;
                 }
             }
