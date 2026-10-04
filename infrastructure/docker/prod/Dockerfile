@@ -26,6 +26,7 @@ RUN apk add --no-cache \
       wget \
       postgresql-client \
       curl \
+      git \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
       pdo pdo_pgsql pgsql pdo_mysql \
