@@ -203,8 +203,10 @@ services:
   # here too at identical paths — never wider than that.
   opencode:
     build:
-      context: .
-      dockerfile: infrastructure/docker/opencode/Dockerfile
+      # Context is the opencode folder itself: COPY paths inside the
+      # Dockerfile (entrypoint.sh) are context-relative.
+      context: ./infrastructure/docker/opencode
+      dockerfile: Dockerfile
       args:
         OPENCODE_VERSION: ${OPENCODE_VERSION:-1.18.34}
     image: backend-plane/opencode:${OPENCODE_VERSION:-1.18.34}
