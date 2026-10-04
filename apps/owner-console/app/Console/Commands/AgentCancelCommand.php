@@ -44,7 +44,7 @@ class AgentCancelCommand extends Command
     /** @return array{0: AgentTask|null, 1: User|null} */
     protected function resolve(string $code, mixed $userEmail): array
     {
-        $task = AgentTask::where('code', $code)->orWhere('id', $code)->first();
+        $task = AgentTask::findByCodeOrId($code);
         if ($task === null) {
             $this->error('Task not found.');
 

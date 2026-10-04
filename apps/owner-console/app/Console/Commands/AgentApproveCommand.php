@@ -24,7 +24,7 @@ class AgentApproveCommand extends Command
 
     public function handle(AgentTaskService $service): int
     {
-        $task = AgentTask::where('code', $this->argument('code'))->orWhere('id', $this->argument('code'))->first();
+        $task = AgentTask::findByCodeOrId((string) $this->argument('code'));
 
         if ($task === null) {
             $this->error('Task not found.');

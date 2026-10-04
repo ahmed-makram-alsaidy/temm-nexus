@@ -65,6 +65,9 @@ class AgentModelsCommand extends Command
             return $query->orderByDesc('created_at')->first();
         }
 
-        return $query->where(fn ($q) => $q->where('display_name', $key)->orWhere('id', $key))->first();
+        // Same PostgreSQL uuid-guard as AgentTask::findByCodeOrId.
+        $isUuid = (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $key);
+
+        return $query->where(fn ($q) => $q->where('display_name', $key)->when($isUuid, fn ($qq) => $qq->orWhere('id', $key)))->first();
     }
 }

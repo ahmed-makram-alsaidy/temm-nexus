@@ -140,4 +140,20 @@ class AgentTask extends Model
     {
         return in_array($this->status, self::TERMINAL, true);
     }
+
+    /**
+     * Resolve a task by human code (AGT-XXXX) or UUID. The UUID fallback is
+     * guarded by a pattern check: binding a non-UUID string against the uuid
+     * column is a hard error on PostgreSQL (found live on the VPS — SQLite
+     * silently tolerates it).
+     */
+    public static function findByCodeOrId(string $codeOrId): ?self
+    {
+        $isUuid = (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $codeOrId);
+
+        return static::query()
+            ->where('code', $codeOrId)
+            ->when($isUuid, fn ($q) => $q->orWhere('id', $codeOrId))
+            ->first();
+    }
 }
