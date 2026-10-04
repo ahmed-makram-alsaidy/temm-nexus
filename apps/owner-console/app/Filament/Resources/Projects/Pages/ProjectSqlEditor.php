@@ -25,6 +25,15 @@ class ProjectSqlEditor extends Page
 
     protected static string $resource = ProjectResource::class;
 
+    /**
+     * 0.6.0 Phase A (§A3): an intentional wide surface — the shell stays
+     * ~1440px everywhere else, but this visualization needs the room.
+     */
+    public function getMaxContentWidth(): string|\Filament\Support\Enums\Width|null
+    {
+        return \Filament\Support\Enums\Width::Full;
+    }
+
     protected static bool $shouldRegisterNavigation = false;
 
     public function mount(int|string $record): void

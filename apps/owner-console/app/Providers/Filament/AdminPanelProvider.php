@@ -34,9 +34,12 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Indigo,
             ])
-            ->maxContentWidth('full')
+            ->maxContentWidth('nx-width-shell')
             ->sidebarCollapsibleOnDesktop()
             ->sidebarWidth('250px')
+            // 0.6.0 Phase A — light is the DEFAULT product experience; the
+            // theme switcher keeps dark mode available as an explicit choice.
+            ->defaultThemeMode(\Filament\Enums\ThemeMode::Light)
             // 0.4.0 Phase C: the fixed group list is gone. The navigation is
             // built explicitly by ProductNavigation, so there are no empty
             // groups and no group that holds a single link.
@@ -49,18 +52,15 @@ class AdminPanelProvider extends PanelProvider
                 \Filament\View\PanelsRenderHook::BODY_END,
                 ControlPlaneChrome::bodyEndHook(),
             )
-            // 0.4.0 Phase C — the project workspace navigation renders AFTER the
-            // global product navigation (SIDEBAR_NAV_END), not before it.
-            //
-            // It used to hook SIDEBAR_NAV_START, which pushed the day-to-day
-            // project navigation above the sidebar and buried the product shell
-            // (Home, Projects, Clients & Workspaces, Connectors, Nexus AI)
-            // underneath forty technical links. In project context the project
-            // navigation is still the fuller surface, but the platform stays
-            // reachable and visible without scrolling.
+            // 0.6.0 Phase B — the project context is a horizontal TAB BAR at
+            // the top of the content area (Overview · Migration · Data ·
+            // Access · Build · Operate · Settings), replacing the 35-link
+            // project sidebar. The platform sidebar stays quiet in project
+            // context; the topbar chip keeps the "which project am I in, and
+            // how do I get out" answer always visible.
             ->renderHook(
-                \Filament\View\PanelsRenderHook::SIDEBAR_NAV_END,
-                ControlPlaneChrome::workspaceHook(),
+                \Filament\View\PanelsRenderHook::CONTENT_START,
+                ControlPlaneChrome::projectTabbarHook(),
             )
             // 0.4.0 Phase C — project context chip in the topbar. Since the
             // project workspace navigation now renders at the END of the

@@ -1,0 +1,635 @@
+/* ==========================================================================
+   TEMM Nexus 0.6.0 — Product UI foundation (Phase A) + shell (Phase B)
+   --------------------------------------------------------------------------
+   Loaded AFTER Filament's sheet, nexus.css and cp.css (see AdminPanelProvider),
+   so these declarations are the newest layer of the product language.
+
+   What lives here:
+     1. Foundation tokens (spacing 48, container widths, refined light canvas)
+     2. Typography hierarchy (page title / section / card / body / secondary /
+        eyebrow / technical)
+     3. The product container — ~1440px centered shell with per-page opt-outs
+     4. Action hierarchy helpers (one primary per view; quiet danger)
+     5. Phase A components: error, empty state, disclosure, technical values
+     6. Phase B shell: project tab bar, settings hub
+     7. RTL behavior for everything above
+
+   Light is the DEFAULT experience (panel `defaultThemeMode(Light)`); the
+   dark scheme remains fully supported for users who choose it via the
+   theme switcher — every token below has a :root.dark counterpart.
+
+   Bump FOUNDATION_CSS_VERSION in ControlPlaneChrome when this file changes.
+   ========================================================================== */
+
+/* ── 1. Foundation tokens ───────────────────────────────────────────────── */
+:root {
+    /* Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48. */
+    --nx-space-12: 48px;
+
+    /* Container widths. */
+    --nx-shell-max: 90rem;      /* ~1440px page shell */
+    --nx-content-max: 60rem;    /* ~960px reading/forms column */
+
+    /* Product typography scale. */
+    --nx-text-page: 1.75rem;    /* 28px page title */
+    --nx-text-section: 1.25rem; /* 20px section title */
+    --nx-text-card: 0.9375rem;  /* 15px card title */
+    --nx-text-body: 0.875rem;   /* 14px body */
+    --nx-text-secondary: 0.8125rem; /* 13px secondary */
+    --nx-text-eyebrow: 0.6875rem;   /* 11px eyebrow/label */
+
+    /* Light-first canvas (matches nexus.css light theme; refined here). */
+    --nx-canvas: #f6f6f8;
+}
+
+html.dark {
+    --nx-canvas: #0b0b0e;
+}
+
+/* ── 2. Typography hierarchy ────────────────────────────────────────────── */
+
+/* Page titles: Filament header component, tuned once for the product. */
+.fi-header-heading {
+    font-size: var(--nx-text-page);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--nx-text);
+}
+
+.fi-header-subheading {
+    color: var(--nx-text-muted);
+    font-size: var(--nx-text-body);
+    line-height: 1.55;
+}
+
+/* Section and card titles inside product pages. */
+.nx-section__title,
+.fi-section-header-heading {
+    font-size: var(--nx-text-section);
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--nx-text);
+}
+
+.fi-section-header-description,
+.nx-section__description {
+    color: var(--nx-text-muted);
+    font-size: var(--nx-text-secondary);
+    line-height: 1.55;
+}
+
+/* Eyebrow / overline labels (scope chips, card eyebrows). */
+.nx-eyebrow {
+    font-size: var(--nx-text-eyebrow);
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--nx-text-subtle);
+}
+
+/* Long paragraph copy must never dominate a card: clamp helper. */
+.nx-prose-quiet {
+    color: var(--nx-text-muted);
+    font-size: var(--nx-text-secondary);
+    line-height: 1.55;
+}
+
+/* ── 3. The product container ───────────────────────────────────────────── */
+
+/* Normal product screens: ~1440px centered shell. Set via the panel
+   `maxContentWidth('nx-width-shell')` so the class lands on main.fi-main.
+   Wide surfaces (ERD, record browsers, SQL editor, topology, diffs) opt out
+   per page by overriding getMaxContentWidth() — the shell is never full-bleed
+   just because one table is. */
+.fi-main.nx-width-shell {
+    max-width: var(--nx-shell-max);
+}
+
+/* Comfortable gutters at every breakpoint; Filament supplies the base padding. */
+
+/* ── 4. Action hierarchy ────────────────────────────────────────────────── */
+
+/* Buttons: consistent radius + quiet borders; Filament colors carry intent. */
+.fi-btn {
+    border-radius: var(--nx-radius-sm);
+}
+
+/* Danger is deliberate: outline until the user is already in a confirm flow.
+   Never the visually dominant action on an empty/unavailable/error state. */
+.fi-btn.fi-color-danger:not(.fi-accent-color):not([aria-current]) {
+    background: transparent;
+    color: var(--nx-danger);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-danger) 45%, transparent);
+}
+
+.fi-btn.fi-color-danger:hover {
+    background: var(--nx-danger-soft);
+}
+
+/* Link-styled tertiary actions. */
+.fi-link-btn {
+    border-radius: var(--nx-radius-sm);
+}
+
+/* ── 5. Phase A components ──────────────────────────────────────────────── */
+
+/* 5a. Error pattern: what failed → what to do → Technical details ▸. */
+.nx-error {
+    display: flex;
+    gap: var(--nx-space-3);
+    align-items: flex-start;
+    padding: var(--nx-space-4);
+    border: 1px solid color-mix(in srgb, var(--nx-danger) 35%, transparent);
+    border-radius: var(--nx-radius);
+    background: var(--nx-danger-soft);
+}
+
+.nx-error__icon {
+    color: var(--nx-danger);
+    display: inline-flex;
+    margin-top: 2px;
+}
+
+.nx-error__content {
+    display: grid;
+    gap: var(--nx-space-2);
+    min-width: 0;
+}
+
+.nx-error__title {
+    font-weight: 650;
+    font-size: var(--nx-text-card);
+    color: var(--nx-text);
+}
+
+.nx-error__body {
+    color: var(--nx-text-muted);
+    font-size: var(--nx-text-body);
+    line-height: 1.55;
+}
+
+.nx-error__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--nx-space-3);
+    align-items: center;
+    margin-top: var(--nx-space-1);
+}
+
+/* Quiet secondary button used by foundation components. */
+.nx-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    border-radius: var(--nx-radius-sm);
+    border: 1px solid var(--nx-border-strong);
+    background: var(--nx-surface-raised);
+    color: var(--nx-text);
+    font-size: var(--nx-text-body);
+    font-weight: 550;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.nx-btn:hover {
+    border-color: var(--nx-accent);
+    color: var(--nx-accent);
+}
+
+.nx-btn--secondary {
+    /* reserved for future variants */
+}
+
+/* 5b. Empty states: icon → title → one sentence → actions. */
+.nx-emptystate {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: var(--nx-space-2);
+    padding: var(--nx-space-12) var(--nx-space-6);
+    border: 1px dashed var(--nx-border-strong);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-emptystate--compact {
+    padding: var(--nx-space-8) var(--nx-space-4);
+}
+
+.nx-emptystate__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-surface-sunken);
+    color: var(--nx-text-subtle);
+    margin-bottom: var(--nx-space-1);
+}
+
+.nx-emptystate__title {
+    font-size: var(--nx-text-card);
+    font-weight: 650;
+    color: var(--nx-text);
+}
+
+.nx-emptystate__body {
+    color: var(--nx-text-muted);
+    font-size: var(--nx-text-secondary);
+    line-height: 1.55;
+    max-width: 42ch;
+}
+
+.nx-emptystate__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--nx-space-3);
+    margin-top: var(--nx-space-3);
+}
+
+/* 5c. Progressive disclosure: quiet by default, content on demand. */
+.nx-details {
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-details--inline {
+    border: 0;
+    background: transparent;
+    padding: 0;
+}
+
+.nx-details__summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    padding: var(--nx-space-3) var(--nx-space-4);
+    font-size: var(--nx-text-secondary);
+    font-weight: 600;
+    color: var(--nx-text-muted);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.nx-details--inline .nx-details__summary {
+    padding: 0;
+    color: var(--nx-accent);
+}
+
+.nx-details__summary::-webkit-details-marker {
+    display: none;
+}
+
+.nx-details__summary:hover {
+    color: var(--nx-text);
+}
+
+.nx-details--inline .nx-details__summary:hover {
+    color: var(--nx-accent-hover);
+}
+
+.nx-details__chev {
+    transition: transform 120ms ease;
+}
+
+.nx-details[open] > .nx-details__summary .nx-details__chev {
+    transform: rotate(90deg);
+}
+
+.nx-details__body {
+    padding: 0 var(--nx-space-4) var(--nx-space-4);
+    color: var(--nx-text-muted);
+    font-size: var(--nx-text-secondary);
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.nx-details--inline .nx-details__body {
+    padding: var(--nx-space-3) 0 0;
+}
+
+/* 5d. Technical values: monospace, reserved tone, ALWAYS LTR. */
+.nx-tech-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    max-width: 100%;
+    min-width: 0;
+}
+
+.nx-tech {
+    font-family: var(--nx-mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+    font-size: 0.8125em;
+    background: var(--nx-surface-sunken);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-sm);
+    padding: 1px 6px;
+    color: var(--nx-text);
+    unicode-bidi: isolate;
+    direction: ltr;
+    overflow-wrap: anywhere;
+}
+
+.nx-tech__copy {
+    border: 0;
+    background: transparent;
+    color: var(--nx-text-subtle);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0;
+}
+
+.nx-tech__copy:hover {
+    color: var(--nx-accent);
+}
+
+/* ── 6. Phase B shell ───────────────────────────────────────────────────── */
+
+/* 6a. Project context: primary tabs + secondary row. Rendered at CONTENT_START
+   on project-scoped pages. The platform sidebar stays quiet; the project gets
+   its own contextual navigation. */
+.nx-tabs {
+    margin: 0 0 var(--nx-space-5);
+    padding: 0;
+}
+
+.nx-tabs__primary {
+    display: flex;
+    gap: var(--nx-space-1);
+    border-bottom: 1px solid var(--nx-border);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 var(--nx-space-1);
+}
+
+.nx-tabs__primary::-webkit-scrollbar {
+    display: none;
+}
+
+/* Environment switcher: the one context control in the tab row. */
+.nx-tabs__env {
+    position: relative;
+    margin-inline-start: auto;
+    display: inline-flex;
+    align-items: center;
+}
+
+.nx-tabs__env-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    padding: 6px 12px;
+    font-size: var(--nx-text-secondary);
+    font-weight: 600;
+    color: var(--nx-text-muted);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-full);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.nx-tabs__env-btn::-webkit-details-marker {
+    display: none;
+}
+
+.nx-tabs__env-btn:hover {
+    color: var(--nx-text);
+    border-color: var(--nx-border-strong);
+}
+
+.nx-tabs__env-menu {
+    position: absolute;
+    inset-inline-end: 0;
+    top: calc(100% + 6px);
+    z-index: 40;
+    min-width: 220px;
+    display: grid;
+    padding: var(--nx-space-2);
+    gap: 2px;
+    background: var(--nx-surface-raised);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    box-shadow: var(--nx-elev-2);
+}
+
+.nx-tabs__env-menu > a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-2) var(--nx-space-3);
+    border-radius: var(--nx-radius-sm);
+    font-size: var(--nx-text-body);
+    color: var(--nx-text);
+    text-decoration: none;
+}
+
+.nx-tabs__env-menu > a:hover {
+    background: var(--nx-surface-sunken);
+}
+
+.nx-tabs__env-menu > a[aria-current='true'] {
+    color: var(--nx-accent);
+    background: color-mix(in srgb, var(--nx-accent) 10%, transparent);
+}
+
+.nx-tabs__tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    padding: 10px 14px;
+    font-size: var(--nx-text-body);
+    font-weight: 550;
+    color: var(--nx-text-muted);
+    text-decoration: none;
+    white-space: nowrap;
+    border-radius: var(--nx-radius-sm) var(--nx-radius-sm) 0 0;
+    transition: color 120ms ease, background-color 120ms ease;
+}
+
+.nx-tabs__tab:hover {
+    color: var(--nx-text);
+    background: var(--nx-surface-sunken);
+}
+
+.nx-tabs__tab[aria-current='page'] {
+    color: var(--nx-accent);
+    font-weight: 650;
+}
+
+.nx-tabs__tab[aria-current='page']::after {
+    content: '';
+    position: absolute;
+    inset-inline: 8px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: var(--nx-radius-full);
+    background: var(--nx-accent);
+}
+
+.nx-tabs__secondary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--nx-space-2);
+    padding: var(--nx-space-3) 0 0;
+}
+
+.nx-tabs__subtab {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    font-size: var(--nx-text-secondary);
+    font-weight: 550;
+    color: var(--nx-text-muted);
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-radius: var(--nx-radius-full);
+    transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.nx-tabs__subtab:hover {
+    color: var(--nx-text);
+    background: var(--nx-surface-sunken);
+}
+
+.nx-tabs__subtab[aria-current='page'] {
+    color: var(--nx-accent);
+    background: color-mix(in srgb, var(--nx-accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--nx-accent) 30%, transparent);
+}
+
+/* 6b. Settings hub: a map of configuration, not a pile of cards. */
+.nx-hub {
+    display: grid;
+    gap: var(--nx-space-8);
+}
+
+.nx-hub__section-title {
+    font-size: var(--nx-text-section);
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--nx-text);
+    margin-bottom: var(--nx-space-2);
+}
+
+.nx-hub__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--nx-space-4);
+}
+
+.nx-hub-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+    padding: var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+    text-decoration: none;
+    transition: border-color 120ms ease, transform 120ms ease;
+}
+
+a.nx-hub-card:hover {
+    border-color: color-mix(in srgb, var(--nx-accent) 45%, var(--nx-border));
+}
+
+.nx-hub-card__title {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    font-size: var(--nx-text-card);
+    font-weight: 650;
+    color: var(--nx-text);
+}
+
+.nx-hub-card__title svg {
+    color: var(--nx-accent);
+}
+
+.nx-hub-card__desc {
+    color: var(--nx-text-muted);
+    font-size: var(--nx-text-secondary);
+    line-height: 1.55;
+}
+
+.nx-hub-card__links {
+    display: grid;
+    gap: var(--nx-space-2);
+    margin-top: var(--nx-space-2);
+}
+
+.nx-hub-card__link {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--nx-space-3);
+    padding: var(--nx-space-2) var(--nx-space-3);
+    border-radius: var(--nx-radius-sm);
+    color: var(--nx-text);
+    font-size: var(--nx-text-body);
+    font-weight: 550;
+    text-decoration: none;
+}
+
+.nx-hub-card__link:hover {
+    background: var(--nx-surface-sunken);
+    color: var(--nx-accent);
+}
+
+.nx-hub-card__link small {
+    color: var(--nx-text-subtle);
+    font-weight: 450;
+}
+
+/* ── 7. RTL behavior ────────────────────────────────────────────────────── */
+
+html[dir='rtl'] .nx-details__chev {
+    transform: scaleX(-1);
+}
+
+html[dir='rtl'] .nx-details[open] > .nx-details__summary .nx-details__chev {
+    transform: scaleX(-1) rotate(90deg);
+}
+
+/* Tab bars scroll horizontally in narrow viewports regardless of direction. */
+html[dir='rtl'] .nx-tabs__primary {
+    padding: 0;
+}
+
+/* Arabic typography for foundation components (mirrors nexus.css C.8). */
+html[dir='rtl'] .nx-error__title,
+html[dir='rtl'] .nx-emptystate__title,
+html[dir='rtl'] .nx-tabs__tab,
+html[dir='rtl'] .nx-hub-card__title,
+html[dir='rtl'] .nx-details__summary {
+    letter-spacing: 0;
+}
+
+/* ── 8. Motion & accessibility ──────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .nx-tabs__tab,
+    .nx-tabs__subtab,
+    .nx-hub-card,
+    .nx-btn,
+    .nx-details__chev {
+        transition: none;
+    }
+}
+
+.nx-error:focus-within,
+.nx-details summary:focus-visible {
+    outline: 2px solid var(--nx-accent);
+    outline-offset: 2px;
+    border-radius: var(--nx-radius-sm);
+}

@@ -62,11 +62,15 @@ class ProjectCutover extends Page
         return 'Readiness for '.$this->project()->name.'. Nothing here changes your systems.';
     }
 
+    /**
+     * 0.6.0 Phase B (§B7): every project page shares one ancestry —
+     * Projects → {Project name} → {Area}. See ViewProject::getBreadcrumbs().
+     */
     public function getBreadcrumbs(): array
     {
-        $crumbs = [ProjectResource::getUrl('index') => 'Projects'];
+        $crumbs = [ProjectResource::getUrl('index') => __('nav.projects')];
         $crumbs[static::projectUrl($this->project(), 'overview')] = $this->project()->name;
-        $crumbs[static::getUrl(['record' => $this->project()])] = 'Cutover';
+        $crumbs[static::getUrl(['record' => $this->project()])] = __('labels.cutover');
 
         return $crumbs;
     }

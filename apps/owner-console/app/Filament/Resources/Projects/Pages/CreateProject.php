@@ -2,12 +2,30 @@
 
 namespace App\Filament\Resources\Projects\Pages;
 
+use App\Filament\Pages\NewProjectWizard;
 use App\Filament\Resources\Projects\ProjectResource;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class CreateProject extends CreateRecord
 {
     protected static string $resource = ProjectResource::class;
+
+    /**
+     * 0.6.0 Phase B (§B12) — ONE project creation experience.
+     *
+     * There must be a single normal path into project creation: the guided
+     * wizard. The legacy 13-field create form is no longer the user journey;
+     * this route now redirects there so old links, the Home empty state and
+     * any bookmark keep working without exposing infrastructure vocabulary
+     * (slug, DB name, Redis prefix) as the first thing a new user sees.
+     */
+    public function mount(): void
+    {
+        throw new HttpResponseException(
+            redirect()->to(NewProjectWizard::getUrl())
+        );
+    }
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {

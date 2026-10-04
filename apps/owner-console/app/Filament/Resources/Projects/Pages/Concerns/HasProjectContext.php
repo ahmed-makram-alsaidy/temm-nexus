@@ -100,12 +100,26 @@ trait HasProjectContext
         return true;
     }
 
+    /**
+     * 0.6.0 Phase A (§A7) — the shared connection-failure state.
+     *
+     * What failed → what it means → what to do next, with the database
+     * error itself kept behind a Technical details disclosure. This used
+     * to append the raw DSN/Postgres error to every project page.
+     */
     protected static function connectionError(\Throwable $e): Section
     {
-        return Section::make('Project database unreachable')
-            ->description('Check that the project database exists and PROJECT_* credentials are configured in the console .env. ('.$e->getMessage().')')
-            ->icon('heroicon-o-exclamation-triangle')
-            ->collapsed(false);
+        $payload = \App\Support\NxError::forException(
+            __('foundation.db_unreachable_title'),
+            __('foundation.db_unreachable_body').' '.__('foundation.db_unreachable_next'),
+            $e,
+            'project database',
+        );
+
+        return Section::make()
+            ->schema([
+                \Filament\Schemas\Components\View::make('components.nx.error', ['payload' => $payload]),
+            ]);
     }
 
     public static function projectUrl(Project $project, string $page, array $params = []): string

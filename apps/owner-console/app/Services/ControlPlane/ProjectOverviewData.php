@@ -80,7 +80,9 @@ class ProjectOverviewData
             $items[] = [
                 'at' => (string) $e->created_at,
                 'time' => $e->created_at?->format('M j, H:i') ?? '—',
-                'text' => $e->action.($e->target_type ? " · {$e->target_type}".($e->target_id ? " #{$e->target_id}" : '') : ''),
+                // 0.6.0 Phase A (§A6): human sentences on product surfaces.
+                // The raw verb and target remain in the audit log itself.
+                'text' => \App\Support\ActivityHumanizer::humanize($e->action).($e->target_type ? " · {$e->target_type}".($e->target_id ? " #{$e->target_id}" : '') : ''),
                 'kind' => 'security',
             ];
         }

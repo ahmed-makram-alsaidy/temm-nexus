@@ -79,4 +79,23 @@ return [
     'ai_copilot' => 'AI Copilot',
     'overview' => 'Overview',
     'team' => 'Team',
+
+    // ── 0.6.0 Phase B — simplified product shell ─────────────────────────
+    // Platform destinations (Home · Projects · Clients · Activity · AI ·
+    // Settings) and the project context model (tabs, not sidebar links).
+    'clients' => 'Clients',
+    'activity' => 'Activity',
+    'ai_group' => 'AI',
+    'developer_agent' => 'Developer Agent',
+
+    // Project primary tabs (ProjectTabs::TABS order).
+    'tab_migration' => 'Migration',
+    'tab_data' => 'Data',
+    'tab_access' => 'Access',
+
+    // Project context chrome.
+    'project_context' => 'Project areas',
+    'active_environment' => 'Active environment — open to switch',
+    'manage_environments' => 'Manage environments',
+    'inactive' => 'inactive',
 ];

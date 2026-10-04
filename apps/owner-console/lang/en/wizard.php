@@ -80,6 +80,8 @@ return [
     'analyze_issues_none' => 'No blocking issues detected.',
     'analyze_done' => 'Analysis complete.',
     'analyze_failed' => 'The analysis could not complete: :reason',
+    'analyze_failed_body' => 'The analysis could not complete. Nothing was changed — you can re-run it after checking the source connection.',
+    'start_failed_body' => 'The migration could not start. Nothing was written — fix the issue or try again.',
 
     // Step 6 — Review.
     'review_title' => 'Review the plan',

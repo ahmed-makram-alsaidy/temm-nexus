@@ -37,6 +37,16 @@ class ProjectTableRecords extends Page implements HasTable
     use InteractsWithRecord;
     use InteractsWithTable;
 
+
+    /**
+     * 0.6.0 Phase A (§A3): an intentional wide surface — the shell stays
+     * ~1440px everywhere else, but this visualization needs the room.
+     */
+    public function getMaxContentWidth(): string|\Filament\Support\Enums\Width|null
+    {
+        return \Filament\Support\Enums\Width::Full;
+    }
+
     protected static string $resource = ProjectResource::class;
 
     protected string $view = 'filament.projects.pages.generic-table';

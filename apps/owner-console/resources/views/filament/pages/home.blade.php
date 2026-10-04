@@ -33,9 +33,11 @@
 
         <div class="nx-hero__actions">
             @if ($this->canCreateProject())
+                {{-- 0.6.0 Phase B (§B12): every normal creation entry point leads
+                     to the guided wizard — the legacy create form redirects there. --}}
                 <x-filament::button
                     tag="a"
-                    href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('create') }}"
+                    href="{{ \App\Filament\Pages\NewProjectWizard::getUrl() }}"
                     icon="heroicon-o-plus"
                 >
                     {{ __('home.start_a_migration') }}
@@ -71,7 +73,7 @@
                 <div class="nx-empty__actions">
                     <x-filament::button
                         tag="a"
-                        href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('create') }}"
+                        href="{{ \App\Filament\Pages\NewProjectWizard::getUrl() }}"
                         icon="heroicon-o-plus"
                     >
                         {{ __('home.create_new_project') }}
@@ -244,7 +246,9 @@
                                 {{ $entry['at']?->format('M j, H:i') ?? '—' }}
                             </span>
                             <span class="nx-timeline__what">
-                                {{ $entry['action'] }}@if ($entry['project']) · {{ $entry['project'] }}@endif
+                                {{-- 0.6.0 Phase A (§A6): human sentences, not raw
+                                     audit verbs; the verb stays in audit detail. --}}
+                                {{ \App\Support\ActivityHumanizer::humanize($entry['action']) }}@if ($entry['project']) · {{ $entry['project'] }}@endif
                             </span>
                         </li>
                     @endforeach

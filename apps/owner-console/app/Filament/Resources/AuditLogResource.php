@@ -46,7 +46,14 @@ class AuditLogResource extends Resource
                 TextColumn::make('created_at')->label(__('labels.time'))->dateTime()->sortable(),
                 TextColumn::make('owner.email')->label(__('labels.owner'))->placeholder('system')->searchable(),
                 TextColumn::make('project_slug')->label(__('labels.project'))->badge()->searchable(),
-                TextColumn::make('action')->badge()->searchable(),
+                // 0.6.0 Phase A (§A6/§A5): human action labels on the primary
+                // surface; the raw verb stays in the detail drawer and filter.
+                TextColumn::make('action')
+                    ->label(__('nav.activity'))
+                    ->badge()
+                    ->searchable()
+                    ->formatStateUsing(fn (string $state): string => \App\Support\ActivityHumanizer::humanize($state))
+                    ->tooltip(fn (AdminAuditEntry $record): string => $record->action),
                 TextColumn::make('target_type')->placeholder('—')->toggleable(),
                 TextColumn::make('target_id')->placeholder('—')->toggleable(),
                 TextColumn::make('ip')->placeholder('—')->toggleable(),
@@ -79,7 +86,7 @@ class AuditLogResource extends Resource
                         .'<dt>Time</dt><dd>'.e($record->created_at?->toDateTimeString() ?? '—').'</dd>'
                         .'<dt>Actor</dt><dd>'.e($record->owner?->email ?? 'system').'</dd>'
                         .'<dt>Project</dt><dd>'.e($record->project_slug ?? '—').'</dd>'
-                        .'<dt>Action</dt><dd>'.e($record->action).'</dd>'
+                        .'<dt>Action</dt><dd>'.e(\App\Support\ActivityHumanizer::humanize($record->action)).' <code style="opacity:.65">('.e($record->action).')</code></dd>'
                         .'<dt>Resource</dt><dd>'.e(trim(($record->target_type ?? '').' '.($record->target_id ?? '')) ?: '—').'</dd>'
                         .'<dt>IP</dt><dd>'.e($record->ip ?? '—').'</dd>'
                         .'</dl>'

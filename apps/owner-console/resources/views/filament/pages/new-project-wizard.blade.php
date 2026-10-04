@@ -31,7 +31,27 @@
     <p class="nx-hint">{{ __('wizard.step_of', ['current' => $this->step, 'total' => $total]) }}</p>
 
     @if ($this->error)
-        <div class="nx-note nx-note--danger" role="alert">{{ $this->error }}</div>
+        {{-- 0.6.0 Phase A (§A7): never a bare "Error" — what failed, what to
+             do next, and the underlying message only behind a disclosure. --}}
+        <div class="nx-error" role="alert">
+            <span class="nx-error__icon" aria-hidden="true">
+                <x-filament::icon icon="heroicon-o-exclamation-triangle" class="h-5 w-5" />
+            </span>
+            <div class="nx-error__content">
+                <p class="nx-error__title">{{ __('foundation.wizard_step_failed_title') }}</p>
+                <p class="nx-error__body">{{ $this->error }}</p>
+                @if ($this->errorDetail)
+                    <div class="nx-error__actions">
+                        <details class="nx-details nx-details--inline">
+                            <summary class="nx-details__summary">{{ __('foundation.error_technical_details') }}</summary>
+                            <div class="nx-details__body" dir="ltr">
+                                <code class="nx-tech">{{ $this->errorDetail }}</code>
+                            </div>
+                        </details>
+                    </div>
+                @endif
+            </div>
+        </div>
     @endif
 
     {{-- Step 1 — Project (B.2) --}}

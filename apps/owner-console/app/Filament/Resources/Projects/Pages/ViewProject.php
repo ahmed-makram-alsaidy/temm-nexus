@@ -80,22 +80,27 @@ class ViewProject extends Page
      * text and puts the label in the href, which is exactly what an earlier
      * revision of this page did.
      */
+    /**
+     * 0.6.0 Phase B (§B7) — ONE project mental model.
+     *
+     * Breadcrumbs always read: Projects → {Project name} → {Area}. The
+     * workspace/client is project METADATA (it shows in the subheading and
+     * on its own detail page), not part of the project's ancestry — this
+     * page previously rooted the trail at "Clients & Workspaces" while
+     * Cutover rooted it at "Projects", so the same project had two
+     * different lineages depending on where you stood.
+     *
+     * NOTE ON THE SHAPE: Laravel/Filament expect `[url => label]`, NOT
+     * `[label => url]`. Getting this backwards renders the URL as the visible
+     * text and puts the label in the href, which is exactly what an earlier
+     * revision of this page did.
+     */
     public function getBreadcrumbs(): array
     {
-        $crumbs = [];
-
-        $workspace = $this->project()->workspace;
-        if ($workspace) {
-            $crumbs[Workspaces::getUrl()] = 'Clients & Workspaces';
-            $crumbs[WorkspaceDetail::urlFor($workspace)] = $workspace->name;
-        } else {
-            // Ungrouped legacy project: no workspace crumb to show.
-            $crumbs[ProjectResource::getUrl('index')] = 'Projects';
-        }
-
-        $crumbs[static::getUrl(['record' => $this->project()])] = 'Overview';
-
-        return $crumbs;
+        return [
+            ProjectResource::getUrl('index') => __('nav.projects'),
+            static::getUrl(['record' => $this->project()]) => $this->project()->name,
+        ];
     }
 
     public function content(Schema $schema): Schema

@@ -92,6 +92,10 @@ class NewProjectWizard extends Page
 
     public string $error = '';
 
+    /** 0.6.0 Phase A (§A7): the underlying reason, shown ONLY behind the
+     * "Technical details" disclosure in the error banner. */
+    public string $errorDetail = '';
+
     public static function canAccess(): bool
     {
         return PlatformAccess::current()->canCreateProject();
@@ -218,6 +222,7 @@ class NewProjectWizard extends Page
     {
         $this->step = max(1, min(count(self::STEPS), $step));
         $this->error = '';
+        $this->errorDetail = '';
     }
 
     public function back(): void
@@ -229,6 +234,7 @@ class NewProjectWizard extends Page
     public function continue(): void
     {
         $this->error = '';
+        $this->errorDetail = '';
 
         try {
             match ($this->step) {
@@ -244,11 +250,10 @@ class NewProjectWizard extends Page
             $this->error = __('wizard.continue_disabled_hint');
             throw $e;
         } catch (\Throwable $e) {
-            // Outside production the class+message is shown so a broken step
-            // is diagnosable; production shows a safe generic error only.
-            $this->error = app()->isProduction()
-                ? __('common.status_error')
-                : class_basename($e).': '.$e->getMessage();
+            // 0.6.0 Phase A (§A7): the user sees WHAT FAILED and what to do
+            // next; the underlying exception moves behind Technical details.
+            $this->error = __('foundation.wizard_step_failed_body');
+            $this->errorDetail = class_basename($e).': '.$e->getMessage();
 
             report($e);
         }
@@ -422,7 +427,10 @@ class NewProjectWizard extends Page
             $analysis = $service->analyze($source);
 
             if ($analysis->status !== 'completed') {
-                $this->error = __('wizard.analyze_failed', ['reason' => $analysis->errors['message'] ?? '']);
+                // The engine's raw reason is a technical detail, not a
+                // user-facing sentence (0.6.0 Phase A §A7).
+                $this->error = __('wizard.analyze_failed_body');
+                $this->errorDetail = (string) ($analysis->errors['message'] ?? '');
 
                 return;
             }
@@ -449,6 +457,7 @@ class NewProjectWizard extends Page
             $this->error = '';
         } catch (\Throwable $e) {
             $this->error = __('wizard.analyze_failed', ['reason' => __('common.status_unknown')]);
+            $this->errorDetail = class_basename($e).': '.$e->getMessage();
 
             report($e);
         }
@@ -460,14 +469,16 @@ class NewProjectWizard extends Page
         $project = $this->project();
 
         if ($project === null || $this->planId === null) {
-            $this->error = __('common.status_error');
+            $this->error = __('foundation.wizard_step_failed_body');
+            $this->errorDetail = 'missing project or migration plan';
 
             return;
         }
 
         CpAccess::require(auth()->user(), 'migrations.manage');
 
-        $plan = \App\Models\MigrationPlan::findOrFail($this->planId);
+        try {
+            $plan = \App\Models\MigrationPlan::findOrFail($this->planId);
 
         $target = $this->destinationTarget($project);
 
@@ -490,6 +501,14 @@ class NewProjectWizard extends Page
             ->send();
 
         $this->redirect(\App\Filament\Resources\Projects\ProjectResource::getUrl('migration-center', ['record' => $project]));
+        } catch (\Throwable $e) {
+            // 0.6.0 Phase A (§A7): never a bare "Error" — the run failed for a
+            // reason the user can act on; the exception is one click away.
+            $this->error = __('wizard.start_failed_body');
+            $this->errorDetail = class_basename($e).': '.$e->getMessage();
+
+            report($e);
+        }
     }
 
     /** ── Persistence ────────────────────────────────────────────────── */

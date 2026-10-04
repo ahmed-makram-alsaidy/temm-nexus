@@ -20,16 +20,27 @@ class ProjectsTable
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('slug')->badge()->searchable(),
+                // 0.6.0 Phase A (§A5): raw enums are never the user-facing
+                // label — the status dictionary owns both word and tone.
                 TextColumn::make('status')->badge()
-                    ->color(fn ($s) => $s === 'active' ? 'success' : ($s === 'paused' ? 'warning' : 'gray')),
+                    ->formatStateUsing(fn (string $state): string => \App\Support\ProductStatus::label($state))
+                    ->color(fn (string $state): string => \App\Support\ProductStatus::color($state)),
                 TextColumn::make('health_status')->label(__('labels.health'))->badge()
-                    ->color(fn ($s) => $s === 'healthy' ? 'success' : ($s === 'unhealthy' ? 'danger' : 'warning')),
+                    ->formatStateUsing(fn (string $state): string => \App\Support\ProductStatus::label($state))
+                    ->color(fn (string $state): string => \App\Support\ProductStatus::color($state)),
                 TextColumn::make('api_domain')->placeholder('—')->toggleable(),
                 TextColumn::make('db_name')->placeholder('—')->toggleable(),
-                TextColumn::make('deploy_status')->badge()->toggleable(),
+                TextColumn::make('deploy_status')->badge()->toggleable()
+                    ->formatStateUsing(fn (string $state): string => \App\Support\ProductStatus::label($state))
+                    ->color(fn (string $state): string => \App\Support\ProductStatus::color($state)),
             ])
             ->filters([
-                SelectFilter::make('status')->options(['planned' => 'Planned', 'active' => 'Active', 'paused' => 'Paused', 'archived' => 'Archived']),
+                SelectFilter::make('status')->options([
+                    'planned' => \App\Support\ProductStatus::label('planned'),
+                    'active' => \App\Support\ProductStatus::label('active'),
+                    'paused' => \App\Support\ProductStatus::label('paused'),
+                    'archived' => \App\Support\ProductStatus::label('archived'),
+                ]),
             ])
             ->recordActions([
                 Action::make('open')->label(__('labels.open'))->icon('heroicon-o-arrow-top-right-on-square')

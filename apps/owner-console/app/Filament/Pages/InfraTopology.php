@@ -28,6 +28,15 @@ class InfraTopology extends Page
 
     protected static ?string $slug = 'infra-topology';
 
+    /**
+     * 0.6.0 Phase A (§A3): an intentional wide surface — the shell stays
+     * ~1440px everywhere else, but this visualization needs the room.
+     */
+    public function getMaxContentWidth(): string|\Filament\Support\Enums\Width|null
+    {
+        return \Filament\Support\Enums\Width::Full;
+    }
+
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
         return __('labels.infrastructure_topology');

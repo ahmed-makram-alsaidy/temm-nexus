@@ -25,6 +25,9 @@ class ControlPlaneChrome
     /** Bump when public/css/nexus.css changes (0.4.0 product design system). */
     public const NEXUS_CSS_VERSION = '41.0.0';
 
+    /** Bump when public/css/foundation.css changes (0.6.0 product foundation). */
+    public const FOUNDATION_CSS_VERSION = '1.0.0';
+
     /** Bump when public/js/nexus-inspect.js changes (0.4.0 Phase I). */
     public const INSPECT_JS_VERSION = '40.1.0';
 
@@ -82,16 +85,43 @@ class ControlPlaneChrome
         return ProductNavigation::build();
     }
 
-    public static function workspaceHook(): \Closure
+    /**
+     * 0.6.0 Phase B — the project context TAB BAR (audit §B4/§B5).
+     *
+     * Replaces the 35-link project sidebar. The platform navigation stays
+     * quiet; a project speaks for itself with one horizontal primary tab row
+     * (Overview · Migration · Data · Access · Build · Operate · Settings) and
+     * the active tab's secondary destinations. Visibility is capability-aware
+     * via ProjectTabs::resolve() → each page class's own canAccess().
+     */
+    public static function projectTabbarHook(): \Closure
     {
         return function (): string {
-            $project = self::currentProject();
-            if (! $project) {
+            try {
+                $project = self::currentProject();
+                if (! $project instanceof Project) {
+                    return '';
+                }
+
+                $slug = last(explode('.', request()->route()?->getName() ?? ''));
+
+                return view('filament.projects.tabbar', [
+                    'project' => $project,
+                    'activePage' => $slug,
+                ])->render();
+            } catch (\Throwable) {
+                // Chrome must never break a page render.
                 return '';
             }
-
-            return view('filament.projects.subnav', ['project' => $project])->render();
         };
+    }
+
+    public static function workspaceHook(): \Closure
+    {
+        // 0.6.0 Phase B: the 35-link project sidebar was replaced by the
+        // project tab bar (projectTabbarHook). Kept as a no-op so any code
+        // still calling this hook renders nothing rather than a missing view.
+        return fn (): string => '';
     }
 
     public static function stylesHook(): \Closure
@@ -99,9 +129,11 @@ class ControlPlaneChrome
         return fn (): HtmlString => new HtmlString(
             // nexus.css is loaded AFTER Filament's own sheet so the product's
             // tokens and overrides win. cp.css is retained for the existing
-            // project sub-navigation and custom panels.
+            // project sub-navigation and custom panels. foundation.css is the
+            // 0.6.0 product layer and loads LAST so it always wins.
             '<link rel="stylesheet" href="/css/nexus.css?v='.self::NEXUS_CSS_VERSION.'">'
             .'<link rel="stylesheet" href="/css/cp.css?v='.self::CSS_VERSION.'">'
+            .'<link rel="stylesheet" href="/css/foundation.css?v='.self::FOUNDATION_CSS_VERSION.'">'
         );
     }
 
