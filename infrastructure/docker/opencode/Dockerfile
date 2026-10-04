@@ -19,14 +19,27 @@ ENV OPENCODE_VERSION=${OPENCODE_VERSION}
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates gosu \
-    && rm -rf /var/lib/apt/lists/* \
     && npm install -g "opencode-ai@${OPENCODE_VERSION}" \
     && opencode --version
 
+# ll-sh — the Landlock-sandboxed session shell (final hardening). Compiled
+# here, then the compiler is removed again in the same layer: the runtime
+# image never ships a toolchain. See ll-sh.c for the containment contract.
+COPY ll-sh.c /tmp/ll-sh.c
+RUN apt-get install -y --no-install-recommends gcc libc6-dev \
+    && gcc -O2 -s -o /usr/local/bin/ll-sh /tmp/ll-sh.c \
+    && rm /tmp/ll-sh.c \
+    && apt-get purge -y --auto-remove gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && test -x /usr/local/bin/ll-sh
+
 # The runtime user is created at STARTUP by the entrypoint (uid derived
 # from the app's storage owner); here we only prepare its home directory
-# skeleton (opencode keeps state under $HOME).
-RUN mkdir -p /home/agent
+# skeleton (opencode keeps state under $HOME) and bake the runtime config
+# that routes every session shell through the Landlock wrapper.
+RUN mkdir -p /home/agent/.config/opencode \
+    && printf '%s\n' '{"$schema":"https://opencode.ai/config.json","shell":"/usr/local/bin/ll-sh"}' \
+       > /home/agent/.config/opencode/opencode.json
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY healthcheck.mjs /usr/local/bin/healthcheck.mjs
