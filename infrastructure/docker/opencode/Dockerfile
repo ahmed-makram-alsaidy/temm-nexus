@@ -23,11 +23,10 @@ RUN apt-get update \
     && npm install -g "opencode-ai@${OPENCODE_VERSION}" \
     && opencode --version
 
-# Dedicated non-root user with a UID that cannot collide with the base
-# image's own `node` user (UID 1000 on node:22-bookworm-slim — found live
-# during VPS dogfooding). The workspaces root is chown'ed to this user by
-# name in the entrypoint, so the numeric value is an implementation detail.
-RUN useradd --create-home --uid 2100 agent
+# The runtime user is created at STARTUP by the entrypoint (uid derived
+# from the app's storage owner); here we only prepare its home directory
+# skeleton (opencode keeps state under $HOME).
+RUN mkdir -p /home/agent
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY healthcheck.mjs /usr/local/bin/healthcheck.mjs

@@ -29,10 +29,11 @@ if [ "$(id -u)" = "0" ]; then
     fi
 
     if ! getent passwd "$OWNER_UID" >/dev/null 2>&1; then
-        useradd -o --uid "$OWNER_UID" --gid "$OWNER_GID" -M -d /home/agent -s /bin/sh agent
+        useradd -o --uid "$OWNER_UID" --gid "$OWNER_GID" -d /home/agent -s /bin/sh agent
     fi
+    chown "$OWNER_UID:$OWNER_GID" /home/agent 2>/dev/null || true
 
-    exec gosu "$OWNER_UID:$OWNER_GID" "$@"
+    exec env HOME=/home/agent gosu "$OWNER_UID:$OWNER_GID" "$@"
 fi
 
 exec "$@"
