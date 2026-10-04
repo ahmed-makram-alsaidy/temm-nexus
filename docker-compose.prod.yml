@@ -225,6 +225,11 @@ services:
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
     volumes:
       - app_storage:/var/www/html/storage/app
+      # Provider credentials for the agent runtime, operator-provisioned on
+      # the host (chmod 600), mounted read-only into the agent's HOME.
+      # Optional: without it the runtime serves health/models but tasks
+      # fail with MODEL_UNAVAILABLE until credentials exist.
+      - ./storage/oc-auth/auth.json:/home/agent/.local/share/opencode/auth.json:ro
     networks:
       - application
     healthcheck:
