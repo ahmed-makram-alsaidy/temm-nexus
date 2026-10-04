@@ -93,14 +93,33 @@ class ProductNavigation
             );
         }
 
-        if ($access->allowsPlatform(Capability::AI_USE)) {
-            $builder->item(
-                NavigationItem::make(__('nav.nexus_ai'))
+        if ($access->allowsPlatform(Capability::AI_USE) || $access->allowsPlatform(Capability::AGENTS_VIEW)) {
+            $aiGroup = [];
+
+            // Phase 43 — the Developer Agent workbench joins the AI group:
+            // a coding-agent runtime is a sibling of the assistant, not a
+            // settings child. Each page re-checks its own capability.
+            if ($access->allowsPlatform(Capability::AGENTS_VIEW)) {
+                $aiGroup[] = NavigationItem::make(__('agents.nav_workbench'))
+                    ->icon('heroicon-o-command-line')
+                    ->url(fn (): string => \App\Filament\Pages\DeveloperAgent::getUrl())
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.developer-agent'));
+            }
+
+            if ($access->allowsPlatform(Capability::AI_USE)) {
+                $aiGroup[] = NavigationItem::make(__('nav.nexus_ai'))
                     ->icon('heroicon-o-sparkles')
                     ->url(fn (): string => NexusAi::urlFor($project))
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.nexus-ai')
-                        || request()->routeIs('filament.admin.resources.projects.copilot'))
-            );
+                        || request()->routeIs('filament.admin.resources.projects.copilot'));
+            }
+
+            if (count($aiGroup) === 1) {
+                // No single-child groups (IA rule): a lone item stays ungrouped.
+                $builder->item($aiGroup[0]);
+            } else {
+                $builder->group(__('nav.nexus_ai'), $aiGroup);
+            }
         }
 
         // ── Operations ─────────────────────────────────────────────────
@@ -188,6 +207,16 @@ class ProductNavigation
                     ->icon('heroicon-o-cog-6-tooth')
                     ->url(fn (): string => \App\Filament\Pages\NexusAiSettings::getUrl())
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.nexus-ai-settings')),
+            );
+        }
+
+        // Phase 43 — Developer Agent runtime configuration.
+        if ($access->allowsPlatform(Capability::AGENTS_CONFIGURE)) {
+            array_unshift($settings,
+                NavigationItem::make(__('agents.nav_settings'))
+                    ->icon('heroicon-o-wrench-screwdriver')
+                    ->url(fn (): string => \App\Filament\Pages\DeveloperAgentSettings::getUrl())
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.developer-agent-settings')),
             );
         }
 
