@@ -41,6 +41,21 @@ RUN mkdir -p /home/agent/.config/opencode \
     && printf '%s\n' '{"$schema":"https://opencode.ai/config.json","shell":"/usr/local/bin/ll-sh"}' \
        > /home/agent/.config/opencode/opencode.json
 
+# On a FRESH shared app_storage volume, whichever container starts first
+# seeds it via Docker's copy-up. The opencode container must therefore
+# carry the SAME storage tree as the application image, owned by the same
+# uid (www-data = 82 on the pinned php base) — otherwise a fresh install
+# where opencode starts first would shadow the app's storage with an
+# incomplete root-owned tree (found live during the rc.1 fresh-install
+# gate). The entrypoint still adapts dynamically if the app's uid differs.
+RUN mkdir -p /var/www/html/storage/framework/views \
+             /var/www/html/storage/framework/cache \
+             /var/www/html/storage/framework/sessions \
+             /var/www/html/storage/app/private/agent-workspaces \
+             /var/www/html/storage/app/public \
+             /var/www/html/storage/logs \
+    && chown -R 82:82 /var/www/html/storage
+
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY healthcheck.mjs /usr/local/bin/healthcheck.mjs
 RUN chmod +x /usr/local/bin/entrypoint.sh

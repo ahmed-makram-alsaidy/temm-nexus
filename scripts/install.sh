@@ -86,6 +86,7 @@ else
       -e "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=$(gen_secret)|" \
       -e "s|^REVERB_APP_KEY=$|REVERB_APP_KEY=$(gen_secret | cut -c1-20)|" \
       -e "s|^REVERB_APP_SECRET=$|REVERB_APP_SECRET=$(gen_secret)|" \
+      -e "s|^OPENCODE_SERVER_PASSWORD=.*|OPENCODE_SERVER_PASSWORD=$(gen_secret)|" \
       .env && rm -f .env.bak
     ok ".env created from template with generated secrets"
     warn "review .env: set APP_URL, PRIMARY_DOMAIN, MAIL_*, ACME_EMAIL to your values"
@@ -93,7 +94,7 @@ else
 fi
 
 # Required secrets present?
-for var in POSTGRES_PASSWORD DB_PASSWORD REDIS_PASSWORD; do
+for var in POSTGRES_PASSWORD DB_PASSWORD REDIS_PASSWORD OPENCODE_SERVER_PASSWORD; do
   if grep -qE "^${var}=CHANGE_ME" .env 2>/dev/null || ! grep -qE "^${var}=" .env 2>/dev/null; then
     fail "$var is missing or still a placeholder in .env"
   fi

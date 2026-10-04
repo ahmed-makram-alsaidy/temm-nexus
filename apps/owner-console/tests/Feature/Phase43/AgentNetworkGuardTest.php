@@ -39,8 +39,8 @@ class AgentNetworkGuardTest extends TestCase
         $refused = [
             'http://agents.example.com',        // not HTTPS
             'http://127.0.0.1:4096',            // loopback
-            'http://10.1.2.3:4096',             // private range
-            'http://192.168.0.9',               // private range
+            'http://203.0.113.5:4096',           // documentation range (TEST-NET-3)
+            'http://198.51.100.9',               // documentation range (TEST-NET-2)
             'http://metadata.google.internal',  // metadata
         ];
 
@@ -61,7 +61,7 @@ class AgentNetworkGuardTest extends TestCase
         $this->assertTrue(AgentNetworkGuard::allowLoopback());
 
         try {
-            AgentNetworkGuard::assertSafeEndpoint('http://10.1.2.3', false);
+            AgentNetworkGuard::assertSafeEndpoint('http://203.0.113.5', false);
             $this->fail('Private range was accepted with the loopback flag.');
         } catch (AgentRuntimeException $e) {
             $this->assertSame(AgentRuntimeException::INVALID_RUNTIME_RESPONSE, $e->category);

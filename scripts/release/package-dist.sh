@@ -48,7 +48,7 @@ EXCLUDES=(
   --exclude='apps/owner-console/tests/Feature/Phase23'
   --exclude='apps/owner-console/tests/Feature/Phase25/Dogfood25Test.php'
   --exclude='apps/owner-console/tests/Feature/Phase20/PlatformE2EAcceptanceTest.php'
-  --exclude='apps/owner-console/nul' --exclude='apps/owner-console/bootstrap/cache' --exclude='scripts/e2e-18s.sh' --exclude='docs/PREFLIGHT.md' --exclude='docs/open-source/PRIVATE_ARTIFACT_AUDIT.md'
+  --exclude='apps/owner-console/nul' --exclude='apps/owner-console/bootstrap/cache' --exclude='scripts/e2e-18s.sh' --exclude='docs/PREFLIGHT.md' --exclude='docs/open-source/PRIVATE_ARTIFACT_AUDIT.md' --exclude='docs/open-source/RELEASE_NOTES_0.4.0-rc.7.md'
   --exclude='vendor' --exclude='node_modules' --exclude='.next' --exclude='dist' --exclude='build'
   --exclude='.dart_tool' --exclude='.phpunit.result.cache'
   --exclude='storage/app/private' --exclude='storage/logs' --exclude='storage/framework/cache' --exclude='storage/framework/sessions' --exclude='storage/framework/views'

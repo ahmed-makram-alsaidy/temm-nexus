@@ -94,7 +94,9 @@ class SetupController extends Controller
                     'platform_locale' => ['nullable', 'string', 'in:'.implode(',', \App\Services\Localization\LocaleManager::AVAILABLE)],
                 ]);
                 SetupState::set('platform.name', $data['platform_name']);
-                SetupState::set('platform.brand', $data['brand_name'] ?: $data['platform_name']);
+                // brand_name is nullable and may be absent entirely (API
+                // clients, partial form posts) — read it defensively.
+                SetupState::set('platform.brand', ($data['brand_name'] ?? '') ?: $data['platform_name']);
                 if (($data['support_url'] ?? null) !== null) {
                     SetupState::set('platform.support_url', $data['support_url']);
                 }

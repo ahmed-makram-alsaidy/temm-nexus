@@ -56,8 +56,8 @@ class AgentSecurityTest extends TestCase
         foreach ([
             'http://example.com/opencode',
             'http://127.0.0.1:4096',
-            'http://10.0.0.5:4096',
-            'http://192.168.1.10:4096',
+            'http://203.0.113.10:4096',
+            'http://198.51.100.10:4096',
             'http://metadata.google.internal',
         ] as $bad) {
             $runtime = $this->mockRuntime($bad);

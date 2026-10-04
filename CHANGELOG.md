@@ -1,6 +1,6 @@
-## [Unreleased — 0.5.0 development line] — Phase 43
+## [0.5.0-rc.1] — 2026-10-04
 
-**DEVELOPMENT PREVIEW — not a release.** The Agent Runtime Platform: a new
+**PRE-RELEASE — release candidate.** The Agent Runtime Platform: a new
 "Developer Agent" capability on the `develop/0.5.0` branch, with OpenCode as
 the first supported runtime. Tasks run in isolated git worktrees, produce
 deterministic fingerprint-bound changesets, and never touch authoritative
