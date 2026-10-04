@@ -256,7 +256,8 @@ class WorkspacePagesTest extends TestCase
         // Platform owner: visible.
         $this->actingAs($this->platformOwner)
             ->get('/admin')
-            ->assertSee('Clients &amp; Workspaces', false);
+            // 0.6.0 Phase B: the platform entry is now simply "Clients".
+            ->assertSee('Clients', false);
 
         // A user with no access at all never reaches the panel body.
         $this->actingAs($this->nobody)->get('/admin')->assertForbidden();

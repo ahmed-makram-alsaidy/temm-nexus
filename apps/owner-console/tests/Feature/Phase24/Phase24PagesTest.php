@@ -61,16 +61,42 @@ class Phase24PagesTest extends TestCase
         $this->get($url)->assertRedirect();
     }
 
+    /**
+     * 0.6.0 Phase B — the 35-link project sidebar became the context tab bar.
+     * The Phase 24 modules are still every-bit reachable: the Migration tab
+     * carries the migration modules, the Operate tab carries readiness and
+     * environments, and the environment switcher lives in the tab row.
+     */
     public function test_subnav_exposes_phase24_modules(): void
     {
-        $url = \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $this->projectA]);
-        $content = (string) $this->actingAs($this->admin)->get($url)->getContent();
+        $acting = $this->actingAs($this->admin);
 
-        $this->assertStringContainsString('migration-center', $content);
-        $this->assertStringContainsString('schema-diff', $content);
-        $this->assertStringContainsString('readiness', $content);
-        $this->assertStringContainsString('environments', $content);
-        $this->assertStringContainsString('Environment', $content, 'environment switcher visible in workspace');
+        // The project shell renders the seven primary tabs everywhere.
+        $overview = (string) $acting->get(
+            \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $this->projectA])
+        )->getContent();
+        foreach (['Overview', 'Migration', 'Data', 'Access', 'Build', 'Operate', 'Settings'] as $tab) {
+            $this->assertStringContainsString('>'.$tab.'<', $overview, "Primary tab {$tab} missing from the project shell");
+        }
+        $this->assertStringContainsString(
+            __('nav.manage_environments'),
+            $overview,
+            'environment switcher visible in the project tab row',
+        );
+
+        // Migration tab exposes the migration modules.
+        $migration = (string) $acting->get(
+            \App\Filament\Resources\Projects\ProjectResource::getUrl('migration-center', ['record' => $this->projectA])
+        )->getContent();
+        $this->assertStringContainsString('migration-center', $migration);
+        $this->assertStringContainsString('schema-diff', $migration);
+
+        // Operate tab exposes readiness and environments.
+        $operate = (string) $acting->get(
+            \App\Filament\Resources\Projects\ProjectResource::getUrl('readiness', ['record' => $this->projectA])
+        )->getContent();
+        $this->assertStringContainsString('readiness', $operate);
+        $this->assertStringContainsString('environments', $operate);
     }
 
     public function test_observer_has_read_only_access_to_phase24_pages(): void

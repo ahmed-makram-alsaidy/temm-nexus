@@ -36,9 +36,13 @@ class Phase25PagesPerformanceTest extends TestCase
         $this->actingAs($this->admin)->get('/admin/onboarding')->assertOk();
     }
 
+    /**
+     * 0.6.0 Phase B — client-repository and copilot moved from the sidebar
+     * dump into the Migration tab's secondary destinations.
+     */
     public function test_subnav_exposes_phase25_modules(): void
     {
-        $url = \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $this->projectA]);
+        $url = \App\Filament\Resources\Projects\ProjectResource::getUrl('migration-center', ['record' => $this->projectA]);
         $content = (string) $this->actingAs($this->admin)->get($url)->getContent();
         $this->assertStringContainsString('client-repository', $content);
         $this->assertStringContainsString('copilot', $content);

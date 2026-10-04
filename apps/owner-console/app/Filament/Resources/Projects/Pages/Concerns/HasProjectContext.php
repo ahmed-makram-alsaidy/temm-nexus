@@ -118,7 +118,9 @@ trait HasProjectContext
 
         return Section::make()
             ->schema([
-                \Filament\Schemas\Components\View::make('components.nx.error', ['payload' => $payload]),
+                \Filament\Schemas\Components\Html::make(
+                    fn (): string => view('components.nx.error', ['payload' => $payload])->render()
+                ),
             ]);
     }
 
