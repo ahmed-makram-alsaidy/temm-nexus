@@ -31,7 +31,12 @@ if [ "$(id -u)" = "0" ]; then
     if ! getent passwd "$OWNER_UID" >/dev/null 2>&1; then
         useradd -o --uid "$OWNER_UID" --gid "$OWNER_GID" -d /home/agent -s /bin/sh agent
     fi
-    chown "$OWNER_UID:$OWNER_GID" /home/agent 2>/dev/null || true
+    # OpenCode keeps state under $HOME (repos, auth, …); the credentials
+    # mount creates root-owned parents, so normalize ownership. The
+    # read-only auth.json itself is already owned by the right uid on the
+    # host, and its failed chown (ro mount) is ignored.
+    mkdir -p /home/agent/.local/share/opencode 2>/dev/null || true
+    chown -R "$OWNER_UID:$OWNER_GID" /home/agent 2>/dev/null || true
 
     exec env HOME=/home/agent gosu "$OWNER_UID:$OWNER_GID" "$@"
 fi
