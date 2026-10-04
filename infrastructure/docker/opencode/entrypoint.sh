@@ -24,6 +24,10 @@ if [ "$(id -u)" = "0" ]; then
     mkdir -p "$WS_ROOT" 2>/dev/null || true
     chown "$OWNER_UID:$OWNER_GID" "$WS_ROOT" 2>/dev/null || true
 
+    if ! getent group "$OWNER_GID" >/dev/null 2>&1; then
+        groupadd -o -g "$OWNER_GID" agentgrp
+    fi
+
     if ! getent passwd "$OWNER_UID" >/dev/null 2>&1; then
         useradd -o --uid "$OWNER_UID" --gid "$OWNER_GID" -M -d /home/agent -s /bin/sh agent
     fi
