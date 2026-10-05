@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ProductStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -80,11 +81,8 @@ class Project extends Model
     /** Product-language health label; never exposes the raw token. */
     public function healthLabel(): string
     {
-        return match ($this->health_status) {
-            'healthy' => 'Healthy',
-            'degraded' => 'Degraded',
-            'unhealthy' => 'Needs attention',
-            default => 'Unknown',
-        };
+        // 0.6.0 Phase D (§D10): the health word belongs to the status
+        // dictionary — translated, tone-consistent everywhere.
+        return ProductStatus::label((string) $this->health_status);
     }
 }

@@ -11,6 +11,8 @@ use App\Models\MigrationRun;
 use App\Models\MigrationSource;
 use App\Models\Project;
 use App\Models\ReadinessCheck;
+use App\Support\ProductStatus;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -49,6 +51,14 @@ final class ProjectPulse
      * subsystem. Nothing is cached ACROSS requests. */
     private ?Collection $sourcesCache = null;
 
+    /**
+     * 0.6.0 Phase D — batch seed used by the Projects index (§D13).
+     * When set, the pulse renders from caller-supplied snapshots instead of
+     * issuing its own point queries; anything NOT in the snapshot still
+     * lazily queries exactly as before, so state can never differ.
+     */
+    private bool $preloaded = false;
+
     private ?Collection $runsCache = null;
 
     private ?Collection $checksCache = null;
@@ -80,6 +90,62 @@ final class ProjectPulse
     public static function for(Project $project): self
     {
         return new self($project);
+    }
+
+    /**
+     * 0.6.0 Phase D (§D13) — seed this pulse from a caller's BATCH queries so
+     * one page can derive many projects' journeys without per-project reads.
+     *
+     * Snapshot keys (all optional): `sources` (Collection), `analysis`
+     * (?MigrationAnalysis), `plan` (?MigrationPlan), `runs` (Collection,
+     * newest-first — see the count caveat below), `checkpoint` (?object),
+     * `checks` (Collection), `cutoverPlan` (?CutoverPlan), `backup`
+     * (?BackupRecord).
+     *
+     * CAVEAT: `runs` is the newest run per project ONLY. Stage states,
+     * progress and attention are identical to the lazy path; a consumer that
+     * renders the full run count in stage detail sentences must use a lazy
+     * pulse (`ProjectPulse::for()`), as Project Overview does.
+     */
+    public function preload(array $snapshot): void
+    {
+        if (array_key_exists('sources', $snapshot)) {
+            $this->sourcesCache = $snapshot['sources'] ?? new Collection;
+        }
+        if (array_key_exists('analysis', $snapshot)) {
+            $this->analysisCache = $snapshot['analysis'];
+            $this->analysisResolved = true;
+        }
+        if (array_key_exists('plan', $snapshot)) {
+            $this->planCache = $snapshot['plan'];
+            $this->planResolved = true;
+        }
+        if (array_key_exists('runs', $snapshot)) {
+            $this->runsCache = $snapshot['runs'] ?? new Collection;
+        }
+        if (array_key_exists('checkpoint', $snapshot)) {
+            $this->checkpointCache = $snapshot['checkpoint'];
+            $this->checkpointResolved = true;
+        }
+        if (array_key_exists('checks', $snapshot)) {
+            $this->checksCache = $snapshot['checks'] ?? new Collection;
+        }
+        if (array_key_exists('cutoverPlan', $snapshot)) {
+            $this->cutoverPlanCache = $snapshot['cutoverPlan'];
+            $this->cutoverPlanResolved = true;
+        }
+        if (array_key_exists('backup', $snapshot)) {
+            $this->backupCache = $snapshot['backup'];
+            $this->backupResolved = true;
+        }
+
+        $this->preloaded = true;
+    }
+
+    /** True when this pulse renders from a caller-supplied batch snapshot. */
+    public function isPreloaded(): bool
+    {
+        return $this->preloaded;
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -156,21 +222,29 @@ final class ProjectPulse
         };
     }
 
+    /**
+     * 0.6.0 Phase D (§D10) — stage details speak the product language, through
+     * translations, with structured counts passed as parameters. The stored
+     * domain state is never translated text.
+     */
     private function stageDetail(JourneyStage $stage): string
     {
         return match ($stage) {
             JourneyStage::CONNECT => $this->sources()->isEmpty()
-                ? 'No source connected yet.'
-                : $this->sources()->count().' source(s) connected.',
+                ? __('projects.stage_connect_none')
+                : (string) trans_choice('projects.stage_connect_count', $this->sources()->count(), ['count' => $this->sources()->count()]),
             JourneyStage::ANALYZE => $this->latestAnalysis()
-                ? 'Last analyzed '.$this->latestAnalysis()->updated_at?->diffForHumans().'.'
-                : 'Not analyzed yet.',
+                ? __('projects.stage_analyze_done', ['when' => $this->latestAnalysis()->updated_at?->diffForHumans()])
+                : __('projects.stage_analyze_none'),
             JourneyStage::PLAN => $this->latestPlan()
-                ? 'Plan prepared '.$this->latestPlan()->created_at?->diffForHumans().'.'
-                : 'No plan yet.',
+                ? __('projects.stage_plan_done', ['when' => $this->latestPlan()->created_at?->diffForHumans()])
+                : __('projects.stage_plan_none'),
             JourneyStage::MIGRATE => $this->runs()->isEmpty()
-                ? 'No transfer run yet.'
-                : $this->runs()->count().' run(s), latest is '.JourneyState::fromRaw($this->latestRun()?->status)->label().'.',
+                ? __('projects.stage_migrate_none')
+                : (string) trans_choice('projects.stage_migrate_count', $this->runs()->count(), [
+                    'count' => $this->runs()->count(),
+                    'state' => JourneyState::fromRaw($this->latestRun()?->status)->label(),
+                ]),
             JourneyStage::SYNC => $this->syncDetail(),
             JourneyStage::VALIDATE => $this->validateDetail(),
             JourneyStage::CUTOVER => $this->cutoverDetail(),
@@ -382,6 +456,11 @@ final class ProjectPulse
     /**
      * Everything stopping progress, each with a reason (§10).
      *
+     * 0.6.0 Phase D (§D5): titles and details are translated at the last
+     * moment — no raw SQLSTATE, capability slug or audit verb ever reaches a
+     * product surface from here. The check's own stored title (human data)
+     * stays when present.
+     *
      * @return list<array{severity: string, title: string, detail: string, url: ?string}>
      */
     public function blockers(): array
@@ -392,7 +471,7 @@ final class ProjectPulse
             $out[] = [
                 'severity' => 'danger',
                 'title' => (string) ($check->title ?: $check->check_key),
-                'detail' => (string) ($check->detail ?: 'This check blocks production cutover.'),
+                'detail' => (string) ($check->detail ?: __('projects.problem_check_blocks')),
                 'url' => $this->stageUrl(JourneyStage::CUTOVER),
             ];
         }
@@ -401,10 +480,10 @@ final class ProjectPulse
         if ($run && JourneyState::fromRaw($run->status) === JourneyState::BLOCKED) {
             $out[] = [
                 'severity' => 'danger',
-                'title' => 'The last transfer run failed',
-                'detail' => self::failureText($run->failure) !== ''
-                    ? mb_substr(self::failureText($run->failure), 0, 200)
-                    : 'Review the run for the cause.',
+                // §D5: the failure payload may contain raw SQLSTATE/exception
+                // text — it stays in the run's own detail views, never here.
+                'title' => __('projects.problem_run_failed_title'),
+                'detail' => __('projects.problem_run_failed_detail'),
                 'url' => $this->stageUrl(JourneyStage::MIGRATE),
             ];
         }
@@ -413,8 +492,8 @@ final class ProjectPulse
         if ($lag !== null && $lag >= self::SYNC_LAG_BLOCKING_SECONDS) {
             $out[] = [
                 'severity' => 'danger',
-                'title' => 'Live Sync is far behind',
-                'detail' => 'The last change was applied '.$this->humanDuration($lag).' ago. Cutover is unsafe until it catches up.',
+                'title' => __('projects.problem_sync_far_title'),
+                'detail' => __('projects.problem_sync_far_detail', ['when' => $this->durationAgo($lag)]),
                 'url' => $this->stageUrl(JourneyStage::SYNC),
             ];
         }
@@ -435,8 +514,8 @@ final class ProjectPulse
         if ($lag !== null && $lag >= self::SYNC_LAG_WARNING_SECONDS && $lag < self::SYNC_LAG_BLOCKING_SECONDS) {
             $out[] = [
                 'severity' => 'warning',
-                'title' => 'Live Sync is behind',
-                'detail' => 'Last change applied '.$this->humanDuration($lag).' ago.',
+                'title' => __('projects.problem_sync_behind_title'),
+                'detail' => __('projects.problem_sync_behind_detail', ['when' => $this->durationAgo($lag)]),
                 'url' => $this->stageUrl(JourneyStage::SYNC),
             ];
         }
@@ -444,8 +523,8 @@ final class ProjectPulse
         if ($this->project->health_status === 'unknown') {
             $out[] = [
                 'severity' => 'warning',
-                'title' => 'No health result yet',
-                'detail' => 'Run a health check to get a conclusive status.',
+                'title' => __('projects.problem_health_unknown_title'),
+                'detail' => __('projects.problem_health_unknown_detail'),
                 'url' => $this->stageUrl(JourneyStage::VALIDATE),
             ];
         }
@@ -454,22 +533,22 @@ final class ProjectPulse
         if (! $backup) {
             $out[] = [
                 'severity' => 'warning',
-                'title' => 'No backup recorded',
-                'detail' => 'Cutover needs a verified backup to be reversible.',
+                'title' => __('projects.problem_backup_missing_title'),
+                'detail' => __('projects.problem_backup_missing_detail'),
                 'url' => null,
             ];
         } elseif ($backup->finished_at && $backup->finished_at->lt(now()->subHours(self::BACKUP_STALE_HOURS))) {
             $out[] = [
                 'severity' => 'warning',
-                'title' => 'The last backup is old',
-                'detail' => 'Taken '.$backup->finished_at->diffForHumans().'.',
+                'title' => __('projects.problem_backup_stale_title'),
+                'detail' => __('projects.problem_backup_stale_detail', ['when' => $backup->finished_at->diffForHumans()]),
                 'url' => null,
             ];
         } elseif ($backup->restore_test_status !== 'verified') {
             $out[] = [
                 'severity' => 'warning',
-                'title' => 'The last backup was never restore-tested',
-                'detail' => 'A backup you have not restored is not yet proven.',
+                'title' => __('projects.problem_backup_unverified_title'),
+                'detail' => __('projects.problem_backup_unverified_detail'),
                 'url' => null,
             ];
         }
@@ -493,11 +572,11 @@ final class ProjectPulse
         return [
             'state' => $state,
             'label' => match ($state) {
-                JourneyState::COMPLETE => 'Up to date',
-                JourneyState::IN_PROGRESS => 'Starting',
-                JourneyState::NEEDS_ATTENTION => 'Behind',
-                JourneyState::BLOCKED => 'Stopped',
-                default => 'Not running',
+                JourneyState::COMPLETE => __('projects.sync_up_to_date'),
+                JourneyState::IN_PROGRESS => __('projects.sync_starting'),
+                JourneyState::NEEDS_ATTENTION => __('projects.sync_behind'),
+                JourneyState::BLOCKED => __('projects.sync_stopped'),
+                default => __('projects.sync_not_running'),
             },
             'detail' => $this->syncDetail(),
             'lagSeconds' => $this->syncLagSeconds(),
@@ -508,50 +587,50 @@ final class ProjectPulse
     {
         $checkpoint = $this->checkpoint();
         if (! $checkpoint) {
-            return 'Live Sync has not started.';
+            return __('projects.stage_sync_none');
         }
 
         $lag = $this->syncLagSeconds();
         if ($lag === null) {
-            return 'No change has been applied yet.';
+            return __('projects.stage_sync_no_events');
         }
 
-        return 'Last synced '.$this->humanDuration($lag).' ago.';
+        return __('projects.stage_sync_last', ['when' => $this->durationAgo($lag)]);
     }
 
     private function validateDetail(): string
     {
         $checks = $this->readinessChecks();
         if ($checks->isEmpty()) {
-            return 'No validation has run yet.';
+            return __('projects.stage_validate_none');
         }
 
         $failed = $checks->where('status', 'failed')->count();
         $warned = $checks->where('status', 'warning')->count();
 
         if ($failed > 0) {
-            return $failed.' check(s) failed.';
+            return (string) trans_choice('projects.stage_validate_failed', $failed, ['count' => $failed]);
         }
         if ($warned > 0) {
-            return $warned.' check(s) need review.';
+            return (string) trans_choice('projects.stage_validate_warning', $warned, ['count' => $warned]);
         }
 
-        return 'All '.$checks->count().' check(s) pass.';
+        return __('projects.stage_validate_pass', ['count' => $checks->count()]);
     }
 
     private function cutoverDetail(): string
     {
         $plan = $this->cutoverPlan();
         if (! $plan) {
-            return 'No cutover plan yet.';
+            return __('projects.stage_cutover_none');
         }
 
         $blocking = $this->blockingChecks()->count();
         if ($blocking > 0) {
-            return $blocking.' item(s) still block cutover.';
+            return (string) trans_choice('projects.stage_cutover_blocking', $blocking, ['count' => $blocking]);
         }
 
-        return 'Plan status: '.JourneyState::fromRaw($plan->status)->label().'.';
+        return __('projects.stage_cutover_status', ['state' => JourneyState::fromRaw($plan->status)->label()]);
     }
 
     public function syncLagSeconds(): ?int
@@ -568,26 +647,7 @@ final class ProjectPulse
         // VPS during rc.2 acceptance). Normalize before measuring.
         $last = $checkpoint->last_event_at;
 
-        return max(0, (int) \Illuminate\Support\Carbon::parse($last)->diffInSeconds(now(), false));
-    }
-
-    /**
-     * A blocked run's `failure` payload is CAST TO AN ARRAY on the model —
-     * `mb_substr()` on it fatals the Home screen when a soak project has a
-     * blocked run with structured failure data (found live on the operator
-     * VPS during rc.2 acceptance). Reduce any shape to readable text.
-     */
-    private static function failureText(mixed $failure): string
-    {
-        if ($failure === null || $failure === '') {
-            return '';
-        }
-
-        if (is_array($failure)) {
-            return (string) json_encode($failure, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        }
-
-        return (string) $failure;
+        return max(0, (int) Carbon::parse($last)->diffInSeconds(now(), false));
     }
 
     /**
@@ -600,7 +660,7 @@ final class ProjectPulse
         $backup = $this->latestBackup();
 
         if (! $backup) {
-            return ['state' => JourneyState::NOT_STARTED, 'label' => 'Never', 'detail' => 'No backup has been taken.'];
+            return ['state' => JourneyState::NOT_STARTED, 'label' => __('projects.backup_never'), 'detail' => __('projects.backup_none_detail')];
         }
 
         $state = match (true) {
@@ -612,10 +672,12 @@ final class ProjectPulse
 
         return [
             'state' => $state,
-            'label' => $backup->finished_at?->diffForHumans() ?? ucfirst((string) $backup->status),
+            // The timestamp humanizes in the user's locale; a raw stored
+            // status never renders (§A5 — the dictionary owns state words).
+            'label' => $backup->finished_at?->diffForHumans() ?? ProductStatus::label((string) $backup->status),
             'detail' => $backup->restore_test_status === 'verified'
-                ? 'Restore verified.'
-                : 'Not restore-tested.',
+                ? __('projects.backup_verified_detail')
+                : __('projects.backup_unverified_detail'),
         ];
     }
 
@@ -702,6 +764,34 @@ final class ProjectPulse
         );
     }
 
+    /**
+     * How many readiness checks the project knows about (0 = validation never
+     * ran). The Overview readiness fact uses this to say "not run yet" instead
+     * of a misleading zero (§D3).
+     */
+    public function readinessCheckCount(): int
+    {
+        return $this->readinessChecks()->count();
+    }
+
+    /**
+     * §D3 — the readiness fact's honest figures, from readiness checks ONLY.
+     * General project warnings (health result, backups) must never masquerade
+     * as validation results.
+     *
+     * @return array{total: int, failed: int, warned: int}
+     */
+    public function readinessSummary(): array
+    {
+        $checks = $this->readinessChecks();
+
+        return [
+            'total' => $checks->count(),
+            'failed' => $checks->where('status', 'failed')->count(),
+            'warned' => $checks->where('status', 'warning')->count(),
+        ];
+    }
+
     private function blockingChecks(): Collection
     {
         return $this->readinessChecks()
@@ -784,5 +874,15 @@ final class ProjectPulse
         $d = intdiv($seconds, 86400);
 
         return $d.' day'.($d === 1 ? '' : 's');
+    }
+
+    /**
+     * 0.6.0 Phase D (§D10) — a localized "2 hours ago" / "منذ ساعتين" for
+     * translated sentences. `humanDuration()` above predates localization and
+     * still feeds Phase E migration surfaces; new product copy uses this.
+     */
+    public function durationAgo(int $seconds): string
+    {
+        return now()->subSeconds(max(0, $seconds))->diffForHumans();
     }
 }

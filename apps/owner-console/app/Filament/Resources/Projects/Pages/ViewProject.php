@@ -2,17 +2,19 @@
 
 namespace App\Filament\Resources\Projects\Pages;
 
-use App\Filament\Pages\WorkspaceDetail;
 use App\Filament\Pages\Workspaces;
 use App\Filament\Resources\Projects\Pages\Concerns\HasProjectContext;
 use App\Filament\Resources\Projects\ProjectResource;
+use App\Filament\Support\PlatformAccess;
 use App\Models\BackupRecord;
 use App\Models\Project;
+use App\Services\Access\Capability;
 use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\ControlPlanePaths;
 use App\Services\ControlPlane\ProjectHealthService;
 use App\Services\ControlPlane\ProjectOverviewData;
 use App\Services\Product\JourneyStage;
+use App\Services\Product\JourneyState;
 use App\Services\Product\ProjectPulse;
 use App\Services\Product\UiPreferenceService;
 use Filament\Actions\Action;
@@ -63,10 +65,12 @@ class ViewProject extends Page
     public function getSubheading(): ?string
     {
         $p = $this->project();
+        // §D7: the subheading is identity, not infrastructure. API domains and
+        // slugs are technical identifiers — they live in the Technical
+        // details disclosure below, and in project settings.
         $parts = array_filter([
             $p->workspace?->name,
-            strtoupper((string) ($p->environment ?? 'local')),
-            $p->api_domain ?: $p->slug,
+            __('projects.env_'.($p->environment ?? 'local')),
         ]);
 
         return implode(' · ', $parts) ?: null;
@@ -137,6 +141,9 @@ class ViewProject extends Page
             'backup' => $pulse->backup(),
             'blockers' => $pulse->blockers(),
             'warnings' => $pulse->warnings(),
+            // §D3: the readiness fact is honest — "not run yet" is not a zero,
+            // and it counts readiness checks only, not general warnings.
+            'readiness' => $pulse->readinessSummary(),
             'primaryAction' => $this->primaryAction(),
             'legacy' => $this->legacyTelemetry(),
             'advancedUrl' => $this->projectAdvancedUrl(),
@@ -224,17 +231,41 @@ class ViewProject extends Page
     }
 
     /**
-     * The single primary action (§9).
+     * The single primary action (§D2).
      *
-     * A dashboard with no primary CTA was a baseline finding on both Home and
-     * this page. The CTA follows the journey: whatever the NEXT unfinished
-     * stage is, that is what the button does.
+     * Attention outranks the journey: when the project's own pulse reports a
+     * blocker or warning, reviewing THAT is the next action, and it lands on
+     * the problem's canonical page — the same item Home would show, from the
+     * same service, so Home and Overview can never disagree (§D5). Otherwise
+     * the CTA follows the journey: whatever the NEXT unfinished stage is,
+     * that is what the button does.
+     *
+     * All labels come from translations (§D10).
      *
      * @return array{label: string, url: string, description: string}
      */
     public function primaryAction(): array
     {
         $project = $this->project();
+
+        // Attention outranks the journey — but only for a journey that has
+        // actually started. A fresh project's passive warnings ("No health
+        // result yet") must not bury the obvious next step, which is
+        // connecting a source (§D2).
+        $problem = $this->pulse()->blockers()[0]
+            ?? $this->pulse()->warnings()[0]
+            ?? null;
+
+        if ($problem !== null
+            && filled($problem['url'] ?? null)
+            && $this->pulse()->overallState() !== JourneyState::NOT_STARTED) {
+            return [
+                'label' => __('projects.cta_review_attention'),
+                'url' => $problem['url'],
+                'description' => $problem['title'],
+            ];
+        }
+
         $stage = $this->pulse()->currentStage();
 
         $page = match ($stage) {
@@ -251,13 +282,13 @@ class ViewProject extends Page
         }
 
         $label = match ($stage) {
-            JourneyStage::CONNECT => 'Connect a source',
-            JourneyStage::ANALYZE => 'Analyze the source',
-            JourneyStage::PLAN => 'Review the plan',
-            JourneyStage::MIGRATE => 'Continue migration',
-            JourneyStage::SYNC => 'Check Live Sync',
-            JourneyStage::VALIDATE => 'Run validation',
-            JourneyStage::CUTOVER => 'Review cutover',
+            JourneyStage::CONNECT => __('projects.cta_connect'),
+            JourneyStage::ANALYZE => __('projects.cta_analyze'),
+            JourneyStage::PLAN => __('projects.cta_review_plan'),
+            JourneyStage::MIGRATE => __('projects.cta_continue_migration'),
+            JourneyStage::SYNC => __('projects.cta_check_sync'),
+            JourneyStage::VALIDATE => __('projects.cta_run_validation'),
+            JourneyStage::CUTOVER => __('projects.cta_review_cutover'),
         };
 
         return [
@@ -267,27 +298,52 @@ class ViewProject extends Page
         ];
     }
 
+    /**
+     * §D12 — write controls are for users who may manage the project.
+     *
+     * A viewer may open the project and read every state on this page, but
+     * never sees a write CTA. The capability question is ALSO answered inside
+     * each action (server-side authorization is the source of truth —
+     * visibility alone is never the gate).
+     */
+    protected function canManageProject(): bool
+    {
+        return PlatformAccess::current()->allowsProject(
+            Capability::PROJECTS_MANAGE,
+            $this->project(),
+        );
+    }
+
     protected function getHeaderActions(): array
     {
+        $canManage = fn (): bool => $this->canManageProject();
+
         return [
             ActionGroup::make([
                 Action::make('health_check')
                     ->label(__('labels.run_health_check'))
                     ->icon('heroicon-o-heart')
+                    ->visible($canManage)
                     ->action(function () {
+                        // §D12: server-side authorization, not UI visibility.
+                        abort_unless($this->canManageProject(), 403);
                         $health = ProjectHealthService::for($this->project())->check();
                         $this->project()->update(['health_status' => $health['ok'] ? 'healthy' : 'unhealthy']);
                         AdminAudit::record('PROJECT_HEALTH_CHECKED', $this->project(), null, null, ['ok' => $health['ok']]);
-                        $note = Notification::make()->title($health['ok'] ? 'Project healthy' : 'Project unhealthy — see Overview');
+                        $note = Notification::make()->title(
+                            $health['ok'] ? __('projects.notify_healthy') : __('projects.notify_unhealthy'),
+                        );
                         $health['ok'] ? $note->success()->send() : $note->danger()->send();
                         $this->redirect(static::getUrl(['record' => $this->project()]));
                     }),
                 Action::make('clear_cache')
                     ->label(__('labels.clear_application_cache'))
                     ->icon('heroicon-o-trash')
+                    ->visible($canManage)
                     ->requiresConfirmation()
                     ->modalDescription(__('labels.flushes_this_project_u2019s_redis_namesp'))
                     ->action(function () {
+                        abort_unless($this->canManageProject(), 403);
                         $prefix = ($this->project()->redis_prefix ?? $this->project()->slug).':';
                         $deleted = 0;
                         foreach (Redis::connection()->keys($prefix.'*') as $key) {
@@ -295,28 +351,38 @@ class ViewProject extends Page
                             $deleted++;
                         }
                         $this->audit('PROJECT_CACHE_CLEARED', null, null, ['keys_deleted' => $deleted, 'prefix' => $prefix]);
-                        Notification::make()->title("Cleared {$deleted} keys under {$prefix}")->success()->send();
+                        Notification::make()
+                            ->title(__('projects.notify_cache_cleared', ['count' => $deleted, 'prefix' => $prefix]))
+                            ->success()
+                            ->send();
                     }),
                 Action::make('maintenance_on')
                     ->label(__('labels.enable_maintenance'))
                     ->icon('heroicon-o-wrench-screwdriver')
                     ->color('warning')
-                    ->visible(fn () => ! $this->project()->maintenance_mode)
+                    ->visible(fn (): bool => ! $this->project()->maintenance_mode && $canManage())
                     ->requiresConfirmation()
-                    ->action(fn () => $this->setMaintenance(true)),
+                    ->action(function () {
+                        abort_unless($this->canManageProject(), 403);
+                        $this->setMaintenance(true);
+                    }),
                 Action::make('maintenance_off')
                     ->label(__('labels.disable_maintenance'))
                     ->icon('heroicon-o-wrench-screwdriver')
                     ->color('danger')
-                    ->visible(fn () => (bool) $this->project()->maintenance_mode)
+                    ->visible(fn (): bool => (bool) $this->project()->maintenance_mode && $canManage())
                     ->requiresConfirmation()
-                    ->action(fn () => $this->setMaintenance(false)),
+                    ->action(function () {
+                        abort_unless($this->canManageProject(), 403);
+                        $this->setMaintenance(false);
+                    }),
             ])->label(__('labels.actions'))->icon('heroicon-o-ellipsis-horizontal')->button()->color('gray'),
         ];
     }
 
     protected function setMaintenance(bool $on): void
     {
+        abort_unless($this->canManageProject(), 403);
         $downFile = ControlPlanePaths::projectDir($this->project()->slug).'/storage/framework/down';
         if ($on) {
             @mkdir(dirname($downFile), 0755, true);

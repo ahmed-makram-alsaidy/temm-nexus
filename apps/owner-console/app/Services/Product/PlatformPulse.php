@@ -5,10 +5,19 @@ namespace App\Services\Product;
 use App\Filament\Resources\Projects\ProjectResource;
 use App\Models\AdminAuditEntry;
 use App\Models\BackupRecord;
+use App\Models\CutoverPlan;
+use App\Models\MigrationAnalysis;
+use App\Models\MigrationPlan;
+use App\Models\MigrationRun;
+use App\Models\MigrationSource;
 use App\Models\Project;
+use App\Models\ReadinessCheck;
+use App\Models\Workspace;
 use App\Services\Access\Access;
+use App\Services\ControlPlane\InfrastructureHealthService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -436,7 +445,7 @@ final class PlatformPulse
         try {
             $workspaceNames = $workspaceIds->isEmpty()
                 ? collect()
-                : \App\Models\Workspace::query()->whereIn('id', $workspaceIds)->pluck('name', 'id');
+                : Workspace::query()->whereIn('id', $workspaceIds)->pluck('name', 'id');
         } catch (\Throwable) {
             $workspaceNames = collect();
         }
@@ -464,7 +473,7 @@ final class PlatformPulse
     public function systemStatus(): array
     {
         try {
-            $facets = \App\Services\ControlPlane\InfrastructureHealthService::global()['facets'];
+            $facets = InfrastructureHealthService::global()['facets'];
         } catch (\Throwable) {
             return ['state' => 'unknown', 'degraded' => []];
         }
@@ -481,6 +490,243 @@ final class PlatformPulse
             'state' => $degraded === [] ? 'normal' : 'degraded',
             'degraded' => array_values($degraded),
         ];
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // 0.6.0 Phase D — the Projects index derivation (§D1/§D13)
+    // ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Preload ONE pulse per project from a FIXED set of batch queries, so an
+     * index of 100+ projects costs ~a dozen queries instead of ~8 per project.
+     *
+     * The state interpretation stays in ProjectPulse — this is a data-access
+     * change only (§D13: "no second health interpretation layer"). Every
+     * pulse lands in the same memo `pulseFor()` reads, so
+     * `projectsNeedingAttention()`, `projectSummaries()` and friends all
+     * become batched the moment this runs. Home keeps its current lazy
+     * behavior: it simply never calls this (§C safety).
+     */
+    public function useBatchedPulses(): void
+    {
+        $projects = $this->projects();
+        if ($projects->isEmpty()) {
+            return;
+        }
+
+        $ids = $projects->pluck('id')->all();
+
+        // Sources: all of them — connect state inspects every source.
+        try {
+            $sourcesByProject = MigrationSource::query()->whereIn('project_id', $ids)->get()
+                ->groupBy('project_id');
+        } catch (\Throwable) {
+            $sourcesByProject = collect();
+        }
+
+        // Latest-per-project models: MAX(id) then fetch those rows, so memory
+        // stays proportional to the project count, not the history size.
+        $analysisByProject = $this->latestModelPerProject(MigrationAnalysis::query(), $ids);
+        $planByProject = $this->latestModelPerProject(MigrationPlan::query(), $ids);
+        $cutoverByProject = $this->latestModelPerProject(CutoverPlan::query(), $ids);
+        $runByProject = $this->latestModelPerProject(MigrationRun::query(), $ids);
+
+        // Checkpoints: newest row across ALL of the project's runs — the exact
+        // rows the lazy per-project path would consider (not just the latest run).
+        try {
+            $runRows = DB::table('migration_runs')->whereIn('project_id', $ids)->get(['id', 'project_id']);
+            $runToProject = $runRows->pluck('project_id', 'id');
+            $checkpointByProject = collect();
+            if ($runRows->isNotEmpty()) {
+                $rows = DB::table('cdc_checkpoints')
+                    ->whereIn('migration_run_id', $runRows->pluck('id'))
+                    ->orderByDesc('id')
+                    ->get(['id', 'migration_run_id', 'stream_status', 'last_event_at', 'applied_events', 'lag_events']);
+                foreach ($rows as $row) {
+                    $pid = $runToProject[$row->migration_run_id] ?? null;
+                    if ($pid !== null && ! $checkpointByProject->has($pid)) {
+                        $checkpointByProject->put($pid, $row);
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            $checkpointByProject = collect();
+        }
+
+        // Readiness checks: all of them — validate/cutover states count
+        // failures and warnings across the full set.
+        try {
+            $checksByProject = ReadinessCheck::query()->whereIn('project_id', $ids)->get()
+                ->groupBy('project_id');
+        } catch (\Throwable) {
+            $checksByProject = collect();
+        }
+
+        // Backups: newest per db_name (already batched by §C).
+        $backups = $this->latestBackups();
+        $dbNameToProject = $projects->filter(fn ($p) => filled($p->db_name))->groupBy('db_name');
+
+        foreach ($projects as $project) {
+            $run = $runByProject->get($project->id);
+
+            $this->pulseFor($project)->preload([
+                'sources' => $sourcesByProject->get($project->id, collect()),
+                'analysis' => $analysisByProject->get($project->id),
+                'plan' => $planByProject->get($project->id),
+                'runs' => $run !== null ? collect([$run]) : collect(),
+                'checkpoint' => $checkpointByProject->get($project->id),
+                'checks' => $checksByProject->get($project->id, collect()),
+                'cutoverPlan' => $cutoverByProject->get($project->id),
+                'backup' => $project->db_name ? $backups->get($project->db_name) : null,
+            ]);
+        }
+    }
+
+    /** Latest row per project_id from a model query — two fixed queries. */
+    private function latestModelPerProject(Builder $query, array $ids): Collection
+    {
+        try {
+            $table = $query->getModel()->getTable();
+            $maxIds = DB::table($table)
+                ->whereIn('project_id', $ids)
+                ->selectRaw('project_id, MAX(id) as max_id')
+                ->groupBy('project_id')
+                ->pluck('max_id', 'project_id');
+
+            if ($maxIds->isEmpty()) {
+                return collect();
+            }
+
+            return $query->whereIn('id', $maxIds->values()->all())
+                ->get()
+                ->keyBy('project_id');
+        } catch (\Throwable) {
+            return collect();
+        }
+    }
+
+    /**
+     * The most recent real event per project (batched: two fixed queries),
+     * keyed by project id. "Meaningful activity" is the platform's own audit
+     * trail — the same source Home's continue-target uses.
+     *
+     * @return Collection<int, AdminAuditEntry> keyed by project_id
+     */
+    public function lastActivityByProject(): Collection
+    {
+        $ids = $this->projectIds();
+        if ($ids === []) {
+            return collect();
+        }
+
+        try {
+            $lastIds = DB::table('admin_audit_entries')
+                ->whereIn('project_id', $ids)
+                ->selectRaw('project_id, MAX(id) as last_id')
+                ->groupBy('project_id')
+                ->pluck('last_id', 'project_id');
+
+            if ($lastIds->isEmpty()) {
+                return collect();
+            }
+
+            return AdminAuditEntry::query()
+                ->whereIn('id', $lastIds->values()->all())
+                ->get()
+                ->keyBy('project_id');
+        } catch (\Throwable) {
+            return collect();
+        }
+    }
+
+    /**
+     * Every project in scope as a decision-ready index row (§D1), in THE
+     * deterministic attention-first order:
+     *
+     *   1. projects needing attention (BLOCKED first, then name)
+     *   2. active/in-progress journeys (most recently updated first)
+     *   3. recently meaningful projects (most recent real event first)
+     *   4. others (name)
+     *
+     * No AI ranking — real stored state only. Workspace names arrive in one
+     * batched query.
+     *
+     * @return Collection<int, array{project: Project, workspace: ?string, stage: JourneyStage, progress: int, state: JourneyState, lastActivityAt: ?CarbonInterface}>
+     */
+    public function indexRows(): Collection
+    {
+        $this->useBatchedPulses();
+
+        $lastActivity = $this->lastActivityByProject();
+        $attentionStates = $this->projectsNeedingAttention()->keyBy(fn (array $row): int => (int) $row['project']->getKey());
+
+        $workspaceIds = $this->projects()->pluck('workspace_id')->filter()->unique()->values();
+        try {
+            $workspaceNames = $workspaceIds->isEmpty()
+                ? collect()
+                : Workspace::query()->whereIn('id', $workspaceIds)->pluck('name', 'id');
+        } catch (\Throwable) {
+            $workspaceNames = collect();
+        }
+
+        $rows = $this->projects()->map(function (Project $project) use ($lastActivity, $attentionStates, $workspaceNames): array {
+            $pulse = $this->pulseFor($project);
+            $state = $pulse->overallState();
+
+            return [
+                'project' => $project,
+                'workspace' => $workspaceNames[$project->workspace_id] ?? null,
+                'stage' => $pulse->currentStage(),
+                'progress' => $pulse->progressPercent(),
+                'state' => $state,
+                'lastActivityAt' => $lastActivity->get($project->id)?->created_at,
+                // The Home/Overview attention language, reused verbatim (§D5).
+                'attentionReason' => $attentionStates->has((int) $project->getKey())
+                    ? $attentionStates[(int) $project->getKey()]['reason']
+                    : null,
+            ];
+        });
+
+        return $rows->sort(function (array $a, array $b): int {
+            [$tierA, $tierB] = [$a, $b];
+
+            $ta = self::indexTier($a);
+            $tb = self::indexTier($b);
+            if ($ta !== $tb) {
+                return $ta <=> $tb;
+            }
+
+            return match ($ta) {
+                1 => self::compareStateSeverity($a['state'], $b['state'])
+                    ?: $a['project']->name <=> $b['project']->name,
+                2 => ($b['project']->updated_at?->timestamp ?? 0) <=> ($a['project']->updated_at?->timestamp ?? 0)
+                    ?: $a['project']->name <=> $b['project']->name,
+                3 => ($b['lastActivityAt']?->timestamp ?? 0) <=> ($a['lastActivityAt']?->timestamp ?? 0)
+                    ?: $a['project']->name <=> $b['project']->name,
+                default => $a['project']->name <=> $b['project']->name,
+            };
+        })->values();
+    }
+
+    /**
+     * The ordering tier of an index row — 1 attention, 2 in progress,
+     * 3 recently meaningful, 4 the rest.
+     */
+    private static function indexTier(array $row): int
+    {
+        return match ($row['state']) {
+            JourneyState::BLOCKED, JourneyState::NEEDS_ATTENTION => 1,
+            JourneyState::IN_PROGRESS, JourneyState::READY => 2,
+            default => $row['lastActivityAt'] !== null ? 3 : 4,
+        };
+    }
+
+    /** BLOCKED sorts ahead of NEEDS_ATTENTION within the attention tier. */
+    private static function compareStateSeverity(JourneyState $a, JourneyState $b): int
+    {
+        $rank = [JourneyState::BLOCKED->value => 0, JourneyState::NEEDS_ATTENTION->value => 1];
+
+        return ($rank[$a->value] ?? 9) <=> ($rank[$b->value] ?? 9);
     }
 
     // ─────────────────────────────────────────────────────────────────

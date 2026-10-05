@@ -720,3 +720,208 @@ html[dir='rtl'] .nx-details__summary {
     outline-offset: 2px;
     border-radius: var(--nx-radius-sm);
 }
+
+/* ── 9. Phase D — Projects index (§D1/§D14) ─────────────────────────────── */
+
+/* Quiet summary line under the page title: counts, never KPI cards. */
+.nx-projects-summary {
+    margin: 0 0 var(--nx-space-4);
+    color: var(--nx-text-secondary);
+    font-size: var(--nx-text-body);
+}
+
+/* Filter bar: a handful of chips + tools. One row, quiet borders. */
+.nx-filterbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--nx-space-3);
+    margin-bottom: var(--nx-space-5);
+}
+
+.nx-filterbar__groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--nx-space-1);
+}
+
+.nx-filterbar__chip {
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-radius: var(--nx-radius-full);
+    color: var(--nx-text-secondary);
+    font-size: var(--nx-text-secondary);
+    text-decoration: none;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.nx-filterbar__chip:hover {
+    color: var(--nx-text);
+    background: var(--nx-surface-raised);
+}
+
+.nx-filterbar__chip.is-active {
+    background: var(--nx-accent-soft, var(--nx-surface-raised));
+    border-color: var(--nx-accent);
+    color: var(--nx-accent);
+    font-weight: 600;
+}
+
+.nx-filterbar__tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--nx-space-2);
+}
+
+.nx-filterbar__search input {
+    min-width: 200px;
+    padding: 7px 12px;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-sm);
+    background: var(--nx-surface);
+    color: var(--nx-text);
+    font-size: var(--nx-text-secondary);
+}
+
+.nx-filterbar__search input:focus-visible {
+    outline: 2px solid var(--nx-accent);
+    outline-offset: 1px;
+}
+
+.nx-filterbar__select {
+    padding: 7px 10px;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-sm);
+    background: var(--nx-surface);
+    color: var(--nx-text);
+    font-size: var(--nx-text-secondary);
+}
+
+.nx-filterbar__select.is-placeholder {
+    color: var(--nx-text-muted);
+}
+
+/* View mode toggle: two quiet buttons, active carries the accent. */
+.nx-filterbar__modes {
+    display: inline-flex;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-sm);
+    overflow: hidden;
+}
+
+.nx-filterbar__modes button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 0;
+    background: var(--nx-surface);
+    color: var(--nx-text-secondary);
+    font-size: var(--nx-text-secondary);
+    cursor: pointer;
+}
+
+.nx-filterbar__modes button + button {
+    border-inline-start: 1px solid var(--nx-border);
+}
+
+.nx-filterbar__modes button.is-active {
+    background: var(--nx-surface-raised);
+    color: var(--nx-text);
+    font-weight: 600;
+}
+
+/* The one action on a card, bottom-aligned — a card IS a link. */
+.nx-card__open {
+    margin-top: auto;
+    color: var(--nx-accent);
+    font-size: var(--nx-text-secondary);
+    font-weight: 600;
+}
+
+/* Attention-first: a needs-attention card carries a quiet accent edge,
+   not a louder shadow (§D15 — minimal border, no badge overload). */
+.nx-card--attention {
+    border-inline-start: 3px solid var(--nx-warning);
+}
+
+.nx-card--attention:has(.nx-status--danger) {
+    border-inline-start-color: var(--nx-danger);
+}
+
+/* Compact view (§D1): calm rows, never the technical table again. */
+.nx-projects-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--nx-text-body);
+}
+
+.nx-projects-table th {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--nx-border-strong);
+    color: var(--nx-text-secondary);
+    font-size: var(--nx-text-eyebrow);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: start;
+    white-space: nowrap;
+}
+
+.nx-projects-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--nx-border);
+    vertical-align: middle;
+}
+
+.nx-projects-table tbody tr:hover {
+    background: var(--nx-surface-raised);
+}
+
+.nx-projects-table__name {
+    color: var(--nx-text);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.nx-projects-table__name:hover {
+    color: var(--nx-accent);
+}
+
+/* Pagination: quiet, centered, never a widget wall. */
+.nx-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--nx-space-3);
+    margin-top: var(--nx-space-5);
+}
+
+.nx-pagination button {
+    padding: 6px 12px;
+    border: 1px solid var(--nx-border);
+    border-radius: var(--nx-radius-sm);
+    background: var(--nx-surface);
+    color: var(--nx-text-secondary);
+    font-size: var(--nx-text-secondary);
+    cursor: pointer;
+}
+
+.nx-pagination button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.nx-pagination__status {
+    color: var(--nx-text-secondary);
+    font-size: var(--nx-text-secondary);
+}
+
+/* At 1366 the filter bar keeps one visual row without crowding the grid. */
+@media (max-width: 1440px) {
+    .nx-filterbar__search input {
+        min-width: 160px;
+    }
+}

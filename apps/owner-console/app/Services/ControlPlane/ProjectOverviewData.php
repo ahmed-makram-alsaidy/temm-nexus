@@ -5,10 +5,12 @@ namespace App\Services\ControlPlane;
 use App\Models\AdminAuditEntry;
 use App\Models\BackupRecord;
 use App\Models\Project;
+use App\Models\ProjectFunction;
 use App\Models\ProjectSchemaChange;
 use App\Models\ProjectTask;
 use App\Models\ProjectWebhook;
-use App\Models\ProjectFunction;
+use App\Support\ActivityHumanizer;
+use App\Support\ProductStatus;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -74,39 +76,41 @@ class ProjectOverviewData
         $items = [];
         foreach (
             AdminAuditEntry::query()->where('project_id', $project->id)
-                ->orderByDesc('id')->limit($limit)->get()
-            as $e
+                ->orderByDesc('id')->limit($limit)->get() as $e
         ) {
             $items[] = [
                 'at' => (string) $e->created_at,
                 'time' => $e->created_at?->format('M j, H:i') ?? '—',
                 // 0.6.0 Phase A (§A6): human sentences on product surfaces.
                 // The raw verb and target remain in the audit log itself.
-                'text' => \App\Support\ActivityHumanizer::humanize($e->action).($e->target_type ? " · {$e->target_type}".($e->target_id ? " #{$e->target_id}" : '') : ''),
+                'text' => ActivityHumanizer::humanize($e->action).($e->target_type ? " · {$e->target_type}".($e->target_id ? " #{$e->target_id}" : '') : ''),
                 'kind' => 'security',
             ];
         }
         foreach (
             BackupRecord::query()->where('db_name', $project->db_name)
-                ->orderByDesc('id')->limit(3)->get()
-            as $b
+                ->orderByDesc('id')->limit(3)->get() as $b
         ) {
             $items[] = [
                 'at' => (string) $b->created_at,
                 'time' => $b->created_at?->format('M j, H:i') ?? '—',
-                'text' => "Backup {$b->status}".($b->size_bytes ? ' · '.self::bytes((int) $b->size_bytes) : ''),
+                // 0.6.0 Phase D (§D10): the overview activity feed is fully
+                // translated; the status dictionary owns the state word.
+                'text' => __('projects.activity_backup_state', ['state' => ProductStatus::label((string) $b->status)])
+                    .($b->size_bytes ? ' · '.self::bytes((int) $b->size_bytes) : ''),
                 'kind' => 'backup',
             ];
         }
         foreach (
             ProjectSchemaChange::query()->where('project_id', $project->id)
-                ->orderByDesc('id')->limit(3)->get()
-            as $c
+                ->orderByDesc('id')->limit(3)->get() as $c
         ) {
             $items[] = [
                 'at' => (string) $c->created_at,
                 'time' => $c->created_at?->format('M j, H:i') ?? '—',
-                'text' => 'Schema: '.str_replace('_', ' ', $c->kind).' · '.($c->detail['table'] ?? $c->detail['function'] ?? ''),
+                'text' => __('projects.activity_schema_change', [
+                    'what' => str_replace('_', ' ', $c->kind).' · '.($c->detail['table'] ?? $c->detail['function'] ?? ''),
+                ]),
                 'kind' => 'schema',
             ];
         }
