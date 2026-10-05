@@ -56,6 +56,30 @@ they cannot disagree about the same project (asserted by
 - Attention on Home = attention on the Projects index = attention on Project
   Overview, because all three render `ProjectPulse` output verbatim.
 
+## The Migration journey's six product stages (0.6.0 Phase E, §E12)
+
+The project Migration tab presents ONE journey with SIX stage tabs —
+Connect · Analyze · Plan · Sync · Verify · Cutover — over the canonical
+SEVEN-stage journey above. The mapping is presentation-only and reads
+directly from `ProjectPulse::stageState()` (no second interpretation):
+
+| Product stage tab | Canonical stage(s) | State shown |
+|---|---|---|
+| Connect | CONNECT | `connectState()` |
+| Analyze | ANALYZE | `analyzeState()` |
+| Plan | PLAN | `planState()` |
+| Sync | MIGRATE + SYNC | the MORE SEVERE of the two |
+| Verify | VALIDATE | `validateState()` |
+| Cutover | CUTOVER | `cutoverState()` |
+
+The Sync tab merges run progress and live sync; its state is the more
+severe of the two canonical states (BLOCKED > NEEDS_ATTENTION >
+IN_PROGRESS > READY > COMPLETE), a documented presentation aggregation —
+not a new interpretation layer. `ProjectPulse::stageUrl()` routes every
+canonical stage to the journey page's matching tab, so Home's
+"Continue where you left off", the Overview stepper and the journey page
+can never disagree about where a project is (§E22).
+
 ## Notes for future phases
 
 - `ProjectOverviewData` telemetry (pulse requests, queue depth, storage) is

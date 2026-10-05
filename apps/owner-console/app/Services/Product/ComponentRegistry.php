@@ -144,6 +144,62 @@ final class ComponentRegistry
             'adjustments' => ['expanded_by_default'],
         ],
 
+        // ── Migration journey (0.6.0 Phase E) ──────────────────────────
+        'migration.stages' => [
+            'label' => 'Migration stage navigation',
+            'page' => 'Migration',
+            'scope' => 'project',
+            'data_source' => 'ProjectPulse::stageState() — the canonical journey model',
+            'capability' => 'migrations.view',
+            'description' => 'The six journey stages (Connect → Cutover) with their real states.',
+            'adjustments' => ['visibility'],
+        ],
+        'migration.connect' => [
+            'label' => 'Connect stage',
+            'page' => 'Migration',
+            'scope' => 'project',
+            'data_source' => 'MigrationSource rows + the source-connection status model',
+            'capability' => 'migrations.view',
+            'description' => 'Source connection and destination status, with the last successful test.',
+            'adjustments' => ['visibility'],
+        ],
+        'migration.analyze' => [
+            'label' => 'Analyze stage',
+            'page' => 'Migration',
+            'scope' => 'project',
+            'data_source' => 'MigrationAnalysis rows — counts, warnings and real stage telemetry',
+            'capability' => 'migrations.view',
+            'description' => 'The latest analysis summary, its warnings and its real progress stages.',
+            'adjustments' => ['visibility'],
+        ],
+        'migration.plan' => [
+            'label' => 'Plan stage',
+            'page' => 'Migration',
+            'scope' => 'project',
+            'data_source' => 'MigrationPlan items grouped by dependency stage',
+            'capability' => 'migrations.view',
+            'description' => 'What the transfer will move, in dependency order, and what it may not.',
+            'adjustments' => ['visibility'],
+        ],
+        'migration.sync' => [
+            'label' => 'Sync stage',
+            'page' => 'Migration',
+            'scope' => 'project',
+            'data_source' => 'MigrationRun rows — latest run plus a bounded history slice',
+            'capability' => 'migrations.view',
+            'description' => 'The current transfer run: status, progress, direction and mode.',
+            'adjustments' => ['visibility'],
+        ],
+        'migration.verify' => [
+            'label' => 'Verify stage',
+            'page' => 'Migration',
+            'scope' => 'project',
+            'data_source' => 'ReadinessService::summary() — validation + readiness evidence',
+            'capability' => 'projects.view',
+            'description' => 'Passed / needs review / blocked checks with their evidence, in one place.',
+            'adjustments' => ['visibility'],
+        ],
+
         // ── Cutover ────────────────────────────────────────────────────
         'cutover.overall' => [
             'label' => 'Overall readiness',

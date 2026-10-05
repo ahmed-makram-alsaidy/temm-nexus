@@ -73,6 +73,7 @@ return [
     'resources' => 'Resources',
     'readiness' => 'Readiness',
     'environments' => 'Environments',
+    'migration' => 'Migration',
     'migration_center' => 'Migration Center',
     'cutover' => 'Cutover',
     'client_repository' => 'Client Repository',

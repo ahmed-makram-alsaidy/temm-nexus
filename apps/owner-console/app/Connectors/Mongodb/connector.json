@@ -3,7 +3,7 @@
     "key": "mongodb",
     "name": "MongoDB",
     "version": "1.0.0",
-    "description": "Import an existing MongoDB database (Atlas or self-hosted): read-only database/collection discovery, probabilistic schema inference, relationship candidates with confidence, index and validator analysis, batched extraction, and relational/JSONB/hybrid mapping to PostgreSQL. No source mutation. Real change stream CDC: insert/update/replace/delete capture with durable signed resume tokens (Phase 35.6).",
+    "description": "Import an existing MongoDB database (Atlas or self-hosted): read-only database/collection discovery, probabilistic schema inference, relationship candidates with confidence, index and validator analysis, batched extraction, and relational/JSONB/hybrid mapping to PostgreSQL. No source mutation. Optional change stream CDC captures insert, update, replace and delete with durable resume tokens.",
     "author": "Backend Control Plane (first-party)",
     "license": "MIT",
     "platform_requirement": ">=0.2.0",

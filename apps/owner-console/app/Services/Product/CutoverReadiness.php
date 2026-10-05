@@ -77,11 +77,14 @@ final class CutoverReadiness
         if ($blocking !== []) {
             return [
                 'state' => self::BLOCKED,
-                'label' => 'Blocked',
+                // 0.6.0 Phase E (§E19/§E20) — presentation copy is translated
+                // at read time; the SAFETY MODEL (which gates block) is
+                // untouched.
+                'label' => __('cutover.overall_blocked_label'),
                 'tone' => 'danger',
                 'detail' => count($blocking) === 1
-                    ? 'One gate is blocking this cutover.'
-                    : count($blocking).' gates are blocking this cutover.',
+                    ? __('cutover.overall_blocked_detail_one')
+                    : __('cutover.overall_blocked_detail', ['count' => count($blocking)]),
                 'reason' => $blocking[0]['evidence'] ?? null,
             ];
         }
@@ -92,20 +95,20 @@ final class CutoverReadiness
 
             return [
                 'state' => self::WARNING,
-                'label' => 'Warning',
+                'label' => __('cutover.overall_warning_label'),
                 'tone' => 'warning',
                 'detail' => $count === 1
-                    ? 'One item needs attention before you switch.'
-                    : $count.' items need attention before you switch.',
+                    ? __('cutover.overall_warning_detail_one')
+                    : __('cutover.overall_warning_detail', ['count' => $count]),
                 'reason' => $first['evidence'] ?? null,
             ];
         }
 
         return [
             'state' => self::READY,
-            'label' => 'Ready',
+            'label' => __('cutover.overall_ready_label'),
             'tone' => 'success',
-            'detail' => 'Every gate passes. You can proceed when the window opens.',
+            'detail' => __('cutover.overall_ready_detail'),
             'reason' => null,
         ];
     }
@@ -254,21 +257,21 @@ final class CutoverReadiness
                 $out[] = [
                     'severity' => 'danger',
                     'gate' => $gate['gate'],
-                    'title' => $gate['section'].' is blocking',
+                    'title' => __('cutover.issue_blocking', ['section' => $gate['section']]),
                     'detail' => $gate['evidence'],
                 ];
             } elseif ($gate['product_state'] === 'UNVERIFIED') {
                 $out[] = [
                     'severity' => 'warning',
                     'gate' => $gate['gate'],
-                    'title' => $gate['section'].' is not verified',
+                    'title' => __('cutover.issue_unverified', ['section' => $gate['section']]),
                     'detail' => $gate['evidence'],
                 ];
             } elseif ($gate['product_state'] === 'WARN') {
                 $out[] = [
                     'severity' => 'warning',
                     'gate' => $gate['gate'],
-                    'title' => $gate['section'].' needs review',
+                    'title' => __('cutover.issue_review', ['section' => $gate['section']]),
                     'detail' => $gate['evidence'],
                 ];
             }
@@ -315,13 +318,13 @@ final class CutoverReadiness
                 ->where('project_id', $this->project->id)
                 ->get();
         } catch (\Throwable) {
-            return ['label' => 'Not verified', 'detail' => 'Validation could not be read.', 'tone' => 'warning', 'checks' => 0, 'failed' => 0];
+            return ['label' => __('cutover.validation_error_label'), 'detail' => __('cutover.validation_error_detail'), 'tone' => 'warning', 'checks' => 0, 'failed' => 0];
         }
 
         if ($checks->isEmpty()) {
             return [
-                'label' => 'Not run',
-                'detail' => 'No validation has been recorded for this project.',
+                'label' => __('cutover.validation_none_label'),
+                'detail' => __('cutover.validation_none_detail'),
                 'tone' => 'warning',
                 'checks' => 0,
                 'failed' => 0,
@@ -333,8 +336,10 @@ final class CutoverReadiness
 
         if ($failed > 0) {
             return [
-                'label' => 'Failed',
-                'detail' => $failed.' of '.$checks->count().' checks failed.',
+                'label' => __('cutover.validation_failed_label'),
+                'detail' => trans_choice('cutover.validation_failed_detail', $failed, [
+                    'failed' => $failed, 'total' => $checks->count(),
+                ]),
                 'tone' => 'danger',
                 'checks' => $checks->count(),
                 'failed' => $failed,
@@ -343,8 +348,10 @@ final class CutoverReadiness
 
         if ($warned > 0) {
             return [
-                'label' => 'Needs review',
-                'detail' => $warned.' of '.$checks->count().' checks need review.',
+                'label' => __('cutover.validation_review_label'),
+                'detail' => trans_choice('cutover.validation_review_detail', $warned, [
+                    'warned' => $warned, 'total' => $checks->count(),
+                ]),
                 'tone' => 'warning',
                 'checks' => $checks->count(),
                 'failed' => 0,
@@ -352,8 +359,8 @@ final class CutoverReadiness
         }
 
         return [
-            'label' => 'Reconciled',
-            'detail' => 'All '.$checks->count().' checks pass.',
+            'label' => __('cutover.validation_ok_label'),
+            'detail' => __('cutover.validation_ok_detail', ['total' => $checks->count()]),
             'tone' => 'success',
             'checks' => $checks->count(),
             'failed' => 0,
@@ -383,8 +390,8 @@ final class CutoverReadiness
 
         if (! $record) {
             return [
-                'label' => 'Never',
-                'detail' => 'No backup on record. Cutover cannot be reversible without one.',
+                'label' => __('cutover.backup_never_label'),
+                'detail' => __('cutover.backup_never_detail'),
                 'tone' => 'danger',
                 'taken_at' => null,
                 'verified' => false,
@@ -398,8 +405,8 @@ final class CutoverReadiness
         return [
             'label' => $record->finished_at?->diffForHumans() ?? ucfirst((string) $record->status),
             'detail' => $verified
-                ? 'Verified and restore-drilled.'
-                : 'Not proven: a backup that has not been restored is not yet a rollback plan.',
+                ? __('cutover.backup_verified_detail')
+                : __('cutover.backup_unproven_detail'),
             'tone' => $verified ? 'success' : 'danger',
             'taken_at' => $record->finished_at?->toIso8601String(),
             'verified' => $verified,
@@ -422,16 +429,16 @@ final class CutoverReadiness
         $ready = $plan !== null && $backup['verified'];
 
         $detail = match (true) {
-            $plan === null && ! $backup['verified'] => 'No cutover plan and no verified backup. Rollback is not yet possible.',
-            $plan === null => 'No cutover plan yet, so no rollback plan has been generated.',
-            ! $backup['verified'] => 'A rollback plan exists, but the backup behind it is not verified and restore-drilled.',
-            default => 'A verified backup exists and a rollback plan is recorded.',
+            $plan === null && ! $backup['verified'] => __('cutover.rollback_detail_none_both'),
+            $plan === null => __('cutover.rollback_detail_no_plan'),
+            ! $backup['verified'] => __('cutover.rollback_detail_unverified'),
+            default => __('cutover.rollback_detail_ready'),
         };
 
         $label = match (true) {
-            $ready => 'Armed',
-            $plan === null => 'No plan',
-            default => 'Not armed',
+            $ready => __('cutover.rollback_armed'),
+            $plan === null => __('cutover.rollback_no_plan'),
+            default => __('cutover.rollback_not_armed'),
         };
 
         $rollback = $plan && is_array($plan->rollback) ? $plan->rollback : [];
@@ -457,18 +464,21 @@ final class CutoverReadiness
         if ($sync['raw_state'] === 'UNVERIFIED' || $sync['lag_seconds'] === null) {
             return [
                 'ready' => false,
-                'label' => 'Not verified',
-                'detail' => 'Live Sync has not reported, so the final delta cannot be judged.',
+                'label' => __('cutover.finalsync_unverified_label'),
+                'detail' => __('cutover.finalsync_unverified_detail'),
                 'tone' => 'warning',
             ];
         }
 
         $lag = $sync['lag_seconds'];
+        $pulse = ProjectPulse::for($this->project);
+        // §E20 — durations render through the localized diffForHumans path
+        // (durationAgo), never hardcoded English sentences.
         if ($lag >= ProjectPulse::SYNC_LAG_BLOCKING_SECONDS) {
             return [
                 'ready' => false,
-                'label' => 'Behind',
-                'detail' => 'The last change was applied '.ProjectPulse::for($this->project)->humanDuration($lag).' ago. A final delta now would be large.',
+                'label' => __('cutover.finalsync_behind_label'),
+                'detail' => __('cutover.finalsync_behind_detail', ['when' => $pulse->durationAgo($lag)]),
                 'tone' => 'danger',
             ];
         }
@@ -476,16 +486,16 @@ final class CutoverReadiness
         if ($lag >= ProjectPulse::SYNC_LAG_WARNING_SECONDS) {
             return [
                 'ready' => false,
-                'label' => 'Catching up',
-                'detail' => 'Last change applied '.ProjectPulse::for($this->project)->humanDuration($lag).' ago.',
+                'label' => __('cutover.finalsync_catching_label'),
+                'detail' => __('cutover.finalsync_catching_detail', ['when' => $pulse->durationAgo($lag)]),
                 'tone' => 'warning',
             ];
         }
 
         return [
             'ready' => true,
-            'label' => 'Up to date',
-            'detail' => 'The last change was applied '.ProjectPulse::for($this->project)->humanDuration($lag).' ago.',
+            'label' => __('cutover.finalsync_uptodate_label'),
+            'detail' => __('cutover.finalsync_uptodate_detail', ['when' => $pulse->durationAgo($lag)]),
             'tone' => 'success',
         ];
     }
@@ -632,11 +642,11 @@ final class CutoverReadiness
     private function productLabel(string $rawState): string
     {
         return match ($rawState) {
-            'PASS' => 'Pass',
-            'NOT_APPLICABLE' => 'Not applicable',
-            'BLOCK' => 'Blocked',
-            'WARN' => 'Warning',
-            default => 'Not verified',
+            'PASS' => __('cutover.gate_pass'),
+            'NOT_APPLICABLE' => __('cutover.gate_not_applicable'),
+            'BLOCK' => __('cutover.gate_blocked'),
+            'WARN' => __('cutover.gate_warning'),
+            default => __('cutover.gate_unverified'),
         };
     }
 
@@ -662,6 +672,18 @@ final class CutoverReadiness
 
     private function humanise(string $token): string
     {
+        // 0.6.0 Phase E (§E19) — known gate/step tokens read product language;
+        // unknown stored tokens keep the neutral humanised form.
+        $gateKey = 'cutover.gate_label_'.$token;
+        if (__($gateKey) !== $gateKey) {
+            return __($gateKey);
+        }
+
+        $stepKey = 'cutover.step_'.$token;
+        if (__($stepKey) !== $stepKey) {
+            return __($stepKey);
+        }
+
         return ucfirst(str_replace('_', ' ', $token));
     }
 }

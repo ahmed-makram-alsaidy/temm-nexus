@@ -51,8 +51,20 @@ class MigrationCenterService
         return new $class($source);
     }
 
-    /** Analyze a source: full read-only inventory, versioned. */
-    public function analyze(MigrationSource $source): MigrationAnalysis
+    /**
+     * 0.6.0 Phase E (§E7) — the analysis pipeline, stage by stage.
+     *
+     * The stages are REAL work units, recorded on the analysis row as it
+     * progresses (`telemetry`): preparing → inspecting → classifying →
+     * reviewing_risks → complete. `beginAnalysis()` creates the row,
+     * `advanceAnalysis()` performs exactly one stage per call (the wizard and
+     * the Migration journey tick it from the UI), `cancelAnalysis()` stops a
+     * running analysis. `analyze()` remains the one-call path: begin, then
+     * advance until settled — behavior-preserving for existing callers.
+     */
+    public const PIPELINE = ['preparing', 'inspecting', 'classifying', 'reviewing_risks'];
+
+    public function beginAnalysis(MigrationSource $source): MigrationAnalysis
     {
         $runId = (string) Str::uuid();
         $connector = null;
@@ -76,34 +88,102 @@ class MigrationCenterService
             'connector_key' => $connectorKey,
             'connector_version' => $connectorVersion,
             'analysis_version' => self::ANALYSIS_VERSION,
+            'telemetry' => $this->telemetry('preparing'),
         ]);
 
+        return $analysis;
+    }
+
+    /** Perform the NEXT pipeline stage. Returns the refreshed analysis. */
+    public function advanceAnalysis(MigrationAnalysis $analysis): MigrationAnalysis
+    {
+        if ($analysis->status !== 'running') {
+            return $analysis;
+        }
+
+        match ($analysis->telemetry['current'] ?? null) {
+            'preparing' => $this->runInventoryStage($analysis),
+            'classifying' => $this->runCompatibilityStage($analysis),
+            'reviewing_risks' => $this->runRisksStage($analysis),
+            default => null,
+        };
+
+        return $analysis->refresh();
+    }
+
+    /** 0.6.0 Phase E (§E7) — stop a running analysis; the source is untouched. */
+    public function cancelAnalysis(MigrationAnalysis $analysis): void
+    {
+        if ($analysis->status !== 'running') {
+            return;
+        }
+
+        $analysis->update([
+            'status' => 'cancelled',
+            'completed_at' => now(),
+            'errors' => ['message' => 'Analysis cancelled by the user.'],
+        ]);
+    }
+
+    /** One-call analysis: begin, then advance until the pipeline settles. */
+    public function analyze(MigrationSource $source): MigrationAnalysis
+    {
+        $analysis = $this->beginAnalysis($source);
+
+        while ($analysis->status === 'running'
+            && in_array($analysis->telemetry['current'] ?? null, self::PIPELINE, true)) {
+            $analysis = $this->advanceAnalysis($analysis);
+        }
+
+        return $analysis;
+    }
+
+    // ── Stage internals (each performs exactly one real work unit) ──────
+
+    protected function runInventoryStage(MigrationAnalysis $analysis): void
+    {
+        $source = $analysis->source;
+        $started = microtime(true);
+
         try {
-            $started = microtime(true);
             $adapter = $this->makeAdapter($source);
             $adapter->connect();
             $inventory = $adapter->inventory();
             $fingerprint = SchemaFingerprint::compute($inventory);
             $adapter->close();
-            $durationMs = (int) round((microtime(true) - $started) * 1000);
-            \App\Services\ControlPlane\Connectors\Support\ConnectorLogger::operation($source, 'analyze', [
-                'run_id' => $runId, 'duration_ms' => $durationMs, 'items' => collect($inventory)->map(fn ($d) => is_countable($d) ? count($d) : 0)->sum(),
-            ]);
+        } catch (\Throwable $e) {
+            // §E8 — deterministic blocking classification: the source could
+            // not be connected, authenticated or inspected at all.
+            $this->failAnalysis($analysis, $source, AnalysisOutcomeClassifier::blocking($e));
 
-            $counts = [];
-            $warnings = [];
+            return;
+        }
 
-            foreach ($inventory as $kind => $data) {
-                if (in_array($kind, ['auth', 'storage', 'realtime'], true)) {
-                    if (($data['present'] ?? true) === false) {
-                        $warnings[] = ucfirst($kind).' domain not present on source';
-                        $counts[$kind] = 0;
-                    } else {
-                        $counts[$kind] = $kind === 'auth' ? ($data['users_count'] ?? 0) : count($data['buckets'] ?? []);
-                    }
-                    $this->storeItem($analysis, $kind, $kind === 'auth' ? 'auth' : $kind, $kind, $data);
-                    continue;
+        $durationMs = (int) round((microtime(true) - $started) * 1000);
+        \App\Services\ControlPlane\Connectors\Support\ConnectorLogger::operation($source, 'analyze', [
+            'run_id' => $analysis->run_id, 'duration_ms' => $durationMs, 'items' => collect($inventory)->map(fn ($d) => is_countable($d) ? count($d) : 0)->sum(),
+        ]);
+
+        $counts = [];
+        $warnings = (array) ($adapter->warnings() ?? []);
+
+        foreach ($inventory as $kind => $data) {
+            if (in_array($kind, ['auth', 'storage', 'realtime'], true)) {
+                if (($data['present'] ?? true) === false) {
+                    $warnings[] = [
+                        'severity' => AnalysisOutcomeClassifier::WARNING,
+                        'check' => 'domain_not_present',
+                        'domain' => $kind,
+                        'sqlstate' => null,
+                        'message' => '',
+                    ];
+                    $counts[$kind] = 0;
+                } else {
+                    $counts[$kind] = $kind === 'auth' ? ($data['users_count'] ?? 0) : count($data['buckets'] ?? []);
                 }
+                $this->storeItem($analysis, $kind, $kind === 'auth' ? 'auth' : $kind, $kind, $data);
+                continue;
+            }
             $counts[$kind] = is_array($data) ? count($data) : 0;
             if (! is_array($data)) {
                 continue;
@@ -127,40 +207,113 @@ class MigrationCenterService
                 $attrs = is_array($item) ? $item : ['value' => $item];
                 $this->storeItem($analysis, $itemKind, $attrs['schema'] ?? null, $name, $attrs);
             }
-            }
-
-            $analysis->update([
-                'status' => 'completed',
-                'completed_at' => now(),
-                'counts' => $counts,
-                'warnings' => $warnings,
-                'errors' => [],
-                'source_fingerprint' => $fingerprint,
-            ]);
-
-            $source->update(['status' => 'ready', 'last_analyzed_at' => now(), 'last_error' => null]);
-            $source->stampConnector($connectorKey, $connectorVersion);
-            $this->writeArtifact($analysis, 'analysis', $inventory, [
-                'counts' => $counts,
-                'fingerprint' => $fingerprint,
-                'duration_ms' => $durationMs,
-                // Phase 27I.2 — artifact traceability.
-                'connector_key' => $connectorKey,
-                'connector_version' => $connectorVersion,
-                'analysis_version' => self::ANALYSIS_VERSION,
-            ]);
-            AdminAudit::record('MIGRATION_ANALYSIS_RUN', $source->project, 'migration_analysis', $analysis->id, [
-                'source' => $source->display_name, 'run_id' => $runId, 'counts' => $counts,
-            ]);
-        } catch (\Throwable $e) {
-            $analysis->update([
-                'status' => 'failed', 'completed_at' => now(),
-                'errors' => ['message' => $e->getMessage()],
-            ]);
-            $source->update(['status' => 'error', 'last_error' => Str::limit($e->getMessage(), 300)]);
         }
 
-        return $analysis;
+        $analysis->update([
+            'counts' => $counts,
+            'warnings' => $warnings,
+            'errors' => [],
+            'source_fingerprint' => $fingerprint,
+            'telemetry' => $this->telemetry('classifying', $analysis->telemetry, $started),
+        ]);
+
+        // The source WAS readable — its health reflects that (unchanged
+        // semantics: `ready` was set at inventory time before classification).
+        $source->update(['status' => 'ready', 'last_analyzed_at' => now(), 'last_error' => null]);
+        $source->stampConnector($analysis->connector_key, $analysis->connector_version);
+        $this->writeArtifact($analysis, 'analysis', $inventory, [
+            'counts' => $counts,
+            'fingerprint' => $fingerprint,
+            'duration_ms' => $durationMs,
+            // Phase 27I.2 — artifact traceability.
+            'connector_key' => $analysis->connector_key,
+            'connector_version' => $analysis->connector_version,
+            'analysis_version' => self::ANALYSIS_VERSION,
+        ]);
+        AdminAudit::record('MIGRATION_ANALYSIS_RUN', $source->project, 'migration_analysis', $analysis->id, [
+            'source' => $source->display_name, 'run_id' => $analysis->run_id, 'counts' => $counts,
+        ]);
+    }
+
+    protected function runCompatibilityStage(MigrationAnalysis $analysis): void
+    {
+        $started = microtime(true);
+
+        try {
+            $analysis->items()->chunkById(200, function ($items) {
+                foreach ($items as $item) {
+                    [$compat, $note] = CompatibilityClassifier::classify($item->kind, $item->attributes ?? []);
+                    $item->update(['compatibility' => $compat]);
+                }
+            });
+        } catch (\Throwable $e) {
+            $this->failAnalysis($analysis, $analysis->source, AnalysisOutcomeClassifier::blocking($e), $analysis->telemetry);
+
+            return;
+        }
+
+        $analysis->update([
+            'telemetry' => $this->telemetry('reviewing_risks', $analysis->telemetry, $started),
+        ]);
+    }
+
+    protected function runRisksStage(MigrationAnalysis $analysis): void
+    {
+        $started = microtime(true);
+
+        try {
+            $analysis->items()->chunkById(200, function ($items) {
+                foreach ($items as $item) {
+                    $risks = RiskDetector::detect($item->kind, $item->attributes ?? []);
+                    $item->update(['risks' => $risks]);
+                }
+            });
+        } catch (\Throwable $e) {
+            $this->failAnalysis($analysis, $analysis->source, AnalysisOutcomeClassifier::blocking($e), $analysis->telemetry);
+
+            return;
+        }
+
+        $analysis->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+            'telemetry' => $this->telemetry(null, $analysis->telemetry, $started),
+        ]);
+    }
+
+    /** §E8 — a blocking outcome: the analysis fails, the source reports why. */
+    protected function failAnalysis(MigrationAnalysis $analysis, MigrationSource $source, array $classification, ?array $telemetry = null): void
+    {
+        $analysis->update([
+            'status' => 'failed',
+            'completed_at' => now(),
+            'errors' => $classification,
+            'telemetry' => $telemetry !== null ? $this->telemetry(null, $telemetry, null, true) : null,
+        ]);
+        $source->update(['status' => 'error', 'last_error' => Str::limit($classification['message'] ?? '', 300)]);
+    }
+
+    /** Stage telemetry: what is running now, and what finished when. */
+    protected function telemetry(?string $next, ?array $previous = null, ?float $stageStartedAt = null, bool $failed = false): array
+    {
+        $telemetry = $previous ?? ['current' => null, 'stages' => []];
+        $current = $telemetry['current'] ?? null;
+        $stages = $telemetry['stages'] ?? [];
+
+        if ($current !== null) {
+            $stages[$current] = array_merge($stages[$current] ?? [], [
+                'state' => $failed ? 'failed' : 'done',
+                'started_at' => $stages[$current]['started_at'] ?? now()->toIso8601String(),
+                'finished_at' => now()->toIso8601String(),
+            ]);
+        }
+
+        return [
+            'current' => $next,
+            'stages' => $stages + ($next !== null ? [
+                $next => ['state' => 'active', 'started_at' => now()->toIso8601String()],
+            ] : []),
+        ];
     }
 
     /** Classify + risk-flag all items of an analysis (24A.5 + 24A.6). */

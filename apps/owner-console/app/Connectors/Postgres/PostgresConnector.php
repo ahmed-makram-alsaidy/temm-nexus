@@ -103,7 +103,7 @@ class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, E
                 label: 'Schemas to import (comma-separated, empty = all)',
                 type: 'text',
                 scope: ConnectorCredentialField::SCOPE_CONFIGURATION,
-                help: 'System schemas are always excluded (30B).',
+                help: 'System schemas are always excluded.',
             ),
             new ConnectorCredentialField(
                 key: 'batch_size',
@@ -202,10 +202,11 @@ class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, E
             );
         } catch (\InvalidArgumentException $e) {
             return ConnectorTestResult::make(ConnectorTestResult::INVALID_CONFIGURATION, $credentials->redactFrom($e->getMessage()));
-        } catch (\RuntimeException $e) {
-            // Read-only pin failure — a HARD stop, never softened (30A).
-            return ConnectorTestResult::make(ConnectorTestResult::PROVIDER_ERROR, $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200)));
         } catch (\PDOException $e) {
+            // 0.6.0 Phase E (§E5) — PDOException extends RuntimeException, so
+            // this catch MUST precede the RuntimeException catch or every
+            // credential refusal degrades to PROVIDER_ERROR. Deterministic
+            // classification (auth vs network) depends on this order.
             // 30A — passwords NEVER appear in error surfaces; 35.5 — no
             // credential value (host/database/user included) does either.
             $message = $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200));
@@ -214,6 +215,12 @@ class PostgresConnector implements SourceConnector, AnalyzableSourceConnector, E
                 : ConnectorTestResult::NETWORK_ERROR;
 
             return ConnectorTestResult::make($kind, $message);
+        } catch (\RuntimeException $e) {
+            // Read-only pin failure and the SSRF guard's refusal (both
+            // RuntimeException-shaped) — a HARD stop, never softened (30A).
+            // The wizard classifies the guard message into the private-
+            // network recovery path.
+            return ConnectorTestResult::make(ConnectorTestResult::PROVIDER_ERROR, $credentials->redactFrom(mb_substr($e->getMessage(), 0, 200)));
         }
     }
 

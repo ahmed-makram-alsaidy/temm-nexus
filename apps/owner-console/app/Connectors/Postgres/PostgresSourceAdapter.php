@@ -154,6 +154,23 @@ class PostgresSourceAdapter extends BaseSourceAdapter
         $enums = [];
         $functions = [];
         $triggers = [];
+        // 0.6.0 Phase E (§E8): large objects and the extension list are
+        // OPTIONAL metadata — a permission denial on them is a warning with a
+        // stable check identifier, never a failed analysis. The live audit
+        // specimen was `permission denied for table pg_largeobject` flipping
+        // the whole source to ERROR; this boundary ends that.
+        try {
+            $largeObjects = $catalog->largeObjects();
+        } catch (\Throwable $e) {
+            $this->recordProbeWarning('postgres.large_objects', $e);
+            $largeObjects = ['available' => false];
+        }
+        try {
+            $extensions = array_map(fn ($e) => ['name' => $e['extname'], 'version' => $e['extversion']], $catalog->extensions());
+        } catch (\Throwable $e) {
+            $this->recordProbeWarning('postgres.extensions', $e);
+            $extensions = [];
+        }
         $postgresMeta = [
             'database' => $this->source->connection['database'] ?? '',
             'server' => $server,
@@ -162,8 +179,8 @@ class PostgresSourceAdapter extends BaseSourceAdapter
             'domains' => [],
             'procedures' => [],
             'partitions' => [],
-            'large_objects' => $catalog->largeObjects(),
-            'extensions' => array_map(fn ($e) => ['name' => $e['extname'], 'version' => $e['extversion']], $catalog->extensions()),
+            'large_objects' => $largeObjects,
+            'extensions' => $extensions,
             'needs_review_types' => $this->needsReviewBuffer,
             'read_only_enforced' => $server['transaction_read_only'] === 'on',
         ];

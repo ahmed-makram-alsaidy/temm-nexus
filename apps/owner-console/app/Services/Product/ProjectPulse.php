@@ -263,24 +263,28 @@ final class ProjectPulse
 
     private function stageUrl(JourneyStage $stage): ?string
     {
-        $page = match ($stage) {
-            JourneyStage::CONNECT => 'connect',
-            JourneyStage::ANALYZE, JourneyStage::PLAN, JourneyStage::MIGRATE => 'migration-center',
-            JourneyStage::SYNC => 'monitoring',
-            // 0.4.0 Phase E: Cutover is its own destination now. Validation still
-            // points at Readiness; Cutover no longer does.
-            JourneyStage::VALIDATE => 'readiness',
-            JourneyStage::CUTOVER => 'cutover',
+        // 0.6.0 Phase E (§E12) — every stage lands ON the Migration journey
+        // page's matching stage tab. The absorbed pages (Migration Center,
+        // Cutover, Readiness) keep their routes as deep links; the journey is
+        // the canonical destination.
+        $target = match ($stage) {
+            JourneyStage::CONNECT => ['migration', 'connect'],
+            JourneyStage::ANALYZE => ['migration', 'analyze'],
+            JourneyStage::PLAN => ['migration', 'plan'],
+            JourneyStage::MIGRATE, JourneyStage::SYNC => ['migration', 'sync'],
+            JourneyStage::VALIDATE => ['migration', 'verify'],
+            JourneyStage::CUTOVER => ['migration', 'cutover'],
         };
+        [$page, $productStage] = $target;
 
         try {
             // Fall back to the overview rather than emit a dead link if the
             // destination is not registered in this build.
             if (! ProjectResource::hasPage($page)) {
-                $page = 'overview';
+                return ProjectResource::getUrl('overview', ['record' => $this->project]);
             }
 
-            return ProjectResource::getUrl($page, ['record' => $this->project]);
+            return ProjectResource::getUrl($page, ['record' => $this->project, 'stage' => $productStage]);
         } catch (\Throwable) {
             return null;
         }

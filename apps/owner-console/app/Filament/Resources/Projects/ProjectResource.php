@@ -28,6 +28,7 @@ use App\Filament\Resources\Projects\Pages\ProjectFunctions;
 use App\Filament\Resources\Projects\Pages\ProjectFunctionTester;
 use App\Filament\Resources\Projects\Pages\ProjectInfrastructure;
 use App\Filament\Resources\Projects\Pages\ProjectLogs;
+use App\Filament\Resources\Projects\Pages\ProjectMigration;
 use App\Filament\Resources\Projects\Pages\ProjectMigrationCenter;
 use App\Filament\Resources\Projects\Pages\ProjectMigrations;
 use App\Filament\Resources\Projects\Pages\ProjectMonitoring;
@@ -133,6 +134,12 @@ class ProjectResource extends Resource
 
             // Phase 24 — Platform Productization.
             'environments' => ProjectEnvironments::route('/{record}/environments'),
+
+            // 0.6.0 Phase E — the Migration JOURNEY: one page, six stage tabs,
+            // absorbing the Migration Center / Cutover / Readiness / Copilot
+            // surfaces (which keep their routes as deep links).
+            'migration' => ProjectMigration::route('/{record}/migration'),
+
             'migration-center' => ProjectMigrationCenter::route('/{record}/migration-center'),
             'schema-diff' => ProjectSchemaDiff::route('/{record}/schema-diff'),
             'resources' => ProjectResources::route('/{record}/resources'),

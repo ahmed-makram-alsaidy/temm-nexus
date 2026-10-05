@@ -26,7 +26,7 @@
         data-nx-inspect-label="Overall readiness"
     >
         <div class="nx-overview-head__progress">
-            <span class="nx-fact__label">Overall readiness</span>
+            <span class="nx-fact__label">{{ __('cutover.readiness_overall') }}</span>
             <span @class(['nx-cutover-state', 'nx-cutover-state--'.$overall['tone']])>
                 <x-filament::icon
                     icon="{{ $overall['tone'] === 'success' ? 'heroicon-o-check-badge' : ($overall['tone'] === 'danger' ? 'heroicon-o-no-symbol' : 'heroicon-o-exclamation-triangle') }}"
@@ -38,25 +38,25 @@
 
         <div class="nx-overview-head__facts">
             <div class="nx-fact">
-                <span class="nx-fact__label">Blocking</span>
+                <span class="nx-fact__label">{{ __('cutover.readiness_blocking') }}</span>
                 <span class="nx-fact__value nx-num">{{ $dangerCount }}</span>
-                <span class="nx-fact__detail">gates stopping the switch</span>
+                <span class="nx-fact__detail">{{ __('cutover.readiness_blocking_detail') }}</span>
             </div>
             <div class="nx-fact">
-                <span class="nx-fact__label">To verify</span>
+                <span class="nx-fact__label">{{ __('cutover.readiness_to_verify') }}</span>
                 <span class="nx-fact__value nx-num">{{ $warningCount }}</span>
-                <span class="nx-fact__detail">warnings and unverified gates</span>
+                <span class="nx-fact__detail">{{ __('cutover.readiness_to_verify_detail') }}</span>
             </div>
             <div class="nx-fact">
-                <span class="nx-fact__label">Approvals outstanding</span>
+                <span class="nx-fact__label">{{ __('cutover.readiness_approvals_outstanding') }}</span>
                 <span class="nx-fact__value nx-num">{{ $r->pendingApprovalCount() }}</span>
-                <span class="nx-fact__detail">of {{ count($approvals) }} required</span>
+                <span class="nx-fact__detail">{{ __('cutover.readiness_approvals_of', ['total' => count($approvals)]) }}</span>
             </div>
             <div class="nx-fact">
-                <span class="nx-fact__label">Plan</span>
-                <span class="nx-fact__value">{{ $plan ? 'Recorded' : 'Not created' }}</span>
+                <span class="nx-fact__label">{{ __('cutover.readiness_plan') }}</span>
+                <span class="nx-fact__value">{{ $plan ? __('cutover.readiness_plan_recorded') : __('cutover.readiness_plan_missing') }}</span>
                 <span class="nx-fact__detail">
-                    {{ $plan ? $plan->run_id : 'Run preflight to record one' }}
+                    {{ $plan ? $plan->run_id : __('cutover.readiness_plan_missing_detail') }}
                 </span>
             </div>
         </div>
@@ -71,18 +71,17 @@
                 icon="heroicon-o-arrow-right"
                 href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('migration-center', ['record' => $project]) }}"
             >
-                Begin the cutover window
+                {{ __('cutover.readiness_begin_window') }}
             </x-filament::button>
             <span class="nx-fact__detail">
-                The platform will not change DNS or endpoints. The ordered plan below is for an
-                operator to execute and record.
+                {{ __('cutover.readiness_begin_note') }}
             </span>
         @else
             <x-filament::button color="gray" disabled icon="heroicon-o-lock-closed">
-                Cutover is not available yet
+                {{ __('cutover.readiness_locked') }}
             </x-filament::button>
             <span class="nx-fact__detail">
-                {{ $overall['reason'] ?? 'Resolve the items below first.' }}
+                {{ $overall['reason'] ?? __('cutover.readiness_locked_reason') }}
             </span>
         @endif
     </div>
@@ -90,7 +89,7 @@
     {{-- 2. Blocking issues — WHY, never just "blocked". --}}
     @if ($issues !== [])
         <section class="nx-section">
-            <h2 class="nx-section__title">Why you cannot proceed</h2>
+            <h2 class="nx-section__title">{{ __('cutover.readiness_why_blocked') }}</h2>
             <ul class="nx-attention">
                 @foreach ($issues as $issue)
                     <li @class([
@@ -118,10 +117,9 @@
             data-nx-inspect="cutover.gates"
             data-nx-inspect-label="Readiness gates"
         >
-            <h2 class="nx-section__title">Readiness gates</h2>
+            <h2 class="nx-section__title">{{ __('cutover.readiness_gates') }}</h2>
         <p class="nx-section__description">
-            A gate with no evidence reads “Not verified” rather than green. The platform never
-            guesses readiness.
+            {{ __('cutover.readiness_gates_desc') }}
         </p>
         <ul class="nx-gates">
             @foreach ($gates as $gate)
@@ -143,38 +141,38 @@
 
     {{-- 4. The six named readiness dimensions. --}}
     <section class="nx-section">
-        <h2 class="nx-section__title">Readiness detail</h2>
+        <h2 class="nx-section__title">{{ __('cutover.readiness_detail') }}</h2>
         <div class="nx-grid nx-grid--stats">
             <div class="nx-stat-card">
-                <span class="nx-stat-card__label">Live Sync</span>
+                <span class="nx-stat-card__label">{{ __('cutover.readiness_sync') }}</span>
                 <span class="nx-stat-card__value nx-stat-card__value--{{ $liveSync['tone'] === 'neutral' ? 'warning' : $liveSync['tone'] }}">
                     {{ $liveSync['label'] }}
                 </span>
                 <span class="nx-stat-card__hint">{{ $liveSync['detail'] }}</span>
             </div>
             <div class="nx-stat-card">
-                <span class="nx-stat-card__label">Reconciliation</span>
+                <span class="nx-stat-card__label">{{ __('cutover.readiness_reconciliation') }}</span>
                 <span class="nx-stat-card__value nx-stat-card__value--{{ $validation['tone'] === 'warning' ? 'warning' : ($validation['tone'] === 'danger' ? 'danger' : 'success') }}">
                     {{ $validation['label'] }}
                 </span>
                 <span class="nx-stat-card__hint">{{ $validation['detail'] }}</span>
             </div>
             <div class="nx-stat-card">
-                <span class="nx-stat-card__label">Backup</span>
+                <span class="nx-stat-card__label">{{ __('cutover.readiness_backup') }}</span>
                 <span class="nx-stat-card__value nx-stat-card__value--{{ $backup['tone'] === 'success' ? 'success' : 'danger' }}">
                     {{ $backup['label'] }}
                 </span>
                 <span class="nx-stat-card__hint">{{ $backup['detail'] }}</span>
             </div>
             <div class="nx-stat-card">
-                <span class="nx-stat-card__label">Rollback</span>
+                <span class="nx-stat-card__label">{{ __('cutover.readiness_rollback') }}</span>
                 <span class="nx-stat-card__value nx-stat-card__value--{{ $rollback['ready'] ? 'success' : 'warning' }}">
                     {{ $rollback['label'] }}
                 </span>
                 <span class="nx-stat-card__hint">{{ $rollback['detail'] }}</span>
             </div>
             <div class="nx-stat-card">
-                <span class="nx-stat-card__label">Final sync</span>
+                <span class="nx-stat-card__label">{{ __('cutover.readiness_final_sync') }}</span>
                 <span class="nx-stat-card__value nx-stat-card__value--{{ $finalSync['tone'] === 'success' ? 'success' : ($finalSync['tone'] === 'danger' ? 'danger' : 'warning') }}">
                     {{ $finalSync['label'] }}
                 </span>
@@ -186,10 +184,9 @@
     {{-- 5. Human approvals. Nothing auto-approves. --}}
     @if ($ui['cutover.approvals']['visibility'] ?? true)
         <section class="nx-section" data-nx-inspect="cutover.approvals" data-nx-inspect-label="Human approvals">
-            <h2 class="nx-section__title">Human approvals</h2>
+            <h2 class="nx-section__title">{{ __('cutover.readiness_approvals') }}</h2>
         <p class="nx-section__description">
-            Every production-affecting gate needs an explicit decision. A gate with no record is
-            awaiting, never granted.
+            {{ __('cutover.readiness_approvals_desc') }}
         </p>
         <ul class="nx-approvals">
             @foreach ($approvals as $approval)
@@ -205,24 +202,24 @@
                         <strong>{{ $approval['label'] }}</strong>
                         <p>
                             @if ($approval['decision'] === 'approved')
-                                Approved{{ $approval['decided_by'] ? ' by '.$approval['decided_by'] : '' }}
+                                {{ $approval['decided_by'] ? __('cutover.readiness_approved_by', ['name' => $approval['decided_by']]) : __('cutover.readiness_approved') }}
                             @elseif ($approval['decision'] === 'rejected')
-                                Rejected{{ $approval['decided_by'] ? ' by '.$approval['decided_by'] : '' }}
+                                {{ $approval['decided_by'] ? __('cutover.readiness_rejected_by', ['name' => $approval['decided_by']]) : __('cutover.readiness_rejected') }}
                             @else
-                                Awaiting a decision
+                                {{ __('cutover.readiness_awaiting') }}
                             @endif
                         </p>
                     </div>
                     <span class="nx-approval__state">
-                        {{ $approval['decision'] ? ucfirst($approval['decision']) : 'Awaiting' }}
+                        {{ $approval['decision'] ? ($approval['decision'] === 'approved' ? __('cutover.readiness_approved') : __('cutover.readiness_rejected')) : __('cutover.readiness_awaiting_state') }}
                     </span>
                 </li>
             @endforeach
         </ul>
         @unless ($canApprove)
             <p class="nx-section__description">
-                You can review this screen but your role does not include
-                <code class="nx-code">cutover.approve</code>, so you cannot record decisions here.
+                {{ __('cutover.readiness_cannot_approve') }}
+                <code class="nx-code">cutover.approve</code>, {{ __('cutover.readiness_cannot_approve_suffix') }}
             </p>
         @endunless
         </section>
@@ -233,8 +230,7 @@
         <section class="nx-section" data-nx-inspect="cutover.plan" data-nx-inspect-label="Ordered cutover plan">
             <h2 class="nx-section__title">{{ __('labels.ordered_cutover_plan') }}</h2>
             <p class="nx-section__description">
-                Steps marked as needing approval are gated. The platform records each step; it does not
-                execute DNS or endpoint changes.
+                {{ __('cutover.readiness_plan_desc') }}
             </p>
             <ol class="nx-steps">
                 @foreach ($steps as $step)
@@ -244,7 +240,7 @@
                             <span class="nx-step__label">
                                 {{ $step['label'] }}
                                 @if ($step['approval_required'])
-                                    <span class="nx-tag nx-tag--approval">approval</span>
+                                    <span class="nx-tag nx-tag--approval">{{ __('cutover.readiness_approval_tag') }}</span>
                                 @endif
                             </span>
                             <span class="nx-step__note">{{ $step['note'] }}</span>
@@ -257,7 +253,7 @@
 
     {{-- 7. Advanced: the raw gate states and rollback procedure (§14). --}}
     <details class="nx-advanced">
-        <summary>Advanced details</summary>
+        <summary>{{ __("cutover.readiness_advanced") }}</summary>
         <div class="nx-advanced__body">
             <div class="nx-fact">
                 <span class="nx-fact__label">{{ __('labels.live_sync_raw_state') }}</span>
@@ -275,8 +271,8 @@
                 <span class="nx-fact__value nx-code">{{ $rollback['expires_at'] ?? '—' }}</span>
             </div>
             <div class="nx-fact">
-                <span class="nx-fact__label">Rollback procedure</span>
-                <span class="nx-fact__detail">{{ $rollback['procedure'] ?? 'No procedure recorded.' }}</span>
+                <span class="nx-fact__label">{{ __('cutover.readiness_rollback_procedure') }}</span>
+                <span class="nx-fact__detail">{{ $rollback['procedure'] ?? __('cutover.rollback_procedure_none') }}</span>
             </div>
             @foreach ($gates as $gate)
                 <div class="nx-fact">

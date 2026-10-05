@@ -71,6 +71,7 @@ return [
     'resources' => 'الموارد',
     'readiness' => 'الجهوزية',
     'environments' => 'البيئات',
+    'migration' => 'الترحيل',
     'migration_center' => 'مركز الترحيل',
     'cutover' => 'التحويل النهائي',
     'client_repository' => 'مستودع العميل',

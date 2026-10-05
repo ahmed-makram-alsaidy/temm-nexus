@@ -3,7 +3,7 @@
     "key": "mysql",
     "name": "MySQL / MariaDB",
     "version": "1.0.0",
-    "description": "Migrate MySQL 8+ / MariaDB databases into PostgreSQL-backed projects: information_schema inspection of tables, columns, indexes, keys, views, triggers, procedures, functions, events, generated columns and charsets; deterministic unsigned-safe type widening; AUTO_INCREMENT sequence-state preservation; read-only sessions; batched keyset extraction. No source mutation. Real binlog CDC (ROW + GTID): INSERT/UPDATE/DELETE capture with durable GTID-set checkpoints (Phase 35.6).",
+    "description": "Migrate MySQL 8+ / MariaDB databases into PostgreSQL-backed projects: information_schema inspection of tables, columns, indexes, keys, views, triggers, procedures, functions, events, generated columns and charsets; deterministic unsigned-safe type widening; AUTO_INCREMENT sequence-state preservation; read-only sessions; batched keyset extraction. No source mutation. Optional binlog CDC (ROW + GTID) captures INSERT, UPDATE and DELETE with durable GTID-set checkpoints.",
     "author": "TEMM Nexus (first-party)",
     "license": "AGPL-3.0-only",
     "platform_requirement": ">=0.2.0",

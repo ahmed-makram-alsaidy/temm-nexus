@@ -144,18 +144,15 @@ class ProjectWizardTest extends TestCase
             ->call('continue')
             ->assertSet('step', 2);
 
-        // Step 2 — Source (postgres connector exists in the registry).
+        // Step 2 — Source connection (0.6.0 Phase E merged Source + Connection
+        // into ONE step): postgres connector exists in the registry.
         $component->set('state.connector', 'postgres')
-            ->call('continue')
-            ->assertSet('step', 3);
-
-        // Step 3 — Connection: required fields enforced.
-        $component->set('state.connection.host', '127.0.0.1')
+            ->set('state.connection.host', '127.0.0.1')
             ->set('state.connection.database', 'sourcedb')
             ->set('state.connection.username', 'reader');
 
         // Continue is BLOCKED until the connection test passes.
-        $component->call('continue')->assertSet('step', 3);
+        $component->call('continue')->assertSet('step', 2);
 
         // A failing test (nothing listens on that port) yields a safe result.
         $component->set('state.connection.port', '1')
@@ -164,21 +161,21 @@ class ProjectWizardTest extends TestCase
 
         $this->assertFalse($component->instance()->testResult['ok']);
         $this->assertNotSame('PASS', $component->instance()->testResult['result'] ?? null);
-        $component->call('continue')->assertSet('step', 3);
+        $component->call('continue')->assertSet('step', 2);
 
         // Simulate a verified connection (the operator side of the same UI)
         // and finish the flow.
-        $component->set('testResult', ['ok' => true, 'available' => true, 'result' => 'PASS', 'detail' => '', 'metadata' => []])
+        $component->set('testResult', ['ok' => true, 'available' => true, 'kind' => 'success', 'result' => 'PASS', 'detail' => '', 'metadata' => []])
             ->call('continue');
 
         $this->assertSame(
-            4,
+            3,
             $component->instance()->step,
-            'step-3 continue failed with error: "'.$component->instance()->error.'"'
+            'source-step continue failed with error: "'.$component->instance()->error.'"'
         );
 
         $project = Project::query()->where('name', 'Wizard Project')->first();
-        $this->assertNotNull($project, 'Project must be created when leaving step 3');
+        $this->assertNotNull($project, 'Project must be created when leaving the source step');
         $this->assertSame($workspace->id, $project->workspace_id, 'rc.5 closes the workspace-assignment gap');
         $this->assertSame('staging', $project->environment);
 
@@ -208,7 +205,7 @@ class ProjectWizardTest extends TestCase
         $this->actingAs($this->owner());
 
         \Livewire::test(\App\Filament\Pages\NewProjectWizard::class)
-            ->set('step', 4)
+            ->set('step', 3)
             ->set('state.destination', 'external')
             ->set('state.target.host', '')
             ->set('state.target.database', '')

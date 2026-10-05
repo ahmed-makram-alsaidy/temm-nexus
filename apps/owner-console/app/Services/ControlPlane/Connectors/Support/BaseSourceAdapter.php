@@ -23,6 +23,26 @@ abstract class BaseSourceAdapter implements SourceAdapter
     /** Connection details echoed by connect() — never contains secrets. */
     protected array $connection = [];
 
+    /**
+     * 0.6.0 Phase E (§E8) — failures of OPTIONAL inspection probes, recorded
+     * as warnings instead of aborting the analysis. The engine reads these
+     * after inventory() and stores them on the analysis row; raw SQLSTATE and
+     * provider text stay inside the payloads for the Technical details view.
+     */
+    protected array $probeWarnings = [];
+
+    /** Warnings recorded by optional probes during inventory(). */
+    public function warnings(): array
+    {
+        return $this->probeWarnings;
+    }
+
+    /** Record an optional-probe failure under its stable check identifier. */
+    protected function recordProbeWarning(string $check, \Throwable $e): void
+    {
+        $this->probeWarnings[] = \App\Services\ControlPlane\Migration\AnalysisOutcomeClassifier::warning($check, $e);
+    }
+
     public function __construct(MigrationSource $source)
     {
         $this->source = $source;

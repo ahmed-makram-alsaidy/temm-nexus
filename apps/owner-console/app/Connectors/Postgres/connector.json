@@ -3,7 +3,7 @@
     "key": "postgres",
     "name": "PostgreSQL",
     "version": "1.0.0",
-    "description": "Import any standard PostgreSQL database: pg_catalog-native inspection with exact type preservation, read-only session enforced, batched keyset extraction with deterministic resume. Real log-based CDC via WAL logical decoding (pgoutput): INSERT/UPDATE/DELETE capture with durable LSN checkpoints (35.6). No silent source mutation.",
+    "description": "Import any standard PostgreSQL database: pg_catalog-native inspection with exact type preservation, read-only session enforced, batched keyset extraction with deterministic resume. Log-based CDC via WAL logical decoding (pgoutput): INSERT, UPDATE and DELETE capture with durable checkpoints. No silent source mutation.",
     "author": "TEMM Nexus (first-party)",
     "license": "AGPL-3.0-only",
     "platform_requirement": ">=0.2.0",

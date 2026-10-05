@@ -42,10 +42,16 @@ class Phase25PagesPerformanceTest extends TestCase
      */
     public function test_subnav_exposes_phase25_modules(): void
     {
-        $url = \App\Filament\Resources\Projects\ProjectResource::getUrl('migration-center', ['record' => $this->projectA]);
+        // 0.6.0 Phase E (§E13) — the Phase 25 surfaces are absorbed into the
+        // Migration journey: their routes remain as deep links resolving to
+        // the migration tab, and the journey's Analyze stage hosts the
+        // Copilot panel contextually instead of a peer sidebar link.
+        $this->assertSame('migration', \App\Filament\Support\ProjectTabs::tabOf('client-repository'));
+        $this->assertSame('migration', \App\Filament\Support\ProjectTabs::tabOf('copilot'));
+
+        $url = \App\Filament\Resources\Projects\ProjectResource::getUrl('migration', ['record' => $this->projectA]);
         $content = (string) $this->actingAs($this->admin)->get($url)->getContent();
-        $this->assertStringContainsString('client-repository', $content);
-        $this->assertStringContainsString('copilot', $content);
+        $this->assertStringContainsString('migration.stages', $content, 'The journey page renders its stage navigation');
     }
 
     public function test_guest_cannot_reach_phase25_pages(): void

@@ -3,9 +3,12 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Support\PlatformAccess;
+use App\Models\MigrationSource;
 use App\Models\Project;
+use App\Models\ProjectWizardDraft;
 use App\Models\Workspace;
 use App\Services\Access\Access;
+use App\Services\Access\Capability;
 use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\Connectors\ConnectorCredentials;
 use App\Services\ControlPlane\Connectors\ConnectorRegistry;
@@ -19,27 +22,30 @@ use App\Services\ControlPlane\Connectors\Contracts\Connector;
 use Filament\Pages\Page;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
- * 0.4.0-rc.5 (Phase 41, Part B) — the New Project wizard.
+ * 0.6.0 Phase E — the New Project wizard, redesigned as ONE journey:
  *
- * A first-time user connects a project in six guided steps:
+ *   1. Project      — name, workspace/client (inline create), environment
+ *   2. Source       — connector + connection in one step; Advanced collapsed
+ *   3. Destination  — TEMM-managed (recommended) or external PostgreSQL
+ *   4. Analyze      — real staged progress (Preparing → Inspecting → …)
+ *   5. Review       — deterministic readiness + Start Migration
  *
- *   1. Project      — name, workspace/client, environment
- *   2. Source       — visual provider cards (migration / Live Sync support)
- *   3. Connection   — only the fields the provider needs + Test Connection
- *   4. Destination  — TEMM-managed (default) or an external PostgreSQL target
- *   5. Analyze      — read-only source analysis in product language
- *   6. Review       — plain-language readiness + Start Migration (dry run)
+ * §E3 — state persists server-side from the FIRST step (ProjectWizardDraft),
+ * so "stop and finish later" is true everywhere. Secrets are never written to
+ * the draft: they follow the existing write-once vault handling once a source
+ * exists, and are requested again only when a resume genuinely needs them.
+ *
+ * §E2 — the workspace dead end is gone: the wizard creates a workspace
+ * inline without abandoning the wizard or losing entered fields.
  *
  * Engine internals (TargetAdapter, TransformPipeline, checkpoints, CDC
- * vocabulary) stay under the hood or in the Migration Center. Secrets go
- * straight to the project vault and are never echoed back to the browser.
- *
- * Authorization: page requires the user to be able to create a project
- * SOMEWHERE; the chosen workspace is re-verified against the user's
- * accessible workspaces on every continue, and mutating actions re-check
- * `migrations.manage` like the rest of the control plane.
+ * vocabulary) stay under the hood. Authorization mirrors the control plane:
+ * page requires the user to be able to create a project SOMEWHERE; the chosen
+ * workspace is re-verified against the user's accessible workspaces on every
+ * continue; mutating actions re-check their capability at execution time.
  */
 class NewProjectWizard extends Page
 {
@@ -53,9 +59,23 @@ class NewProjectWizard extends Page
     // the wizard is an ACTION, not a destination (mirrors WorkspaceDetail).
     protected static bool $shouldRegisterNavigation = false;
 
-    public const STEPS = ['project', 'source', 'connection', 'destination', 'analyze', 'review'];
+    /** §E4 — five steps. The old Source and Connection steps are ONE step. */
+    public const STEPS = ['project', 'source', 'destination', 'analyze', 'review'];
 
     public const ENVIRONMENTS = ['production', 'staging', 'development'];
+
+    /**
+     * §E4 — connection-field presentation order. Required/common fields come
+     * first in this order regardless of the connector's declaration order
+     * (the v0.5.0 defect was Password rendering before Host).
+     */
+    public const FIELD_ORDER = ['host', 'port', 'database', 'username', 'password'];
+
+    /**
+     * §E4 — expert fields that live behind the Advanced disclosure. Anything
+     * not required and not in the primary order joins them.
+     */
+    public const ADVANCED_FIELDS = ['ssl_mode', 'schemas', 'batch_size'];
 
     /** Server-side wizard state (survives step navigation; safe values only). */
     public array $state = [
@@ -85,9 +105,6 @@ class NewProjectWizard extends Page
     /** Last connection-test outcome (safe labels only — never credentials). */
     public ?array $testResult = null;
 
-    /** Analysis summary in product language. */
-    public ?array $analysisSummary = null;
-
     public ?array $planSummary = null;
 
     public string $error = '';
@@ -95,6 +112,16 @@ class NewProjectWizard extends Page
     /** 0.6.0 Phase A (§A7): the underlying reason, shown ONLY behind the
      * "Technical details" disclosure in the error banner. */
     public string $errorDetail = '';
+
+    /** §E2 — inline workspace creation, without leaving the wizard. */
+    public bool $creatingWorkspace = false;
+
+    public string $newWorkspaceName = '';
+
+    public string $newWorkspaceKind = 'client';
+
+    /** Whether this mount restored a saved draft (shown as a resume note). */
+    public bool $resumed = false;
 
     public static function canAccess(): bool
     {
@@ -118,11 +145,185 @@ class NewProjectWizard extends Page
 
     public function mount(): void
     {
-        // Workspace prefill (?workspace=N) — validated against reachability.
+        $this->restoreDraft();
+
+        // Workspace prefill (?workspace=N) — validated against reachability,
+        // and never over a draft that already carries a choice.
         $requested = request()->query('workspace');
-        if ($requested !== null && $this->accessibleWorkspaces()->has((int) $requested)) {
+        if ($requested !== null
+            && $this->state['workspace_id'] === null
+            && $this->accessibleWorkspaces()->has((int) $requested)) {
             $this->state['workspace_id'] = (int) $requested;
         }
+    }
+
+    /** ── Draft persistence (§E3) ────────────────────────────────────── */
+
+    /**
+     * Restore the user's saved wizard state. Secrets are NOT part of the
+     * draft: a resumed connection step shows an empty password field and a
+     * note saying so — the vault never echoes secrets back.
+     */
+    protected function restoreDraft(): void
+    {
+        $draft = ProjectWizardDraft::forCurrentUser();
+        if ($draft === null) {
+            return;
+        }
+
+        $state = (array) ($draft->state ?? []);
+        // Defensive merge: an old draft must never crash on a changed shape.
+        $this->state = array_replace($this->state, $state);
+        $this->step = max(1, min(count(self::STEPS), (int) $draft->step));
+        $this->projectId = $draft->project_id;
+        $this->sourceId = $draft->source_id;
+        $this->analysisId = $draft->analysis_id;
+        $this->planId = $draft->plan_id;
+        $this->testResult = $draft->test_result;
+        // The resume note appears whenever the draft actually carries work —
+        // typed fields, a later step, or a created project.
+        $this->resumed = $draft->step > 1
+            || $draft->project_id !== null
+            || trim((string) ($this->state['name'] ?? '')) !== '';
+    }
+
+    /** Persist safe wizard state. Called on field updates and step changes. */
+    public function saveDraft(): void
+    {
+        ProjectWizardDraft::store($this->step, $this->safeState(), [
+            'project_id' => $this->projectId,
+            'source_id' => $this->sourceId,
+            'analysis_id' => $this->analysisId,
+            'plan_id' => $this->planId,
+        ], $this->testResult);
+    }
+
+    /** Wizard state with every secret removed (vaults are write-once). */
+    protected function safeState(): array
+    {
+        $state = $this->state;
+        $secretKeys = ['password'];
+
+        foreach ($this->connectionFields() as $field) {
+            if ($field->secret) {
+                $secretKeys[] = $field->key;
+            }
+        }
+
+        foreach ($secretKeys as $key) {
+            if (isset($state['connection'][$key])) {
+                $state['connection'][$key] = '';
+            }
+        }
+        $state['target']['password'] = '';
+
+        return $state;
+    }
+
+    /** Livewire hook: any state.* change keeps the draft in sync. */
+    public function updatedState(): void
+    {
+        $this->saveDraft();
+    }
+
+    /** "Start over" — explicitly discard a resumed draft. */
+    public function discardDraft(): void
+    {
+        ProjectWizardDraft::query()->where('user_id', auth()->id())->delete();
+        $this->state = [
+            'name' => '',
+            'workspace_id' => null,
+            'environment' => 'development',
+            'connector' => null,
+            'connection' => [],
+            'destination' => 'temm',
+            'target' => [
+                'host' => '', 'port' => '5432', 'database' => '',
+                'username' => '', 'password' => '',
+            ],
+            'target_disposable' => true,
+        ];
+        $this->step = 1;
+        $this->projectId = null;
+        $this->sourceId = null;
+        $this->analysisId = null;
+        $this->planId = null;
+        $this->testResult = null;
+        $this->planSummary = null;
+        $this->error = '';
+        $this->errorDetail = '';
+        $this->resumed = false;
+    }
+
+    /** ── Inline workspace creation (§E2) ───────────────────────────── */
+
+    public function canCreateWorkspace(): bool
+    {
+        return PlatformAccess::current()->allowsPlatform(Capability::WORKSPACES_CREATE);
+    }
+
+    public function openInlineWorkspaceCreate(): void
+    {
+        $this->creatingWorkspace = true;
+        $this->newWorkspaceName = '';
+        $this->newWorkspaceKind = 'client';
+    }
+
+    public function cancelInlineWorkspaceCreate(): void
+    {
+        $this->creatingWorkspace = false;
+        $this->newWorkspaceName = '';
+    }
+
+    /**
+     * Create a workspace from INSIDE the wizard: the user never abandons the
+     * flow, and every field they typed stays exactly as it was.
+     */
+    public function createWorkspaceInline(): void
+    {
+        // Execution-time re-check: an open form is not permission to act.
+        if (! $this->canCreateWorkspace()) {
+            abort(403, 'Missing capability: '.Capability::WORKSPACES_CREATE);
+        }
+
+        $this->validate([
+            'newWorkspaceName' => ['required', 'string', 'max:120'],
+        ], [], ['newWorkspaceName' => __('workspaces.workspace_name')]);
+
+        $workspace = Workspace::create([
+            'name' => $this->newWorkspaceName,
+            'slug' => $this->uniqueWorkspaceSlug($this->newWorkspaceName),
+            'kind' => $this->newWorkspaceKind,
+            'status' => 'active',
+        ]);
+
+        AdminAudit::record('WORKSPACE_CREATED', null, 'workspace', $workspace->id, [
+            'name' => $workspace->name, 'origin' => 'new_project_wizard',
+        ]);
+
+        $this->state['workspace_id'] = $workspace->id;
+        $this->creatingWorkspace = false;
+        $this->newWorkspaceName = '';
+        $this->saveDraft();
+
+        Notification::make()
+            ->title(__('wizard.workspace_created'))
+            ->body(__('wizard.workspace_created_and_selected', ['name' => $workspace->name]))
+            ->success()
+            ->send();
+    }
+
+    protected function uniqueWorkspaceSlug(string $name): string
+    {
+        $base = Str::slug($name) ?: 'workspace';
+        $candidate = $base;
+        $i = 2;
+
+        while (Workspace::query()->where('slug', $candidate)->exists()) {
+            $candidate = $base.'-'.$i++;
+        }
+
+        return $candidate;
     }
 
     /** ── Data helpers ───────────────────────────────────────────────── */
@@ -136,7 +337,12 @@ class NewProjectWizard extends Page
             ->mapWithKeys(fn (Workspace $w) => [$w->id => $w->name]);
     }
 
-    /** Source provider cards from the connector registry (B.3). */
+    /**
+     * §E4 — connector cards in USEFUL order: mainstream databases first,
+     * developer example last. Registry order is fallback for unknown keys.
+     */
+    public const CARD_ORDER = ['postgres', 'mysql', 'supabase', 'mongodb', 'firebase', 'example-json'];
+
     public function sourceCards(): array
     {
         $cards = [];
@@ -146,19 +352,61 @@ class NewProjectWizard extends Page
             $cards[] = [
                 'key' => $key,
                 'name' => $descriptor['name'],
-                'description' => $descriptor['description'],
+                // §E4 — one product sentence per card, no phase IDs. The
+                // manifest description stays available under Technical
+                // details on the same step.
+                'description' => __('wizard.source_desc_'.$key),
                 'migration' => in_array('database_metadata', $capabilities, true)
                     || in_array('data_extraction', $capabilities, true),
                 'live_sync' => in_array('change_capture', $capabilities, true),
                 'read_only' => true,
                 'selected' => $this->state['connector'] === $key,
+                'full_description' => (string) $descriptor['description'],
             ];
         }
+
+        usort($cards, fn ($a, $b) => $this->cardRank($a['key']) <=> $this->cardRank($b['key']));
 
         return $cards;
     }
 
-    /** Declarative credential fields for the selected connector (B.4). */
+    protected function cardRank(string $key): int
+    {
+        $rank = array_search($key, self::CARD_ORDER, true);
+
+        return $rank === false ? 999 : (int) $rank;
+    }
+
+    /**
+     * §E4 — declarative credential fields for the selected connector,
+     * split into PRIMARY (required/common, canonical order: Host → Port →
+     * Database → Username → Password) and ADVANCED (expert fields).
+     *
+     * @return array{primary: array, advanced: array}
+     */
+    public function connectionFieldGroups(): array
+    {
+        $primary = [];
+        $advanced = [];
+
+        foreach ($this->connectionFields() as $field) {
+            $isCore = in_array($field->key, self::FIELD_ORDER, true);
+            $isAdvanced = in_array($field->key, self::ADVANCED_FIELDS, true)
+                || (! $isCore && ! $field->required && $field->type !== 'boolean');
+
+            if ($isAdvanced) {
+                $advanced[] = $field;
+            } else {
+                $primary[] = $field;
+            }
+        }
+
+        $orderBy = array_flip(self::FIELD_ORDER);
+        usort($primary, fn ($a, $b) => ($orderBy[$a->key] ?? 99) <=> ($orderBy[$b->key] ?? 99));
+
+        return ['primary' => $primary, 'advanced' => $advanced];
+    }
+
     public function connectionFields(): array
     {
         $connector = $this->connector();
@@ -193,7 +441,7 @@ class NewProjectWizard extends Page
         return $connector !== null && in_array('change_capture', $connector->definition()->capabilities ?? [], true);
     }
 
-    /** Project record once created (steps 4–6 operate on it). */
+    /** Project record once created (steps 3–5 operate on it). */
     public function project(): ?Project
     {
         return $this->projectId ? Project::find($this->projectId) : null;
@@ -204,11 +452,10 @@ class NewProjectWizard extends Page
     {
         $topics = [
             1 => 'How do I choose a workspace and environment for a new project?',
-            2 => 'Which source connector should I choose for my migration?',
-            3 => 'Which connection fields are required, and why might a connection test fail?',
-            4 => 'What is the difference between TEMM-managed infrastructure and an external PostgreSQL target?',
-            5 => 'What does the source analysis check, and what do warnings mean?',
-            6 => 'What happens during a migration dry run and what is Live Sync?',
+            2 => 'Which source connector should I choose, and why might a connection test fail?',
+            3 => 'What is the difference between TEMM-managed infrastructure and an external PostgreSQL target?',
+            4 => 'What does the source analysis check, and what do warnings mean?',
+            5 => 'What happens during a migration dry run and what is Live Sync?',
         ];
 
         $topic = $topics[$this->step] ?? 'I need help with a new project.';
@@ -223,6 +470,7 @@ class NewProjectWizard extends Page
         $this->step = max(1, min(count(self::STEPS), $step));
         $this->error = '';
         $this->errorDetail = '';
+        $this->saveDraft();
     }
 
     public function back(): void
@@ -239,10 +487,9 @@ class NewProjectWizard extends Page
         try {
             match ($this->step) {
                 1 => $this->validateProjectStep(),
-                2 => $this->validateSourceStep(),
-                3 => $this->completeConnectionStep(),
-                4 => $this->validateDestinationStep(),
-                5 => $this->goToStep(6),
+                2 => $this->completeSourceStep(),
+                3 => $this->validateDestinationStep(),
+                4 => $this->goToStep(5),
                 default => null,
             };
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -283,7 +530,12 @@ class NewProjectWizard extends Page
         $this->goToStep(2);
     }
 
-    protected function validateSourceStep(): void
+    /**
+     * §E4 — Source step: connector choice, connection fields and the
+     * passing connection test are ONE step. Leaving it persists the project
+     * + read-only source (and vaults the secrets).
+     */
+    protected function completeSourceStep(): void
     {
         $this->validate([
             'state.connector' => ['required', 'string'],
@@ -291,24 +543,10 @@ class NewProjectWizard extends Page
             'state.connector' => __('wizard.step_source'),
         ]);
 
-        try {
-            ConnectorRegistry::instance()->sourceConnector((string) $this->state['connector']);
-        } catch (\Throwable) {
-            $this->addError('state.connector', __('common.status_error'));
-
-            return;
-        }
-
-        $this->goToStep(3);
-    }
-
-    /** Step 3 → 4: test must pass (or be unavailable), then persist. */
-    protected function completeConnectionStep(): void
-    {
         $connector = $this->connector();
 
         if ($connector === null) {
-            $this->error = __('common.status_error');
+            $this->addError('state.connector', __('common.status_error'));
 
             return;
         }
@@ -334,7 +572,7 @@ class NewProjectWizard extends Page
         }
 
         $this->persistProjectAndSource();
-        $this->goToStep(4);
+        $this->goToStep(3);
     }
 
     protected function validateDestinationStep(): void
@@ -351,10 +589,15 @@ class NewProjectWizard extends Page
             ]);
         }
 
-        $this->goToStep(5);
+        $this->goToStep(4);
     }
 
-    /** B.4/B.5 — Test Connection against the selected provider. */
+    /**
+     * §E5 — connection test. The outcome is CLASSIFIED deterministically so
+     * the UI can speak plainly: success, credentials refused, unreachable,
+     * invalid configuration — or a private-network source, whose recovery
+     * belongs to an administrator, never to an env-var instruction.
+     */
     public function testConnection(): void
     {
         $connector = $this->connector();
@@ -367,7 +610,7 @@ class NewProjectWizard extends Page
 
         try {
             if (! method_exists($connector, 'testConnection')) {
-                $this->testResult = ['ok' => false, 'available' => false];
+                $this->testResult = ['ok' => false, 'available' => false, 'kind' => 'unsupported'];
 
                 return;
             }
@@ -394,83 +637,327 @@ class NewProjectWizard extends Page
             $this->testResult = [
                 'ok' => $result->isPass(),
                 'available' => true,
+                'kind' => $result->isPass()
+                    ? 'success'
+                    : $this->classifyTestFailure($result->result, $result->detail),
                 'result' => $result->result,
                 'detail' => $result->detail,
                 'metadata' => $result->metadata,
+            ];
+        } catch (HttpExceptionInterface $e) {
+            // The SSRF network guard refused this target (422). Security is
+            // preserved — the UX explains WHO can change it.
+            $this->testResult = [
+                'ok' => false,
+                'available' => true,
+                'kind' => str_contains($e->getMessage(), 'private network') || str_contains($e->getMessage(), 'SSRF')
+                    ? 'private_network'
+                    : 'network',
+                'result' => ConnectorTestResult::NETWORK_ERROR,
+                'detail' => mb_substr($e->getMessage(), 0, 300),
+                'metadata' => [],
             ];
         } catch (\Throwable) {
             $this->testResult = [
                 'ok' => false,
                 'available' => true,
+                'kind' => 'network',
                 'result' => ConnectorTestResult::NETWORK_ERROR,
                 'detail' => '',
                 'metadata' => [],
             ];
         }
+
+        $this->saveDraft();
     }
 
-    /** B.7 — read-only source analysis, summarized in product language. */
-    public function analyze(): void
+    /** Map a connector test failure to a stable presentation kind. */
+    protected function classifyTestFailure(string $result, string $detail): string
     {
-        $source = $this->sourceId !== null ? \App\Models\MigrationSource::find($this->sourceId) : null;
+        // The SSRF guard's refusal arrives as PROVIDER_ERROR (HttpException is
+        // RuntimeException-shaped) — it must classify as the private-network
+        // recovery path, never as a generic provider fault (§E5).
+        if (str_contains($detail, 'private network') || str_contains($detail, 'SSRF')) {
+            return 'private_network';
+        }
+
+        return match ($result) {
+            ConnectorTestResult::INVALID_CREDENTIAL => 'auth',
+            ConnectorTestResult::INVALID_CONFIGURATION => 'invalid',
+            ConnectorTestResult::PROVIDER_ERROR => 'provider',
+            ConnectorTestResult::NETWORK_ERROR => 'network',
+            default => 'network',
+        };
+    }
+
+    /** True when the failure is the admin-gated private-network case (§E5). */
+    public function testFailedOnPrivateNetwork(): bool
+    {
+        return ($this->testResult['kind'] ?? null) === 'private_network';
+    }
+
+    /** §E5 — "Open system settings" renders only for users who have it. */
+    public function canOpenSystemSettings(): bool
+    {
+        return \App\Filament\Pages\SettingsHub::canAccess();
+    }
+
+    /** ── Analyze (§E7): real staged progress, tick by tick ──────────── */
+
+    public function analysis(): ?\App\Models\MigrationAnalysis
+    {
+        return $this->analysisId !== null ? \App\Models\MigrationAnalysis::find($this->analysisId) : null;
+    }
+
+    /** Start (or re-start) the read-only source analysis. */
+    public function startAnalysis(): void
+    {
+        $source = $this->sourceId !== null ? MigrationSource::find($this->sourceId) : null;
 
         if ($source === null) {
-            $this->error = __('common.status_error');
+            $this->error = __('foundation.wizard_step_failed_body');
+            $this->errorDetail = 'missing migration source';
 
             return;
         }
 
         CpAccess::require(auth()->user(), 'migrations.manage');
 
-        try {
-            $service = new MigrationCenterService;
-            $analysis = $service->analyze($source);
+        $service = new MigrationCenterService;
+        $analysis = $service->beginAnalysis($source);
+        $this->analysisId = $analysis->id;
+        $this->planId = null;
+        $this->planSummary = null;
+        $this->error = '';
+        $this->errorDetail = '';
+        $this->saveDraft();
 
-            if ($analysis->status !== 'completed') {
-                // The engine's raw reason is a technical detail, not a
-                // user-facing sentence (0.6.0 Phase A §A7).
-                $this->error = __('wizard.analyze_failed_body');
-                $this->errorDetail = (string) ($analysis->errors['message'] ?? '');
+        $this->tickAnalysis();
+    }
 
-                return;
-            }
+    /**
+     * One REAL pipeline stage per call (§E7). The view polls this while the
+     * analysis is running; each tick does actual work and records it.
+     */
+    public function tickAnalysis(): void
+    {
+        $analysis = $this->analysis();
 
-            $service->classify($analysis);
+        if ($analysis === null || $analysis->status !== 'running') {
+            return;
+        }
 
-            $counts = (array) ($analysis->counts ?? []);
-            $this->analysisSummary = [
-                'tables' => (int) ($counts['tables'] ?? 0),
-                'views' => (int) ($counts['views'] ?? 0),
-                'auth' => (int) ($counts['auth'] ?? 0),
-                'storage' => (int) ($counts['storage'] ?? 0),
-                'functions' => (int) ($counts['functions'] ?? 0),
-                'triggers' => (int) ($counts['triggers'] ?? 0),
-                'policies' => (int) ($counts['policies'] ?? 0),
-                'realtime' => (int) ($counts['realtime'] ?? 0),
-            ];
+        CpAccess::require(auth()->user(), 'migrations.manage');
 
-            // The review plan is generated here so Step 6 can show readiness.
-            $plan = $service->generatePlan($analysis);
-            $this->planId = $plan->id;
-            $this->planSummary = ['items' => $plan->items()->count()];
-            $this->analysisId = $analysis->id;
+        $service = new MigrationCenterService;
+        $analysis = $service->advanceAnalysis($analysis);
+
+        if ($analysis->status === 'failed') {
+            // §E8 — blocking errors speak plainly; raw detail stays disclosed.
+            $this->error = __('wizard.analyze_failed_body');
+            $this->errorDetail = $this->analysisTechnicalDetail($analysis);
+
+            return;
+        }
+
+        if ($analysis->status === 'completed') {
             $this->error = '';
-        } catch (\Throwable $e) {
-            $this->error = __('wizard.analyze_failed', ['reason' => __('common.status_unknown')]);
-            $this->errorDetail = class_basename($e).': '.$e->getMessage();
 
-            report($e);
+            // The review plan is generated here so Step 5 can show readiness.
+            if ($this->planId === null) {
+                $plan = $service->generatePlan($analysis);
+                $this->planId = $plan->id;
+                $this->planSummary = ['items' => $plan->items()->count()];
+                $this->saveDraft();
+            }
         }
     }
 
-    /** B.8 — Start Migration (dry run first: no writes until a real run). */
+    /** §E7 — cancel-safe where the architecture supports it: any tick. */
+    public function cancelAnalysis(): void
+    {
+        $analysis = $this->analysis();
+
+        if ($analysis === null) {
+            return;
+        }
+
+        CpAccess::require(auth()->user(), 'migrations.manage');
+        (new MigrationCenterService)->cancelAnalysis($analysis);
+        $this->saveDraft();
+    }
+
+    /** Analysis progress for the view: real stages from real telemetry. */
+    public function analysisProgress(): array
+    {
+        $analysis = $this->analysis();
+        if ($analysis === null) {
+            return ['running' => false, 'stages' => [], 'current' => null, 'status' => null];
+        }
+
+        $telemetry = (array) ($analysis->telemetry ?? []);
+        $stages = [];
+        foreach (MigrationCenterService::PIPELINE as $key) {
+            $entry = (array) ($telemetry['stages'][$key] ?? []);
+            $stages[] = [
+                'key' => $key,
+                'state' => $entry['state'] ?? 'pending',
+                'started_at' => $entry['started_at'] ?? null,
+                'finished_at' => $entry['finished_at'] ?? null,
+            ];
+        }
+
+        return [
+            'running' => $analysis->status === 'running',
+            'status' => $analysis->status,
+            'current' => $telemetry['current'] ?? null,
+            'stages' => $stages,
+        ];
+    }
+
+    /**
+     * §E9 — the analysis summary, in product language. Warnings are items
+     * the user can act on, never raw SQLSTATE.
+     */
+    public function analysisSummary(): array
+    {
+        $analysis = $this->analysis();
+        if ($analysis === null || $analysis->status !== 'completed') {
+            return [];
+        }
+
+        $counts = (array) ($analysis->counts ?? []);
+
+        return [
+            'tables' => (int) ($counts['tables'] ?? 0),
+            'views' => (int) ($counts['views'] ?? 0),
+            'auth' => (int) ($counts['auth'] ?? 0),
+            'storage' => (int) ($counts['storage'] ?? 0),
+            'functions' => (int) ($counts['functions'] ?? 0),
+            'triggers' => (int) ($counts['triggers'] ?? 0),
+            'policies' => (int) ($counts['policies'] ?? 0),
+            'realtime' => (int) ($counts['realtime'] ?? 0),
+            'warnings' => $this->analysisWarnings($analysis),
+        ];
+    }
+
+    /**
+     * §E8 — warnings in plain language, through THE shared classifier
+     * mapping (the Migration journey renders the identical list).
+     *
+     * @return list<array{check: string, title: string, detail: string}>
+     */
+    public function analysisWarnings(?\App\Models\MigrationAnalysis $analysis = null): array
+    {
+        $analysis ??= $this->analysis();
+
+        return $analysis === null
+            ? []
+            : \App\Services\ControlPlane\Migration\AnalysisOutcomeClassifier::present((array) ($analysis->warnings ?? []));
+    }
+
+    /** Raw diagnostics for the Technical details disclosure. */
+    public function analysisTechnicalDetail(?\App\Models\MigrationAnalysis $analysis = null): string
+    {
+        $analysis ??= $this->analysis();
+        if ($analysis === null) {
+            return '';
+        }
+
+        if ($analysis->status === 'failed') {
+            $errors = (array) ($analysis->errors ?? []);
+
+            return trim(implode(' — ', array_filter([
+                'kind: '.($errors['kind'] ?? 'unknown'),
+                'SQLSTATE: '.($errors['sqlstate'] ?? '—'),
+                (string) ($errors['message'] ?? ''),
+            ])));
+        }
+
+        return \App\Services\ControlPlane\Migration\AnalysisOutcomeClassifier::technicalFor($analysis);
+    }
+
+    /** ── Review (§E10): deterministic readiness ─────────────────────── */
+
+    /**
+     * §E10 — readiness is a DERIVED FACT, never a badge. Ready requires a
+     * completed analysis, at least one discovered table, and a generated
+     * plan with transfer steps. A green "Ready" over Tables = 0 is
+     * impossible here.
+     *
+     * @return array{ready: bool, reason: ?string, tables: int, analysis_done: bool, plan_items: ?int}
+     */
+    public function reviewReadiness(): array
+    {
+        $analysis = $this->analysis();
+        $analysisDone = $analysis !== null && $analysis->status === 'completed';
+        $tables = $analysisDone ? (int) (($analysis->counts['tables'] ?? 0)) : 0;
+        $planItems = $this->planId !== null ? (\App\Models\MigrationPlan::find($this->planId)?->items()->count()) : null;
+
+        $reason = match (true) {
+            ! $analysisDone => __('wizard.review_reason_no_analysis'),
+            $tables === 0 => __('wizard.review_reason_no_tables'),
+            $planItems === null || $planItems === 0 => __('wizard.review_reason_no_plan'),
+            default => null,
+        };
+
+        return [
+            'ready' => $reason === null,
+            'reason' => $reason,
+            'tables' => $tables,
+            'analysis_done' => $analysisDone,
+            'plan_items' => $planItems,
+        ];
+    }
+
+    /** §E8 — compatibility blockers for the review list (plain language). */
+    public function reviewBlockers(): array
+    {
+        $analysis = $this->analysis();
+        if ($analysis === null || $analysis->status !== 'completed') {
+            return [];
+        }
+
+        $counts = [];
+        foreach ($analysis->items()->get(['kind', 'compatibility']) as $item) {
+            if ($item->compatibility === \App\Services\ControlPlane\Migration\CompatibilityClassifier::BLOCKED) {
+                $counts[$item->kind] = ($counts[$item->kind] ?? 0) + 1;
+            }
+        }
+
+        $out = [];
+        foreach ($counts as $kind => $n) {
+            $out[] = [
+                'title' => trans_choice('wizard.review_blocked_items', $n, ['count' => $n, 'kind' => __('wizard.analyze_counts_'.$kind)]),
+            ];
+        }
+
+        return $out;
+    }
+
+    /** ── Start Migration (§E11): fail with a reason, never a bare Error ── */
+
     public function startMigration(): void
     {
         $project = $this->project();
+        $readiness = $this->reviewReadiness();
 
-        if ($project === null || $this->planId === null) {
-            $this->error = __('foundation.wizard_step_failed_body');
-            $this->errorDetail = 'missing project or migration plan';
+        // §E11 — every refusal names WHAT is missing and HOW to fix it.
+        if ($project === null) {
+            $this->error = __('wizard.start_blocked_no_project');
+            $this->errorDetail = __('wizard.start_blocked_no_project_detail');
+
+            return;
+        }
+
+        if (! $readiness['analysis_done'] || $readiness['plan_items'] === null) {
+            $this->error = __('wizard.start_blocked_no_analysis');
+
+            return;
+        }
+
+        if ($readiness['tables'] === 0) {
+            $this->error = __('wizard.start_blocked_no_tables');
 
             return;
         }
@@ -480,27 +967,30 @@ class NewProjectWizard extends Page
         try {
             $plan = \App\Models\MigrationPlan::findOrFail($this->planId);
 
-        $target = $this->destinationTarget($project);
+            $target = $this->destinationTarget($project);
 
-        $manager = new MigrationRunManager;
-        $run = $manager->start($plan, [
-            'mode' => 'dry_run',
-            'target' => $target,
-            'target_disposable' => (bool) $this->state['target_disposable'],
-            'target_environment_type' => 'development',
-        ]);
-        $manager->execute($run);
+            $manager = new MigrationRunManager;
+            $run = $manager->start($plan, [
+                'mode' => 'dry_run',
+                'target' => $target,
+                'target_disposable' => (bool) $this->state['target_disposable'],
+                'target_environment_type' => 'development',
+            ]);
+            $manager->execute($run);
 
-        AdminAudit::record('WIZARD_MIGRATION_STARTED', $project, 'migration_run', $run->id, [
-            'run_id' => $run->run_id, 'mode' => 'dry_run',
-        ]);
+            AdminAudit::record('WIZARD_MIGRATION_STARTED', $project, 'migration_run', $run->id, [
+                'run_id' => $run->run_id, 'mode' => 'dry_run',
+            ]);
 
-        Notification::make()
-            ->title(__('wizard.migration_started', ['status' => $run->status]))
-            ->success()
-            ->send();
+            Notification::make()
+                ->title(__('wizard.migration_started', ['status' => $run->status]))
+                ->success()
+                ->send();
 
-        $this->redirect(\App\Filament\Resources\Projects\ProjectResource::getUrl('migration-center', ['record' => $project]));
+            // The journey continues on the project's Migration tab, Sync stage.
+            $this->redirect(\App\Filament\Resources\Projects\ProjectResource::getUrl('migration', [
+                'record' => $project, 'stage' => 'sync',
+            ]));
         } catch (\Throwable $e) {
             // 0.6.0 Phase A (§A7): never a bare "Error" — the run failed for a
             // reason the user can act on; the exception is one click away.
@@ -539,7 +1029,7 @@ class NewProjectWizard extends Page
             }
         }
 
-        $source = $this->sourceId !== null ? \App\Models\MigrationSource::find($this->sourceId) : null;
+        $source = $this->sourceId !== null ? MigrationSource::find($this->sourceId) : null;
 
         if ($source === null) {
             $source = $connector->createSourceProfile(
@@ -568,11 +1058,16 @@ class NewProjectWizard extends Page
         }
         $source->update(['connection' => $connection, 'secret_refs' => $secretRefs]);
 
+        // §E14 — the Connect stage shows the last successful connection test.
+        $source->update(['last_tested_at' => now()]);
+
         AdminAudit::record('WIZARD_SOURCE_CONNECTED', $project, 'migration_source', $source->id, [
             'connector' => $this->state['connector'],
         ]);
 
         Notification::make()->title(__('wizard.project_created', ['name' => $this->state['name']]))->success()->send();
+
+        $this->saveDraft();
     }
 
     protected function createProject(): Project

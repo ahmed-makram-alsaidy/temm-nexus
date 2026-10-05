@@ -68,6 +68,8 @@ class AdminAuditEntry extends Model
         'CLIENT_CONVERSION_GENERATED', 'CLIENT_CONVERSION_TEST_REFUSED',
         // 0.4.0-rc.5 (Phase 41) — AI settings + New Project wizard.
         'AI_ENABLED_TOGGLED', 'WIZARD_SOURCE_CONNECTED', 'WIZARD_MIGRATION_STARTED',
+        // 0.6.0 Phase E — workspaces created inline from the New Project wizard.
+        'WORKSPACE_CREATED',
         // 0.4.0 — Nexus Copilot (mission §30). Every meaningful AI action is
         // recorded, and an AI action must be distinguishable from a human one
         // (the metadata carries `actor_kind = ai`).

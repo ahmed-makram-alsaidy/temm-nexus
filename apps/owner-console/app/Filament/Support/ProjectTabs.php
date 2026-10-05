@@ -36,12 +36,14 @@ class ProjectTabs
         'migration' => [
             'label' => 'nav.tab_migration',
             'pages' => [
-                'migration-center' => 'nav.migration_center',
+                // 0.6.0 Phase E — the journey IS the tab: six stage tabs on one
+                // page (Connect/Analyze/Plan/Sync/Verify/Cutover), absorbing
+                // the Migration Center / Cutover / Readiness / Copilot faces.
+                // Those pages keep their routes as deep links; only the tools
+                // below remain secondary destinations.
+                'migration' => 'nav.migration',
                 'migrations' => 'nav.migrations',
                 'schema-diff' => 'nav.schema_diff',
-                'cutover' => 'nav.cutover',
-                'client-repository' => 'nav.client_repository',
-                'copilot' => 'nav.ai_copilot',
             ],
         ],
         'data' => [
@@ -107,6 +109,13 @@ class ProjectTabs
         'records' => 'database',
         'function-editor' => 'functions',
         'function-tester' => 'functions',
+        // 0.6.0 Phase E (§E13) — absorbed into the Migration journey: the
+        // pages keep their routes as deep links and resolve to the Migration
+        // tab, whose journey page now presents their content as stages.
+        'migration-center' => 'migration',
+        'cutover' => 'migration',
+        'copilot' => 'migration',
+        'client-repository' => 'migration',
     ];
 
     /**

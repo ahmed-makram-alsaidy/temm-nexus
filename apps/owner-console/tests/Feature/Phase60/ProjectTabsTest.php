@@ -95,10 +95,12 @@ class ProjectTabsTest extends TestCase
             $order = $position;
         }
 
-        // The active tab's secondary row shows Migration destinations —
-        // including Cutover itself as the current page.
-        $this->assertStringContainsString('>'.__('nav.migration_center').'<', $html);
-        $this->assertStringContainsString('>'.__('nav.cutover').'<', $html);
+        // The active tab's secondary row shows the Migration journey first,
+        // then the operator tools. The absorbed pages (Migration Center,
+        // Cutover, Copilot…) resolve TO the journey via deep-link aliases.
+        $this->assertStringContainsString('>'.__('nav.migration').'<', $html);
+        $this->assertStringContainsString('>'.__('nav.migrations').'<', $html);
+        $this->assertStringContainsString('>'.__('nav.schema_diff').'<', $html);
 
         // Secondary destinations of OTHER tabs are not rendered here —
         // this is the tab model, not the 35-link sidebar dump.

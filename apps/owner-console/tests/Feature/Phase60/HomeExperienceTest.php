@@ -267,7 +267,7 @@ class HomeExperienceTest extends TestCase
 
         $this->assertNotNull($target);
         $this->assertSame('Busy Site', $target['project']->name, 'An active run beats recent activity');
-        $this->assertStringContainsString('migration-center', (string) $target['url']);
+        $this->assertStringContainsString('stage=sync', (string) $target['url'], 'Resume lands on the Migration journey Sync stage');
     }
 
     // ── C4: project summary rows ────────────────────────────────────────

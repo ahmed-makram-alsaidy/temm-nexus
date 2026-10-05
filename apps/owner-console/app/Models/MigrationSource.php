@@ -11,7 +11,7 @@ class MigrationSource extends Model
     protected $fillable = [
         'project_id', 'environment_id', 'type', 'display_name', 'source_ref',
         'connection', 'secret_refs', 'read_only', 'status', 'last_error',
-        'last_analyzed_at', 'created_by',
+        'last_analyzed_at', 'last_tested_at', 'created_by',
         // Phase 25 — management metadata.
         'external_account_connection_id', 'management_project_ref', 'region',
         'organization', 'capabilities',
@@ -25,7 +25,7 @@ class MigrationSource extends Model
     {
         return [
             'connection' => 'array', 'secret_refs' => 'array', 'read_only' => 'boolean',
-            'last_analyzed_at' => 'datetime', 'capabilities' => 'array',
+            'last_analyzed_at' => 'datetime', 'last_tested_at' => 'datetime', 'capabilities' => 'array',
         ];
     }
 

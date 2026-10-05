@@ -2709,3 +2709,72 @@ html[dir="rtl"] body * {
     padding: 4px 10px;
     font-size: 12px;
 }
+
+/* ── 0.6.0 Phase E — Migration journey + wizard additions ────────────── */
+
+/* §E12 — the journey's stage tabs (one row, mirrors the wizard steps). */
+.nx-journey-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-block: 4px 14px;
+}
+
+.nx-journey-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border: 1px solid var(--nx-border, #334155);
+    border-radius: 999px;
+    font-size: 12.5px;
+    color: var(--nx-text-muted, #94a3b8);
+    text-decoration: none;
+}
+
+.nx-journey-tab:hover { border-color: var(--nx-accent, #6366f1); color: var(--nx-text, inherit); }
+
+.nx-journey-tab.is-active {
+    background: var(--nx-accent, #4338ca);
+    border-color: var(--nx-accent, #4338ca);
+    color: #fff;
+}
+
+/* The state colour rides on the canonical JourneyState value. */
+.nx-journey-tab--blocked { border-color: var(--nx-danger, #ef4444); color: var(--nx-danger, #ef4444); }
+.nx-journey-tab--needs_attention { border-color: var(--nx-warning, #f59e0b); color: var(--nx-warning, #f59e0b); }
+.nx-journey-tab--complete { color: var(--nx-success, #22c55e); }
+
+/* Nested card: inline create forms inside a stage (no dead ends). */
+.nx-card--nested {
+    margin-block-start: 12px;
+    padding: 14px;
+    border: 1px dashed var(--nx-border, #334155);
+    border-radius: var(--nx-radius-lg, 14px);
+}
+
+/* §E7 — the analysis stage timeline (real stages, no fake percentages). */
+.nxw-stages { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.nxw-stages__item { display: inline-flex; align-items: center; gap: 9px; font-size: 13px; color: var(--nx-text-muted, #94a3b8); }
+.nxw-stages__item.is-active { color: var(--nx-text, inherit); font-weight: 600; }
+.nxw-stages__item.is-done { color: var(--nx-success, #22c55e); }
+.nxw-stages__item.is-failed { color: var(--nx-danger, #ef4444); }
+.nxw-stages__marker { display: inline-flex; inline-size: 18px; justify-content: center; }
+
+.nxw-inline-create { margin-block-start: 8px; display: grid; gap: 8px; }
+
+.nx-prose-list { margin: 6px 0; padding-inline-start: 18px; display: grid; gap: 4px; font-size: 12.5px; color: var(--nx-text-muted, #94a3b8); }
+
+.nx-visually-hidden {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.nx-tag--recommended {
+    border-color: var(--nx-success, #22c55e);
+    color: var(--nx-success, #22c55e);
+}

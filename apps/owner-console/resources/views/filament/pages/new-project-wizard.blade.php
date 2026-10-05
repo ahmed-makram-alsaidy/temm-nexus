@@ -1,17 +1,32 @@
 {{--
-    0.4.0-rc.5 (Phase 41, Part B) — New Project wizard.
+    0.6.0 Phase E — New Project wizard: ONE journey in five steps.
 
-    Six guided steps. Product language first: "Live Sync", "Last synced",
-    "Connection" — engine internals stay hidden. Secrets entered here go
-    straight to the vault and are never echoed back by Livewire.
+    §E3  State persists server-side from the first step; a resumed draft
+         announces itself and can be discarded explicitly.
+    §E2  The workspace dead end is gone — create a workspace inline and
+         stay in the wizard with every entered field intact.
+    §E4  Host → Port → Database → Username → Password; expert fields live
+         behind Advanced; connector cards are one sentence + badges.
+    §E5  Connection outcomes are classified: success / credentials /
+         unreachable / private network — with a plain-language recovery
+         path and Technical details for the raw diagnostics.
+    §E7  Analysis runs in real recorded stages, ticked from the UI; no
+         fake percentages, no frozen form.
+    §E10 Review shows deterministic readiness — never green over nothing.
 --}}
 <x-filament-panels::page>
     @php
         $total = count(\App\Filament\Pages\NewProjectWizard::STEPS);
         $workspaces = $this->accessibleWorkspaces();
-        $fields = $this->connectionFields();
+        $groups = $this->connectionFieldGroups();
         $connector = $this->connector();
         $created = $this->projectId !== null;
+        $analysis = $this->analysis();
+        $progress = $this->analysisProgress();
+        $summary = $this->analysisSummary();
+        $readiness = $this->reviewReadiness();
+        $warnings = $summary['warnings'] ?? [];
+        $blockers = $this->reviewBlockers();
     @endphp
 
     {{-- Progress (B.1) --}}
@@ -29,6 +44,15 @@
     </ol>
 
     <p class="nx-hint">{{ __('wizard.step_of', ['current' => $this->step, 'total' => $total]) }}</p>
+
+    @if ($this->resumed)
+        <div class="nx-note nx-note--info" role="status" data-wizard-resumed>
+            <strong>{{ __('wizard.resumed_title') }}</strong>
+            <span>{{ __('wizard.resumed_body') }}</span>
+            <button type="button" wire:click="discardDraft" wire:confirm="{{ __('wizard.discard_confirm') }}"
+                    class="nx-link" data-wizard-start-over>{{ __('wizard.discard_draft') }}</button>
+        </div>
+    @endif
 
     @if ($this->error)
         {{-- 0.6.0 Phase A (§A7): never a bare "Error" — what failed, what to
@@ -54,19 +78,21 @@
         </div>
     @endif
 
-    {{-- Step 1 — Project (B.2) --}}
+    {{-- Step 1 — Project (§E2/§E3): name, workspace with inline create, environment --}}
     @if ($this->step === 1)
         <section class="nx-card">
             <div class="nx-form-grid">
                 <label class="nx-field">
                     <span class="nx-field__label">{{ __('wizard.project_name') }}</span>
-                    <input type="text" wire:model="state.name" class="nx-field__input" maxlength="128" />
+                    <input type="text" wire:model.live.debounce.600ms="state.name" class="nx-field__input" maxlength="128" />
                     <span class="nx-field__hint">{{ __('wizard.project_name_helper') }}</span>
+                    @error('state.name')<span class="nx-field__error">{{ $message }}</span>@enderror
                 </label>
 
-                <label class="nx-field">
+                <div class="nx-field">
                     <span class="nx-field__label">{{ __('wizard.workspace_client') }}</span>
-                    <select wire:model="state.workspace_id" class="nx-field__input">
+                    <select wire:model.live.debounce.600ms="state.workspace_id" class="nx-field__input"
+                            @disabled($this->creatingWorkspace) data-wizard-workspace-select>
                         <option value="">—</option>
                         @foreach ($workspaces as $id => $name)
                             <option value="{{ $id }}" @selected((string) $this->state['workspace_id'] === (string) $id)>{{ $name }}</option>
@@ -74,7 +100,52 @@
                     </select>
                     <span class="nx-field__hint">{{ __('wizard.workspace_client_helper') }}</span>
                     @error('state.workspace_id')<span class="nx-field__error">{{ $message }}</span>@enderror
-                </label>
+
+                    {{-- §E2 — inline workspace creation: no dead end. --}}
+                    <div class="nxw-inline-create">
+                        @if (! $this->creatingWorkspace)
+                            @if ($this->canCreateWorkspace())
+                                <button type="button" wire:click="openInlineWorkspaceCreate" class="nx-link"
+                                        data-wizard-create-workspace>
+                                    + {{ __('wizard.create_workspace_inline') }}
+                                </button>
+                            @else
+                                <span class="nx-field__hint">{{ __('wizard.workspace_needs_admin') }}</span>
+                            @endif
+                        @endif
+
+                        @if ($this->creatingWorkspace)
+                            <div class="nx-card nx-card--nested" data-wizard-workspace-create>
+                                <div class="nx-form-grid">
+                                    <label class="nx-field">
+                                        <span class="nx-field__label">{{ __('workspaces.workspace_name') }}</span>
+                                        <input type="text" wire:model="newWorkspaceName" class="nx-field__input"
+                                               wire:keydown.enter="createWorkspaceInline" maxlength="120" />
+                                        @error('newWorkspaceName')<span class="nx-field__error">{{ $message }}</span>@enderror
+                                    </label>
+                                    <label class="nx-field">
+                                        <span class="nx-field__label">{{ __('workspaces.type') }}</span>
+                                        <select wire:model="newWorkspaceKind" class="nx-field__input">
+                                            <option value="client">{{ __('workspaces.type_client') }}</option>
+                                            <option value="company">{{ __('workspaces.type_company') }}</option>
+                                            <option value="team">{{ __('workspaces.type_team') }}</option>
+                                            <option value="internal">{{ __('workspaces.type_internal') }}</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="nx-card__actions">
+                                    <button type="button" wire:click="createWorkspaceInline"
+                                            class="nx-btn nx-btn--primary" data-wizard-workspace-save>
+                                        {{ __('wizard.create_workspace_inline') }}
+                                    </button>
+                                    <button type="button" wire:click="cancelInlineWorkspaceCreate" class="nx-btn">
+                                        {{ __('common.cancel') }}
+                                    </button>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                </div>
 
                 <div class="nx-field">
                     <span class="nx-field__label">{{ __('wizard.environment') }}</span>
@@ -94,7 +165,7 @@
         </section>
     @endif
 
-    {{-- Step 2 — Source cards (B.3) --}}
+    {{-- Step 2 — Source (§E4/§E5): connector + connection, Advanced collapsed --}}
     @if ($this->step === 2)
         <section class="nx-card">
             <h2 class="nx-card__title">{{ __('wizard.source_pick') }}</h2>
@@ -119,95 +190,191 @@
                 @endforeach
             </div>
             @error('state.connector')<span class="nx-field__error">{{ $message }}</span>@enderror
-        </section>
-    @endif
 
-    {{-- Step 3 — Connection (B.4/B.5) --}}
-    @if ($this->step === 3)
-        <section class="nx-card">
-            <h2 class="nx-card__title">{{ __('wizard.connection_title', ['name' => $this->connectorName()]) }}</h2>
-            <p class="nx-hint">{{ __('wizard.connection_helper') }}</p>
-
-            @if ($fields === [])
-                <p class="nx-hint">{{ __('wizard.no_fields_needed') }}</p>
-            @else
-                <div class="nx-form-grid">
-                    @foreach ($fields as $field)
-                        <label class="nx-field">
-                            <span class="nx-field__label">{{ $field->label }}@if ($field->required) * @endif</span>
-                            @if ($field->type === 'select' && $field->options !== null)
-                                <select wire:model="state.connection.{{ $field->key }}" class="nx-field__input">
-                                    @foreach ($field->options as $value => $label)
-                                        <option value="{{ $value }}" @selected(($this->state['connection'][$field->key] ?? $field->default) == $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            @elseif ($field->type === 'boolean')
-                                <label class="nx-check">
-                                    <input type="checkbox" wire:model="state.connection.{{ $field->key }}"
-                                           @checked(($this->state['connection'][$field->key] ?? $field->default) == true) />
-                                    <span>{{ $field->label }}</span>
-                                </label>
-                            @elseif ($field->type === 'port')
-                                <input type="number" wire:model="state.connection.{{ $field->key }}" class="nx-field__input"
-                                       value="{{ $this->state['connection'][$field->key] ?? $field->default }}" />
-                            @elseif ($field->secret)
-                                {{-- Write-only: the value lives in the vault after save. --}}
-                                <input type="password" wire:model="state.connection.{{ $field->key }}" class="nx-field__input"
-                                       autocomplete="new-password" />
-                            @else
-                                <input type="text" wire:model="state.connection.{{ $field->key }}" class="nx-field__input"
-                                       value="{{ $this->state['connection'][$field->key] ?? $field->default }}" />
-                            @endif
-                            @if ($field->help)
-                                <span class="nx-field__hint">{{ $field->help }}</span>
-                            @endif
-                            @error('state.connection.'.$field->key)<span class="nx-field__error">{{ $message }}</span>@enderror
-                        </label>
-                    @endforeach
+            {{-- §E4 — technical capability prose lives under a disclosure. --}}
+            <details class="nx-details" data-wizard-connector-details>
+                <summary class="nx-details__summary">{{ __('foundation.technical_details') }}</summary>
+                <div class="nx-details__body">
+                    <ul class="nx-prose-list">
+                        @foreach ($this->sourceCards() as $card)
+                            <li><strong>{{ $card['name'] }}</strong> — {{ $card['full_description'] }}</li>
+                        @endforeach
+                    </ul>
                 </div>
-            @endif
+            </details>
 
-            <p class="nx-hint">{{ __('wizard.secrets_note') }}</p>
+            @if ($connector !== null)
+                <h3 class="nx-card__subtitle">{{ __('wizard.connection_title', ['name' => $this->connectorName()]) }}</h3>
+                <p class="nx-hint">{{ __('wizard.connection_helper') }}</p>
 
-            <div class="nx-card__actions">
-                <button type="button" wire:click="testConnection" wire:loading.attr="disabled"
-                        class="nx-btn nx-btn--primary" data-wizard-test-connection>
-                    {{ __('common.test_connection') }}
-                </button>
-                <span wire:loading wire:target="testConnection" class="nx-hint">{{ __('wizard.test_running') }}</span>
-            </div>
+                @if ($groups['primary'] === [] && $groups['advanced'] === [])
+                    <p class="nx-hint">{{ __('wizard.no_fields_needed') }}</p>
+                @else
+                    <div class="nx-form-grid" data-wizard-connection-fields>
+                        @foreach ($groups['primary'] as $field)
+                            <label class="nx-field">
+                                <span class="nx-field__label">{{ $field->label }}@if ($field->required) * @endif</span>
+                                @if ($field->type === 'select' && $field->options !== null)
+                                    <select wire:model="state.connection.{{ $field->key }}" class="nx-field__input">
+                                        @foreach ($field->options as $value => $label)
+                                            <option value="{{ $value }}" @selected(($this->state['connection'][$field->key] ?? $field->default) == $value)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                @elseif ($field->type === 'boolean')
+                                    <label class="nx-check">
+                                        <input type="checkbox" wire:model="state.connection.{{ $field->key }}"
+                                               @checked(($this->state['connection'][$field->key] ?? $field->default) == true) />
+                                        <span>{{ $field->label }}</span>
+                                    </label>
+                                @elseif ($field->type === 'port')
+                                    <input type="number" wire:model="state.connection.{{ $field->key }}" class="nx-field__input"
+                                           value="{{ $this->state['connection'][$field->key] ?? $field->default }}" />
+                                @elseif ($field->secret)
+                                    {{-- Write-only: the value lives in the vault after save. --}}
+                                    <input type="password" wire:model="state.connection.{{ $field->key }}" class="nx-field__input"
+                                           autocomplete="new-password" />
+                                @else
+                                    <input type="text" wire:model="state.connection.{{ $field->key }}" class="nx-field__input"
+                                           value="{{ $this->state['connection'][$field->key] ?? $field->default }}" />
+                                @endif
+                                @if ($field->help)
+                                    <span class="nx-field__hint">{{ $field->help }}</span>
+                                @endif
+                                @error('state.connection.'.$field->key)<span class="nx-field__error">{{ $message }}</span>@enderror
+                            </label>
+                        @endforeach
+                    </div>
 
-            @if ($this->testResult)
-                <div class="nx-note {{ ($this->testResult['ok'] ?? false) ? 'nx-note--success' : 'nx-note--danger' }}" role="status"
-                     data-wizard-test-result>
-                    <strong>{{ ($this->testResult['ok'] ?? false) ? __('wizard.test_passed') : __('wizard.test_failed') }}</strong>
-                    @if (($this->testResult['detail'] ?? '') !== '')
-                        <span>{{ $this->testResult['detail'] }}</span>
+                    @if ($groups['advanced'] !== [])
+                        {{-- §E4 — Advanced collapsed by default. --}}
+                        <details class="nx-advanced" data-wizard-advanced>
+                            <summary>{{ __('common.advanced_options') }}</summary>
+                            <div class="nx-form-grid">
+                                @foreach ($groups['advanced'] as $field)
+                                    <label class="nx-field">
+                                        <span class="nx-field__label">{{ $field->label }}@if ($field->required) * @endif</span>
+                                        @if ($field->type === 'select' && $field->options !== null)
+                                            <select wire:model="state.connection.{{ $field->key }}" class="nx-field__input">
+                                                @foreach ($field->options as $value => $label)
+                                                    <option value="{{ $value }}" @selected(($this->state['connection'][$field->key] ?? $field->default) == $value)>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                        @elseif ($field->type === 'boolean')
+                                            <label class="nx-check">
+                                                <input type="checkbox" wire:model="state.connection.{{ $field->key }}"
+                                                       @checked(($this->state['connection'][$field->key] ?? $field->default) == true) />
+                                                <span>{{ $field->label }}</span>
+                                            </label>
+                                        @elseif ($field->type === 'port')
+                                            <input type="number" wire:model="state.connection.{{ $field->key }}" class="nx-field__input"
+                                                   value="{{ $this->state['connection'][$field->key] ?? $field->default }}" />
+                                        @elseif ($field->secret)
+                                            <input type="password" wire:model="state.connection.{{ $field->key }}" class="nx-field__input"
+                                                   autocomplete="new-password" />
+                                        @else
+                                            <input type="text" wire:model="state.connection.{{ $field->key }}" class="nx-field__input"
+                                                   value="{{ $this->state['connection'][$field->key] ?? $field->default }}" />
+                                        @endif
+                                        @if ($field->help)
+                                            <span class="nx-field__hint">{{ $field->help }}</span>
+                                        @endif
+                                    </label>
+                                @endforeach
+                            </div>
+                        </details>
                     @endif
+                @endif
+
+                <p class="nx-hint">{{ __('wizard.secrets_note') }}</p>
+                @if ($created)
+                    <p class="nx-hint">{{ __('wizard.resume_secret_note') }}</p>
+                @endif
+
+                <div class="nx-card__actions">
+                    <button type="button" wire:click="testConnection" wire:loading.attr="disabled"
+                            class="nx-btn nx-btn--primary" data-wizard-test-connection>
+                        {{ __('common.test_connection') }}
+                    </button>
+                    <span wire:loading wire:target="testConnection" class="nx-hint">{{ __('wizard.test_running') }}</span>
                 </div>
+
+                @if ($this->testResult)
+                    <div @class([
+                            'nx-note' => true,
+                            'nx-note--success' => ($this->testResult['ok'] ?? false),
+                            'nx-note--danger' => ! ($this->testResult['ok'] ?? false),
+                        ]) role="status" data-wizard-test-result data-wizard-test-kind="{{ $this->testResult['kind'] ?? '' }}">
+                        @if ($this->testResult['ok'] ?? false)
+                            <strong>{{ __('wizard.test_passed') }}</strong>
+                            <span>{{ __('wizard.test_passed_read_only') }}</span>
+                        @else
+                            <strong>{{ __('wizard.test_failed') }}</strong>
+                            @switch ($this->testResult['kind'] ?? 'network')
+                                @case('private_network')
+                                    {{-- §E5 — the private-network recovery path. --}}
+                                    <span>{{ __('wizard.test_private_network_body') }}</span>
+                                    @break
+                                @case('auth')
+                                    <span>{{ __('wizard.test_auth_body') }}</span>
+                                    @break
+                                @case('invalid')
+                                    <span>{{ __('wizard.test_invalid_body') }}</span>
+                                    @break
+                                @default
+                                    <span>{{ __('wizard.test_network_body') }}</span>
+                            @endswitch
+
+                            @if (($this->testResult['kind'] ?? '') === 'private_network')
+                                <div class="nx-error__actions">
+                                    @if ($this->canOpenSystemSettings())
+                                        <a class="nx-btn" href="{{ \App\Filament\Pages\SettingsHub::getUrl() }}">
+                                            {{ __('wizard.test_private_network_settings') }}
+                                        </a>
+                                    @endif
+                                    <details class="nx-details nx-details--inline">
+                                        <summary class="nx-details__summary">{{ __('foundation.error_technical_details') }}</summary>
+                                        <div class="nx-details__body" dir="ltr">
+                                            <code class="nx-tech">{{ $this->testResult['detail'] ?? '' }}</code>
+                                        </div>
+                                    </details>
+                                </div>
+                            @elseif (($this->testResult['detail'] ?? '') !== '')
+                                <details class="nx-details nx-details--inline">
+                                    <summary class="nx-details__summary">{{ __('foundation.error_technical_details') }}</summary>
+                                    <div class="nx-details__body" dir="ltr">
+                                        <code class="nx-tech">{{ $this->testResult['detail'] }}</code>
+                                    </div>
+                                </details>
+                            @endif
+                        @endif
+                    </div>
+                @endif
             @endif
         </section>
     @endif
 
-    {{-- Step 4 — Destination (B.6) — TEMM-managed is the obvious default --}}
-    @if ($this->step === 4)
+    {{-- Step 3 — Destination (§E6) — TEMM-managed is the recommended path --}}
+    @if ($this->step === 3)
         <section class="nx-card">
             <h2 class="nx-card__title">{{ __('wizard.destination_title') }}</h2>
 
             <div class="nxw-cards nxw-cards--choices">
                 <button type="button" wire:click="$set('state.destination', 'temm')"
-                        class="nxw-card--choice @if (($this->state['destination'] ?? 'temm') === 'temm') is-selected @endif">
+                        class="nxw-card--choice @if (($this->state['destination'] ?? 'temm') === 'temm') is-selected @endif"
+                        data-wizard-destination-temm>
+                    <span class="nx-tag nx-tag--recommended">{{ __('wizard.destination_recommended') }}</span>
                     <strong>{{ __('wizard.destination_temm') }}</strong>
                     <span>{{ __('wizard.destination_temm_helper') }}</span>
                 </button>
                 <button type="button" wire:click="$set('state.destination', 'external')"
-                        class="nxw-card--choice @if (($this->state['destination'] ?? '') === 'external') is-selected @endif">
+                        class="nxw-card--choice @if (($this->state['destination'] ?? '') === 'external') is-selected @endif"
+                        data-wizard-destination-external>
                     <strong>{{ __('wizard.destination_external') }}</strong>
                     <span>{{ __('wizard.destination_external_helper') }}</span>
                 </button>
             </div>
 
-            {{-- Advanced — collapsed by default (B.4/B.10) --}}
+            {{-- §E6 — external target configuration is the Advanced path. --}}
             @if (($this->state['destination'] ?? 'temm') === 'external')
                 <details class="nx-advanced" data-wizard-advanced open>
                     <summary>{{ __('common.advanced_options') }}</summary>
@@ -244,61 +411,150 @@
         </section>
     @endif
 
-    {{-- Step 5 — Analyze (B.7) --}}
-    @if ($this->step === 5)
+    {{-- Step 4 — Analyze (§E7/§E8/§E9): a real operation with real stages --}}
+    @if ($this->step === 4)
         <section class="nx-card">
             <h2 class="nx-card__title">{{ __('wizard.analyze_title', ['name' => $this->state['name']]) }}</h2>
             <p class="nx-hint">{{ __('wizard.analyze_helper') }}</p>
 
-            <div class="nx-card__actions">
-                <button type="button" wire:click="analyze" wire:loading.attr="disabled" class="nx-btn nx-btn--primary"
-                        data-wizard-analyze>
-                    {{ __('wizard.analyze_button') }}
-                </button>
-                <span wire:loading wire:target="analyze" class="nx-hint">{{ __('wizard.analyze_running') }}</span>
-            </div>
-
-            @if ($this->analysisSummary !== null)
+            @if ($progress['running'])
+                {{-- Live operation: real stages from real telemetry. --}}
+                <ul class="nxw-stages" data-wizard-analysis-progress wire:poll.2s="tickAnalysis">
+                    @foreach ($progress['stages'] as $stage)
+                        <li @class([
+                            'nxw-stages__item',
+                            'is-active' => $stage['state'] === 'active',
+                            'is-done' => $stage['state'] === 'done',
+                            'is-failed' => $stage['state'] === 'failed',
+                        ])>
+                            <span class="nxw-stages__marker" aria-hidden="true">
+                                @if ($stage['state'] === 'done')✓@elseif ($stage['state'] === 'failed')✕@else•@endif
+                            </span>
+                            <span class="nxw-stages__label">{{ __('wizard.stage_'.$stage['key']) }}</span>
+                            @if ($stage['state'] === 'active')
+                                <span class="nx-hint">{{ __('wizard.stage_running') }}</span>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+                <div class="nx-card__actions">
+                    <button type="button" wire:click="cancelAnalysis" class="nx-btn" data-wizard-analyze-cancel>
+                        {{ __('wizard.analyze_cancel') }}
+                    </button>
+                    <span class="nx-hint">{{ __('wizard.analyze_cancel_note') }}</span>
+                </div>
+            @elseif ($progress['status'] === 'cancelled')
+                <div class="nx-note" role="status" data-wizard-analysis-cancelled>
+                    <strong>{{ __('wizard.analyze_cancelled_title') }}</strong>
+                    <span>{{ __('wizard.analyze_cancelled_body') }}</span>
+                </div>
+                <div class="nx-card__actions">
+                    <button type="button" wire:click="startAnalysis" class="nx-btn nx-btn--primary" data-wizard-analyze>
+                        {{ __('wizard.analyze_button') }}
+                    </button>
+                </div>
+            @elseif ($summary !== [])
+                {{-- §E9 — summary first. --}}
                 <h3 class="nx-card__subtitle">{{ __('wizard.analyze_summary') }}</h3>
                 <div class="nx-grid nx-grid--stats" data-wizard-analysis-summary>
                     @foreach (['tables', 'views', 'auth', 'storage', 'functions', 'triggers', 'policies', 'realtime'] as $key)
-                        @if (($this->analysisSummary[$key] ?? 0) > 0)
+                        @if (($summary[$key] ?? 0) > 0)
                             <div class="nx-stat-card">
                                 <span class="nx-stat-card__label">{{ __('wizard.analyze_counts_'.$key) }}</span>
-                                <span class="nx-stat-card__value">{{ $this->analysisSummary[$key] }}</span>
+                                <span class="nx-stat-card__value">{{ $summary[$key] }}</span>
                             </div>
                         @endif
                     @endforeach
                 </div>
-                <p class="nx-hint">{{ __('wizard.analyze_done') }} {{ __('wizard.analyze_issues_none') }}</p>
+
+                {{-- §E8 — warnings are warnings; the analysis still succeeded. --}}
+                @if ($warnings !== [])
+                    <div class="nx-note nx-note--warning" role="status" data-wizard-analysis-warnings>
+                        <strong>{{ trans_choice('wizard.analysis_completed_warnings', count($warnings), ['count' => count($warnings)]) }}</strong>
+                        <ul class="nx-prose-list">
+                            @foreach ($warnings as $warning)
+                                <li><strong>{{ $warning['title'] }}</strong> — {{ $warning['detail'] }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @else
+                    <p class="nx-hint">{{ __('wizard.analyze_done') }} {{ __('wizard.analyze_issues_none') }}</p>
+                @endif
+
+                {{-- Technical detail is one click away, never the face. --}}
+                <details class="nx-details" data-wizard-analysis-technical>
+                    <summary class="nx-details__summary">{{ __('foundation.error_technical_details') }}</summary>
+                    <div class="nx-details__body" dir="ltr">
+                        <code class="nx-tech">{{ $this->analysisTechnicalDetail() }}</code>
+                    </div>
+                </details>
+
+                <div class="nx-card__actions">
+                    <button type="button" wire:click="startAnalysis" class="nx-btn" data-wizard-analyze-rerun>
+                        {{ __('wizard.analyze_rerun') }}
+                    </button>
+                </div>
+            @else
+                <div class="nx-card__actions">
+                    <button type="button" wire:click="startAnalysis" wire:loading.attr="disabled" class="nx-btn nx-btn--primary"
+                            data-wizard-analyze>
+                        {{ __('wizard.analyze_button') }}
+                    </button>
+                    <span wire:loading wire:target="startAnalysis" class="nx-hint">{{ __('wizard.analyze_running') }}</span>
+                </div>
             @endif
         </section>
     @endif
 
-    {{-- Step 6 — Review (B.8) --}}
-    @if ($this->step === 6)
+    {{-- Step 5 — Review (§E10): deterministic readiness + ONE action --}}
+    @if ($this->step === 5)
         <section class="nx-card">
             <h2 class="nx-card__title">{{ __('wizard.review_title') }}</h2>
             <p class="nx-hint">{{ __('wizard.review_helper') }}</p>
 
             <dl class="nx-status-list" data-wizard-review>
                 <div class="nx-status-list__row">
-                    <dt>{{ __('wizard.review_database') }}</dt>
-                    <dd><span class="nx-status nx-status--success">{{ __('wizard.review_ready') }}</span>
-                        {{ __('wizard.analyze_counts_tables') }}: {{ $this->analysisSummary['tables'] ?? 0 }}</dd>
+                    <dt>{{ __('wizard.review_source') }}</dt>
+                    <dd>{{ $this->connectorName() }}
+                        @if (($this->state['connection']['database'] ?? '') !== '')
+                            · <span class="nx-tech">{{ $this->state['connection']['database'] }}</span>
+                        @endif
+                    </dd>
                 </div>
                 <div class="nx-status-list__row">
-                    <dt>{{ __('wizard.review_users') }}</dt>
-                    <dd><span class="nx-status nx-status--success">{{ __('wizard.review_ready') }}</span>
-                        {{ $this->analysisSummary['auth'] ?? 0 }}</dd>
-                </div>
-                <div class="nx-status-list__row">
-                    <dt>{{ __('wizard.review_storage') }}</dt>
+                    <dt>{{ __('wizard.review_destination') }}</dt>
                     <dd>
-                        @if (($this->analysisSummary['storage'] ?? 0) > 0)
-                            <span class="nx-status nx-status--success">{{ __('wizard.review_ready') }}</span>
+                        @if (($this->state['destination'] ?? 'temm') === 'temm')
+                            {{ __('wizard.destination_temm') }}
                         @else
-                            <span class="nx-status nx-status--warning">{{ __('wizard.review_needs_review') }}</span>
+                            {{ __('wizard.destination_external') }} @if (($this->state['target']['database'] ?? '') !== '')
+                                · <span class="nx-tech">{{ $this->state['target']['database'] }}</span>
+                            @endif
+                        @endif
+                    </dd>
+                </div>
+                <div class="nx-status-list__row">
+                    <dt>{{ __('wizard.review_found') }}</dt>
+                    <dd>
+                        @if ($readiness['analysis_done'])
+                            {{ trans_choice('wizard.review_tables_found', $readiness['tables'], ['count' => $readiness['tables']]) }}
+                            @if (($summary['views'] ?? 0) > 0)
+                                · {{ trans_choice('wizard.review_views_found', $summary['views'], ['count' => $summary['views']]) }}
+                            @endif
+                        @else
+                            {{ __('wizard.review_not_analyzed') }}
+                        @endif
+                    </dd>
+                </div>
+                <div class="nx-status-list__row">
+                    <dt>{{ __('wizard.review_ready_items') }}</dt>
+                    <dd>
+                        @if ($readiness['ready'])
+                            {{ __('wizard.review_all_ready') }}
+                        @elseif ($readiness['plan_items'] !== null && $readiness['plan_items'] > 0)
+                            {{ trans_choice('wizard.review_plan_items', $readiness['plan_items'], ['count' => $readiness['plan_items']]) }}
+                        @else
+                            —
                         @endif
                     </dd>
                 </div>
@@ -312,28 +568,49 @@
                         @endif
                     </dd>
                 </div>
-                <div class="nx-status-list__row">
-                    <dt>{{ __('wizard.review_client_code') }}</dt>
-                    <dd>
-                        <span class="nx-status nx-status--neutral">{{ __('common.status_unknown') }}</span>
-                        <span class="nx-hint">{{ __('wizard.review_scan_hint') }}</span>
-                    </dd>
-                </div>
             </dl>
 
-            @if ($this->planSummary !== null)
-                <p class="nx-hint">{{ trans_choice('wizard.review_plan_items', $this->planSummary['items'], ['count' => $this->planSummary['items']]) }}</p>
+            {{-- §E8 — warnings listed where the user decides. --}}
+            @if ($warnings !== [])
+                <div class="nx-note nx-note--warning" role="status">
+                    <strong>{{ trans_choice('wizard.analysis_completed_warnings', count($warnings), ['count' => count($warnings)]) }}</strong>
+                </div>
             @endif
 
+            {{-- §E10 — blocking items are named, not hidden. --}}
+            @if ($blockers !== [])
+                <ul class="nx-attention" data-wizard-review-blockers>
+                    @foreach ($blockers as $blocker)
+                        <li class="nx-attention__item nx-attention__item--warning">
+                            <div><strong>{{ $blocker['title'] }}</strong></div>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+
+            {{-- §E10 — the honest verdict. --}}
+            <div class="nx-note {{ $readiness['ready'] ? 'nx-note--success' : 'nx-note--warning' }}" data-wizard-readiness>
+                @if ($readiness['ready'])
+                    <strong>{{ __('wizard.review_ready') }}</strong>
+                @else
+                    <strong>{{ __('wizard.review_not_ready') }}</strong>
+                    <span>{{ $readiness['reason'] }}</span>
+                @endif
+            </div>
+
             <div class="nx-card__actions">
-                <button type="button" wire:click="startMigration" class="nx-btn nx-btn--primary" data-wizard-start-migration>
-                    {{ __('wizard.start_migration') }}
-                </button>
-                <span class="nx-hint">{{ __('wizard.start_migration_helper') }}</span>
-                @if ($this->projectId !== null)
-                    <a class="nx-link" href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('migration-center', ['record' => $this->project()]) }}">
-                        {{ __('wizard.open_migration_center') }}
-                    </a>
+                @if ($readiness['ready'])
+                    {{-- ONE primary action when the journey may proceed. --}}
+                    <button type="button" wire:click="startMigration" class="nx-btn nx-btn--primary" data-wizard-start-migration>
+                        {{ __('wizard.start_migration') }}
+                    </button>
+                    <span class="nx-hint">{{ __('wizard.start_migration_helper') }}</span>
+                @else
+                    {{-- §E10/§E11 — the primary action IS the recovery action. --}}
+                    <button type="button" wire:click="startAnalysis" class="nx-btn nx-btn--primary" data-wizard-recovery-action>
+                        {{ __('wizard.analyze_button') }}
+                    </button>
+                    <span class="nx-hint">{{ __('wizard.review_recovery_hint') }}</span>
                 @endif
             </div>
         </section>
