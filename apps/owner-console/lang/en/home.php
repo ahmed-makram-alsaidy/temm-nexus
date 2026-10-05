@@ -48,6 +48,36 @@ return [
 
     'recent_activity' => 'Recent activity',
     'activity_empty' => 'No activity recorded yet. Actions taken in your projects will appear here.',
+
+    // ── 0.6.0 Phase C — command-center Home (§C1–§C15) ──────────────────
+    'cta_connect_first' => 'Connect your first project',
+    'cta_review_issues' => 'Review issues',
+    'cta_review_issue' => 'Review',
+    'cta_continue_migration' => 'Continue migration',
+    'cta_continue' => 'Continue',
+    'cta_verify_migration' => 'Verify migration',
+    'cta_new_migration' => 'Start a migration',
+    'cta_open_projects' => 'Open projects',
+    'learn_how' => 'Learn how TEMM works',
+
+    'all_clear_line' => 'All clear — no projects need your attention right now.',
+    'attention_view_all' => '{1} View the :count project needing attention|[2,*] View all :count projects needing attention',
+
+    'continue_context' => ':stage · last active :when',
+    'continue_recently' => 'recently',
+
+    'projects_title' => 'Projects',
+    'projects_view_all' => 'All projects',
+
+    'activity_view_all' => 'View all activity',
+
+    'system_attention_title' => 'System health needs attention',
+    'system_attention_body' => 'One or more platform components report a degraded state (:facets).',
+    'system_normal' => 'All systems normal.',
+    'system_degraded' => 'System health needs attention.',
+    'system_details' => 'View system details',
+
+    // Legacy summary keys (kept for stored UI preferences; no longer rendered).
     'summary_projects' => 'Projects',
     'summary_healthy' => 'healthy',
     'summary_active_migrations' => 'Active migrations',

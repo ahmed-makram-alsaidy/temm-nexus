@@ -1,49 +1,47 @@
 {{--
-    0.4.0 Phase D — PLATFORM HOME (§7).
+    0.6.0 Phase C — HOME as a calm command center (audit §C1–§C15).
 
-    Hierarchy, in the order the mission specifies:
-      greeting + state  ->  primary CTA  ->  summary  ->  needs attention
-      ->  active migrations  ->  recent projects  ->  infrastructure  ->  activity
+    Priority order: platform state → needs attention → continue where you
+    left off → projects → recent activity → quiet system status.
 
-    Infrastructure is deliberately LAST: v0.3.0 put it first.
+    What is deliberately GONE from 0.5:
+      - the permanent five-card KPI grid (zeros consumed the fold, §C5)
+      - the two always-on backup cards (backups surface only when a backup
+        actually needs attention — through the project warnings, §C8)
+      - any raw verb, enum or internal id (dictionary + humanizer, §A5/§A6)
+
+    One primary action per Home (§C1). Every section's data fails alone
+    (§ERRORS): the page class wraps each source in safeSection().
 --}}
 <x-filament-panels::page>
     @php
-        $pulse = $this->pulse();
-        $summary = $pulse->summary();
-        $attention = $pulse->projectsNeedingAttention();
-        $readyForCutover = $pulse->readyForCutoverProjects();
-        $backups = $pulse->backupSummary();
-        $activity = $pulse->recentActivity(8);
-        $projects = $pulse->projects();
-        // Phase I — this user's appearance preferences (visibility, density).
-        $ui = $this->uiPreferences();
+        $attention = $this->attention();
+        $continue = $this->continueTarget();
+        $projects = $this->projectSummaries() ?? collect();
+        $activity = $this->recentActivity() ?? collect();
+        $system = $this->systemStatus();
+        $hasProjects = $this->pulse()->hasAnyProject();
     @endphp
 
-    {{-- 1. Greeting, platform state, and the one primary action. --}}
-    <header
-        class="nx-hero @if (($ui['home.hero']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['home.hero']['density'] }} @endif"
-        data-nx-inspect="home.hero"
-        data-nx-inspect-label="Home header"
-    >
+    {{-- 1. Platform state: greeting + one sentence + THE one primary action. --}}
+    <header class="nx-hero" data-nx-inspect="home.hero" data-nx-inspect-label="Home header">
         <div class="nx-hero__text">
             <h1 class="nx-hero__greeting">{{ $this->greeting() }}, {{ $this->userName() }}.</h1>
             <p class="nx-hero__state">{{ $this->stateSentence() }}</p>
         </div>
 
         <div class="nx-hero__actions">
-            @if ($this->canCreateProject())
-                {{-- 0.6.0 Phase B (§B12): every normal creation entry point leads
-                     to the guided wizard — the legacy create form redirects there. --}}
-                <x-filament::button
-                    tag="a"
-                    href="{{ \App\Filament\Pages\NewProjectWizard::getUrl() }}"
-                    icon="heroicon-o-plus"
-                >
-                    {{ __('home.start_a_migration') }}
-                </x-filament::button>
-            @endif
-            @if ($this->canViewWorkspaces())
+            @php $primary = $this->primaryAction(); @endphp
+            <x-filament::button
+                tag="a"
+                href="{{ $primary['url'] }}"
+                icon="{{ $hasProjects ? 'heroicon-o-arrow-right' : 'heroicon-o-plus' }}"
+            >
+                {{ $primary['label'] }}
+            </x-filament::button>
+
+            {{-- Secondary stays visually secondary (§C1). --}}
+            @if ($hasProjects && $this->canViewWorkspaces())
                 <x-filament::button
                     tag="a"
                     color="gray"
@@ -56,72 +54,29 @@
         </div>
     </header>
 
-    @if (! $pulse->hasAnyProject())
-        {{-- First-run empty state: explains WHY a project exists (§32).
-             Both v0.3.0 primary actions are preserved — "Create new project"
-             AND "Import existing project" — because a fresh install may be
-             bringing an existing backend rather than starting one. --}}
-        <div class="nx-empty">
-            <div class="nx-empty__icon">
-                <x-filament::icon icon="heroicon-o-square-3-stack-3d" class="h-6 w-6" />
-            </div>
-            <h2 class="nx-empty__title">{{ __('home.empty_title') }}</h2>
-            <p class="nx-empty__body">
-                {{ __('home.empty_body') }}
-            </p>
-            @if ($this->canCreateProject())
-                <div class="nx-empty__actions">
-                    <x-filament::button
-                        tag="a"
-                        href="{{ \App\Filament\Pages\NewProjectWizard::getUrl() }}"
-                        icon="heroicon-o-plus"
-                    >
-                        {{ __('home.create_new_project') }}
-                    </x-filament::button>
-                    <x-filament::button
-                        tag="a"
-                        color="gray"
-                        href="{{ \App\Filament\Pages\OnboardingWizard::getUrl(['start' => 'import']) }}"
-                        icon="heroicon-o-arrow-down-tray"
-                    >
-                        {{ __('home.import_existing_project') }}
-                    </x-filament::button>
-                </div>
-            @endif
-        </div>
+    @if (! $hasProjects)
+        {{-- 2b. First-run Home (§C9): headline, one sentence, ONE action. --}}
+        <x-nx.empty-state
+            icon="heroicon-o-square-3-stack-3d"
+            :title="__('home.empty_title')"
+            :body="__('home.empty_body')"
+            :actionUrl="\App\Filament\Pages\NewProjectWizard::getUrl()"
+            :actionLabel="__('home.cta_connect_first')"
+            :secondaryUrl="\App\Filament\Pages\OnboardingWizard::getUrl()"
+            :secondaryLabel="__('home.learn_how')"
+        />
     @else
-        {{-- 2. Summary. Five figures, each with context, never a bare number. --}}
-        @if ($ui['home.summary']['visibility'] ?? true)
-            <div
-                class="nx-grid nx-grid--stats @if (($ui['home.summary']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['home.summary']['density'] }} @endif"
-                data-nx-inspect="home.summary"
-                data-nx-inspect-label="Summary figures"
-            >
-                @foreach ($summary as $item)
-                    <div class="nx-stat-card">
-                        <span class="nx-stat-card__label">{{ $item['label'] }}</span>
-                        <span @class(['nx-stat-card__value', $this->toneClass($item['tone'])])>
-                            {{ $item['value'] }}
-                        </span>
-                        <span class="nx-stat-card__hint">{{ $item['hint'] }}</span>
-                    </div>
-                @endforeach
-            </div>
-        @endif
-
-        {{-- 3. What requires attention — before anything that is merely running. --}}
-        @if ($ui['home.attention']['visibility'] ?? true)
-            <section class="nx-section" data-nx-inspect="home.attention" data-nx-inspect-label="Needs attention">
-                <h2 class="nx-section__title">{{ __('home.needs_attention') }}</h2>
-
-            @if ($attention->isEmpty())
-                <div class="nx-empty nx-empty--inline">
-                    <x-filament::icon icon="heroicon-o-check-circle" class="h-5 w-5" />
-                    <p class="nx-empty__body">{{ __('home.attention_empty') }}</p>
+        {{-- 2. Needs attention — the highest-priority content when non-empty. --}}
+        <section class="nx-section" data-nx-inspect="home.attention" data-nx-inspect-label="Needs attention">
+            @if ($attention['items']->isEmpty())
+                {{-- All clear is a quiet line, not a card (§C2). --}}
+                <div class="nx-allclear">
+                    <x-filament::icon icon="heroicon-o-check-circle" class="h-4 w-4" />
+                    <span>{{ __('home.all_clear_line') }}</span>
                 </div>
             @else
                 <ul class="nx-attention">
-                    @foreach ($attention as $row)
+                    @foreach ($attention['items'] as $row)
                         <li @class([
                             'nx-attention__item',
                             'nx-attention__item--danger' => $row['state'] === \App\Services\Product\JourneyState::BLOCKED,
@@ -129,131 +84,119 @@
                         ])>
                             <x-filament::icon :icon="$row['state']->icon()" class="h-4 w-4" />
                             <div>
-                                <strong>{{ $row['project']->name }} — {{ $row['reason'] }}</strong>
-                                <p>{{ $row['state']->label() }}</p>
+                                <strong>{{ $row['reason'] }}</strong>
+                                {{-- The SPECIFIC reason — never the state word twice (§C2). --}}
+                                <p>{{ $row['detail'] !== '' ? $row['detail'] : ($row['project']?->name ?? '') }}</p>
+                                @if ($row['project'])
+                                    <span class="nx-attention__project">{{ $row['project']->name }}</span>
+                                @endif
                             </div>
                             @if ($row['url'])
-                                <a class="nx-link" href="{{ $row['url'] }}">{{ __('home.open') }} →</a>
+                                <a class="nx-link" href="{{ $row['url'] }}">{{ __('home.cta_review_issue') }} →</a>
                             @endif
                         </li>
                     @endforeach
                 </ul>
+                @if ($attention['total'] > count($attention['items']))
+                    <a class="nx-link nx-section__more" href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('index') }}">
+                        {{ trans_choice('home.attention_view_all', $attention['total'], ['count' => $attention['total']]) }} →
+                    </a>
+                @endif
             @endif
+        </section>
+
+        {{-- 3. Continue where you left off — deterministic, hidden when nothing to resume. --}}
+        @if ($continue !== null && $continue['url'])
+            <section class="nx-section" data-nx-inspect="home.continue" data-nx-inspect-label="Continue where you left off">
+                <div class="nx-continue">
+                    <span class="nx-continue__icon" aria-hidden="true">
+                        <x-filament::icon icon="heroicon-o-play" class="h-5 w-5" />
+                    </span>
+                    <div class="nx-continue__text">
+                        <strong>{{ $continue['project']->name }}</strong>
+                        <p>
+                            {{ __('home.continue_context', [
+                                'stage' => $continue['stage']->label(),
+                                'when' => $continue['at']?->diffForHumans() ?? __('home.continue_recently'),
+                            ]) }}
+                        </p>
+                    </div>
+                    <a class="nx-btn" href="{{ $continue['url'] }}">{{ __('home.cta_continue') }}</a>
+                </div>
             </section>
         @endif
 
-        {{-- 4. What is running. --}}
-        @if ($pulse->activeMigrationCount() > 0 || $readyForCutover->isNotEmpty())
-            <section class="nx-section">
-                <h2 class="nx-section__title">{{ __('home.in_flight') }}</h2>
-
-                @if ($pulse->activeMigrationCount() > 0)
-                    <p class="nx-section__description">
-                        {{ trans_choice('home.transfers_running', $pulse->activeMigrationCount(), ['count' => $pulse->activeMigrationCount()]) }}
-                    </p>
-                @endif
-
-                @if ($readyForCutover->isNotEmpty())
-                    <ul class="nx-attention">
-                        @foreach ($readyForCutover as $project)
-                            <li class="nx-attention__item nx-attention__item--info">
-                                <x-filament::icon icon="heroicon-o-check-circle" class="h-4 w-4" />
-                                <div>
-                                    <strong>{{ __('home.ready_for_cutover_line', ['name' => $project->name]) }}</strong>
-                                    <p>{{ __('home.ready_for_cutover_body') }}</p>
-                                </div>
-                                <a class="nx-link"
-                                   href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('readiness', ['record' => $project]) }}">
-                                    {{ __('home.review_cutover') }} →
-                                </a>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-            </section>
-        @endif
-
-        {{-- 5. Recent projects. --}}
-        @if ($ui['home.recent_projects']['visibility'] ?? true)
-            <section
-                class="nx-section @if (($ui['home.recent_projects']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['home.recent_projects']['density'] }} @endif"
-                data-nx-inspect="home.recent_projects"
-                data-nx-inspect-label="Recent projects"
-            >
-                <h2 class="nx-section__title">{{ __('home.recent_projects') }}</h2>
+        {{-- 4. Projects — a compact summary, not the Projects page (§C4). --}}
+        @if ($projects->isNotEmpty())
+            <section class="nx-section" data-nx-inspect="home.recent_projects" data-nx-inspect-label="Projects">
+                <h2 class="nx-section__title">{{ __('home.projects_title') }}</h2>
                 <ul class="nx-list">
-                    @foreach ($projects->take(6) as $project)
-                        @php $p = \App\Services\Product\ProjectPulse::for($project); @endphp
+                    @foreach ($projects as $row)
                         <li>
-                            <a href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $project]) }}">
-                                <span class="nx-list__name">{{ $project->name }}</span>
-                                <span class="nx-tag">{{ strtoupper($project->environment ?? 'local') }}</span>
-                                <span @class(['nx-status', $this->statusClass($p->overallState())])>
-                                    <x-filament::icon :icon="$p->overallState()->icon()" class="h-3.5 w-3.5" />
-                                    {{ $p->overallState()->label() }}
+                            <a href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $row['project']]) }}">
+                                <span class="nx-list__name">{{ $row['project']->name }}</span>
+                                @if ($row['workspace'])
+                                    <span class="nx-list__hint">{{ $row['workspace'] }}</span>
+                                @endif
+                                <span class="nx-tag">{{ strtoupper($row['project']->environment ?? 'local') }}</span>
+                                <span class="nx-list__hint">{{ $row['stage']->label() }}</span>
+                                <span @class(['nx-status', $this->statusClass($row['state'])])>
+                                    <x-filament::icon :icon="$row['state']->icon()" class="h-3.5 w-3.5" />
+                                    {{ $row['state']->label() }}
                                 </span>
-                                <span class="nx-list__hint">{{ $p->progressPercent() }}%</span>
+                                <span class="nx-list__hint">{{ $row['progress'] }}%</span>
                             </a>
                         </li>
                     @endforeach
                 </ul>
+                <a class="nx-link nx-section__more" href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('index') }}">
+                    {{ __('home.projects_view_all') }} →
+                </a>
             </section>
         @endif
 
-        {{-- 6. Infrastructure LAST, and in product language (§7/§14). --}}
-        @if ($ui['home.platform_health']['visibility'] ?? true)
-            <section class="nx-section" data-nx-inspect="home.platform_health" data-nx-inspect-label="Platform health">
-                <h2 class="nx-section__title">{{ __('home.platform_health') }}</h2>
-            <div class="nx-grid nx-grid--stats">
-                <div class="nx-stat-card">
-                    <span class="nx-stat-card__label">{{ __('home.backups_taken') }}</span>
-                    <span class="nx-stat-card__value">{{ $backups['taken'] }}</span>
-                    <span class="nx-stat-card__hint">
-                        @if ($backups['never'] > 0)
-                            {{ trans_choice('home.backups_never', $backups['never'], ['count' => $backups['never']]) }}
-                        @else
-                            {{ $backups['last'] ? __('home.backups_last', ['when' => $backups['last']]) : __('home.backups_no_runs') }}
-                        @endif
-                    </span>
-                </div>
-                <div class="nx-stat-card">
-                    <span class="nx-stat-card__label">{{ __('home.backups_needing_review') }}</span>
-                    <span @class(['nx-stat-card__value', 'nx-stat-card__value--warning' => $backups['stale'] + $backups['unverified'] > 0])>
-                        {{ $backups['stale'] + $backups['unverified'] }}
-                    </span>
-                    <span class="nx-stat-card__hint">
-                        {{ __('home.backups_old', ['count' => $backups['stale']]) }} · {{ __('home.backups_not_restore_tested', ['count' => $backups['unverified']]) }}
-                    </span>
-                </div>
-            </div>
+        {{-- 5. Recent activity — human sentences, context, relative time (§C6). --}}
+        @if ($this->canViewActivity())
+            <section class="nx-section">
+                <h2 class="nx-section__title">{{ __('home.recent_activity') }}</h2>
+                @if ($activity->isEmpty())
+                    <div class="nx-empty nx-empty--inline">
+                        <p class="nx-empty__body">{{ __('home.activity_empty') }}</p>
+                    </div>
+                @else
+                    <ul class="nx-timeline">
+                        @foreach ($activity as $entry)
+                            <li class="nx-timeline__row">
+                                <span class="nx-timeline__time" title="{{ $entry['at']?->format('M j, H:i') ?? '' }}">
+                                    {{ $entry['at']?->diffForHumans() ?? '—' }}
+                                </span>
+                                <span class="nx-timeline__what">
+                                    {{ \App\Support\ActivityHumanizer::humanize($entry['action']) }}@if ($entry['project']) · {{ $entry['project'] }}@endif
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                    <a class="nx-link nx-section__more" href="{{ \App\Filament\Resources\AuditLogResource::getUrl() }}">
+                        {{ __('home.activity_view_all') }} →
+                    </a>
+                @endif
             </section>
         @endif
 
-        {{-- 7. Activity. --}}
-        <section class="nx-section">
-            <h2 class="nx-section__title">{{ __('home.recent_activity') }}</h2>
-            @if ($activity->isEmpty())
-                <div class="nx-empty nx-empty--inline">
-                    <p class="nx-empty__body">
-                        {{ __('home.activity_empty') }}
-                    </p>
-                </div>
-            @else
-                <ul class="nx-timeline">
-                    @foreach ($activity as $entry)
-                        <li class="nx-timeline__row">
-                            <span class="nx-timeline__time">
-                                {{ $entry['at']?->format('M j, H:i') ?? '—' }}
-                            </span>
-                            <span class="nx-timeline__what">
-                                {{-- 0.6.0 Phase A (§A6): human sentences, not raw
-                                     audit verbs; the verb stays in audit detail. --}}
-                                {{ \App\Support\ActivityHumanizer::humanize($entry['action']) }}@if ($entry['project']) · {{ $entry['project'] }}@endif
-                            </span>
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
-        </section>
+        {{-- 6. System status — one quiet line, only when there is something true
+                to say (§C7/§C15). Degraded systems are promoted into attention. --}}
+        @if ($system['state'] === 'normal')
+            <p class="nx-systemline">
+                <x-filament::icon icon="heroicon-o-check-circle" class="h-3.5 w-3.5" />
+                {{ __('home.system_normal') }}
+                <a class="nx-link" href="{{ $this->systemUrl() }}">{{ __('home.system_details') }}</a>
+            </p>
+        @elseif ($system['state'] === 'degraded')
+            <p class="nx-systemline nx-systemline--degraded">
+                <x-filament::icon icon="heroicon-o-exclamation-triangle" class="h-3.5 w-3.5" />
+                {{ __('home.system_degraded') }}
+                <a class="nx-link" href="{{ $this->systemUrl() }}">{{ __('home.system_details') }}</a>
+            </p>
+        @endif
     @endif
 </x-filament-panels::page>

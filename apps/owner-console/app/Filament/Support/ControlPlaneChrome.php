@@ -23,10 +23,10 @@ class ControlPlaneChrome
     public const CSS_VERSION = '41.0.0';
 
     /** Bump when public/css/nexus.css changes (0.4.0 product design system). */
-    public const NEXUS_CSS_VERSION = '41.0.0';
+    public const NEXUS_CSS_VERSION = "41.0.0";
 
     /** Bump when public/css/foundation.css changes (0.6.0 product foundation). */
-    public const FOUNDATION_CSS_VERSION = '1.0.0';
+    public const FOUNDATION_CSS_VERSION = '1.1.0';
 
     /** Bump when public/js/nexus-inspect.js changes (0.4.0 Phase I). */
     public const INSPECT_JS_VERSION = '40.1.0';

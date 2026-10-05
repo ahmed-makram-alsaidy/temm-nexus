@@ -351,6 +351,93 @@ html.dark {
 
 /* ── 6. Phase B shell ───────────────────────────────────────────────────── */
 
+/* 6c. Home command center (Phase C): continue row, all-clear line, system line. */
+.nx-continue {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-4);
+    padding: var(--nx-space-4) var(--nx-space-5);
+    border: 1px solid var(--nx-border);
+    border-inline-start: 3px solid var(--nx-accent);
+    border-radius: var(--nx-radius);
+    background: var(--nx-surface);
+}
+
+.nx-continue__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--nx-radius-full);
+    background: color-mix(in srgb, var(--nx-accent) 12%, transparent);
+    color: var(--nx-accent);
+    flex-shrink: 0;
+}
+
+.nx-continue__text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.nx-continue__text strong {
+    font-size: var(--nx-text-card);
+    font-weight: 650;
+    color: var(--nx-text);
+}
+
+.nx-continue__text p {
+    color: var(--nx-text-muted);
+    font-size: var(--nx-text-secondary);
+}
+
+.nx-allclear {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    padding: var(--nx-space-2) 0;
+    color: var(--nx-text-muted);
+    font-size: var(--nx-text-body);
+}
+
+.nx-allclear svg {
+    color: var(--nx-success);
+}
+
+.nx-systemline {
+    display: flex;
+    align-items: center;
+    gap: var(--nx-space-2);
+    margin-top: var(--nx-space-8);
+    padding-top: var(--nx-space-4);
+    border-top: 1px solid var(--nx-border);
+    color: var(--nx-text-subtle);
+    font-size: var(--nx-text-secondary);
+}
+
+.nx-systemline svg {
+    color: var(--nx-success);
+}
+
+.nx-systemline--degraded svg {
+    color: var(--nx-warning);
+}
+
+.nx-section__more {
+    display: inline-block;
+    margin-top: var(--nx-space-3);
+    font-size: var(--nx-text-secondary);
+}
+
+html[dir='rtl'] .nx-continue {
+    border-inline-start: 1px solid var(--nx-border);
+    border-inline-end: 3px solid var(--nx-accent);
+}
+
+/* ── 6. Phase B shell (tab bars, hub) ───────────────────────────────────── */
+
 /* 6a. Project context: primary tabs + secondary row. Rendered at CONTENT_START
    on project-scoped pages. The platform sidebar stays quiet; the project gets
    its own contextual navigation. */

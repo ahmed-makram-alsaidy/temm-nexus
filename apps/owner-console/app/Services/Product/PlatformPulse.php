@@ -47,6 +47,9 @@ final class PlatformPulse
 
     private ?Collection $latestBackups = null;
 
+    /** 0.6.0 Phase C: one ProjectPulse per project per request (§C perf). */
+    private array $projectPulses = [];
+
     public function __construct(
         private readonly Access $access,
     ) {}
@@ -75,6 +78,17 @@ final class PlatformPulse
     public function hasAnyProject(): bool
     {
         return $this->projects()->isNotEmpty();
+    }
+
+    /**
+     * One ProjectPulse per project per request. Home composes several
+     * sections over the same projects; without this memo the same project's
+     * stored-state reads would run once per section per render.
+     */
+    public function pulseFor(Project $project): ProjectPulse
+    {
+        return $this->projectPulses[$project->id]
+            ??= ProjectPulse::for($project);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -146,29 +160,33 @@ final class PlatformPulse
     /**
      * Projects whose journey is blocked or degraded, most severe first.
      *
-     * @return Collection<int, array{project: Project, state: JourneyState, reason: string, url: ?string}>
+     * 0.6.0 Phase C (§C2): each item carries the problem's own human title
+     * AND its specific detail (never a duplicated state word), plus the
+     * canonical deep link from ProjectPulse so the action lands where the
+     * problem lives.
+     *
+     * @return Collection<int, array{project: Project, state: JourneyState, reason: string, detail: string, url: ?string}>
      */
     public function projectsNeedingAttention(): Collection
     {
         $out = collect();
 
         foreach ($this->projects() as $project) {
-            $pulse = ProjectPulse::for($project);
+            $pulse = $this->pulseFor($project);
             $state = $pulse->overallState();
 
             if (! in_array($state, [JourneyState::BLOCKED, JourneyState::NEEDS_ATTENTION], true)) {
                 continue;
             }
 
-            $reason = $pulse->blockers()[0]['title']
-                ?? $pulse->warnings()[0]['title']
-                ?? 'Something needs a look.';
+            $problem = $pulse->blockers()[0] ?? $pulse->warnings()[0] ?? null;
 
             $out->push([
                 'project' => $project,
                 'state' => $state,
-                'reason' => $reason,
-                'url' => $this->projectUrl($project),
+                'reason' => $problem['title'] ?? 'Something needs a look.',
+                'detail' => $problem['detail'] ?? '',
+                'url' => $problem['url'] ?? $this->projectUrl($project),
             ]);
         }
 
@@ -230,7 +248,7 @@ final class PlatformPulse
     {
         return $this->cutoverReadyProjects ??= $this->projects()
             ->filter(function (Project $project): bool {
-                $pulse = ProjectPulse::for($project);
+                $pulse = $this->pulseFor($project);
 
                 return $pulse->stageState(JourneyStage::CUTOVER) === JourneyState::READY
                     && $pulse->blockers() === [];
@@ -320,6 +338,148 @@ final class PlatformPulse
             'unverified' => $unverified,
             'never' => max(0, count($names) - $taken),
             'last' => $last?->diffForHumans(),
+        ];
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // 0.6.0 Phase C — Home command-center composition (§C3/§C4/§C7)
+    // ─────────────────────────────────────────────────────────────────
+
+    /**
+     * THE deterministic "Continue where you left off" target (§C3).
+     *
+     * Priority, from real persisted state only — never inferred activity:
+     *   1. The newest ACTIVE migration run in scope → resume the transfer.
+     *   2. The project with the most recent real event (audit trail) that is
+     *      not finished → resume at its current journey stage.
+     *   3. Nothing → the section is hidden. A project with no events has
+     *      nothing to resume.
+     *
+     * @return array{project: Project, stage: JourneyStage, at: ?CarbonInterface, url: ?string}|null
+     */
+    public function continueTarget(): ?array
+    {
+        // 1. An active transfer beats everything: the user is mid-migration.
+        $active = $this->activeRuns()
+            ->sortByDesc(fn ($run): int => (int) ($run->started_at ? strtotime((string) $run->started_at) : 0) * 1000 + (int) $run->id)
+            ->first();
+
+        if ($active) {
+            $project = $this->projects()->firstWhere('id', $active->project_id);
+            if ($project !== null) {
+                $pulse = $this->pulseFor($project);
+
+                return [
+                    'project' => $project,
+                    'stage' => $pulse->currentStage(),
+                    'at' => $active->started_at ? Carbon::parse($active->started_at) : null,
+                    'url' => $pulse->urlForStage($pulse->currentStage()),
+                ];
+            }
+        }
+
+        // 2. The most recent real event anywhere in scope.
+        try {
+            $entry = AdminAuditEntry::query()
+                ->whereIn('project_id', $this->projectIds())
+                ->orderByDesc('id')
+                ->first();
+        } catch (\Throwable) {
+            $entry = null;
+        }
+
+        if ($entry !== null) {
+            $project = $this->projects()->firstWhere('id', $entry->project_id);
+            if ($project !== null) {
+                $pulse = $this->pulseFor($project);
+                $stage = $pulse->currentStage();
+
+                // A journey that reached Cutover-complete has nothing to resume.
+                if (in_array($pulse->overallState(), [JourneyState::COMPLETE], true)) {
+                    return null;
+                }
+
+                return [
+                    'project' => $project,
+                    'stage' => $stage,
+                    'at' => $entry->created_at,
+                    'url' => $pulse->urlForStage($stage),
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The compact project rows for Home (§C4): attention first, then the
+     * most recently updated projects. No slug, no DB name, no API domain —
+     * those live on the project's own pages.
+     *
+     * @return Collection<int, array{project: Project, workspace: ?string, stage: JourneyStage, progress: int, state: JourneyState}>
+     */
+    public function projectSummaries(int $limit = 5): Collection
+    {
+        $attentionIds = $this->projectsNeedingAttention()->pluck('project.id')->all();
+
+        $ordered = $this->projects()
+            ->sortByDesc(fn (Project $p): int => in_array($p->id, $attentionIds, true) ? 1 : 0) // attention first
+            ->sortBy([ // stable: attention flag desc, then updated_at desc, then name
+                fn ($a, $b) => ((int) in_array($b->id, $attentionIds, true)) <=> ((int) in_array($a->id, $attentionIds, true)),
+                fn ($a, $b) => ($b->updated_at?->timestamp ?? 0) <=> ($a->updated_at?->timestamp ?? 0),
+                fn ($a, $b) => $a->name <=> $b->name,
+            ])
+            ->take($limit)
+            ->values();
+
+        $workspaceIds = $ordered->pluck('workspace_id')->filter()->unique()->values();
+        try {
+            $workspaceNames = $workspaceIds->isEmpty()
+                ? collect()
+                : \App\Models\Workspace::query()->whereIn('id', $workspaceIds)->pluck('name', 'id');
+        } catch (\Throwable) {
+            $workspaceNames = collect();
+        }
+
+        return $ordered->map(function (Project $project) use ($workspaceNames): array {
+            $pulse = $this->pulseFor($project);
+
+            return [
+                'project' => $project,
+                'workspace' => $workspaceNames[$project->workspace_id] ?? null,
+                'stage' => $pulse->currentStage(),
+                'progress' => $pulse->progressPercent(),
+                'state' => $pulse->overallState(),
+            ];
+        });
+    }
+
+    /**
+     * Real system status (§C7), from the stored infrastructure tables only —
+     * never a live probe during render. 'unknown' means nothing is
+     * registered, and Home stays silent rather than claim health (§C15).
+     *
+     * @return array{state: string, degraded: list<string>}
+     */
+    public function systemStatus(): array
+    {
+        try {
+            $facets = \App\Services\ControlPlane\InfrastructureHealthService::global()['facets'];
+        } catch (\Throwable) {
+            return ['state' => 'unknown', 'degraded' => []];
+        }
+
+        $known = array_filter($facets, fn ($status): bool => in_array($status, ['healthy', 'degraded', 'unhealthy', 'offline'], true));
+
+        if ($known === []) {
+            return ['state' => 'unknown', 'degraded' => []];
+        }
+
+        $degraded = array_keys(array_filter($known, fn ($status): bool => in_array($status, ['degraded', 'unhealthy', 'offline'], true)));
+
+        return [
+            'state' => $degraded === [] ? 'normal' : 'degraded',
+            'degraded' => array_values($degraded),
         ];
     }
 

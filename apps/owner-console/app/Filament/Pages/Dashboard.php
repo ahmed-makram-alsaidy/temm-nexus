@@ -6,25 +6,28 @@ use App\Filament\Support\PlatformAccess;
 use App\Services\Access\Capability;
 use App\Services\Product\JourneyState;
 use App\Services\Product\PlatformPulse;
-use App\Services\Product\UiPreferenceService;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Illuminate\Contracts\Support\Htmlable;
 
 /**
- * 0.4.0 Phase D — PLATFORM HOME (§7).
+ * 0.6.0 Phase C — HOME as a calm command center (audit §C1–§C15).
  *
- * The first screen answers, in this order:
- *   1. What requires attention?
- *   2. What is running?
- *   3. What should I do next?
+ * Priority order on the page:
+ *   1. Platform state (one sentence, one primary action)
+ *   2. Needs attention (max 3, quiet "all clear" when empty)
+ *   3. Continue where you left off (deterministic, hidden when nothing to resume)
+ *   4. Projects (≤ 5 compact rows)
+ *   5. Recent activity (5 humanized events)
+ *   6. System status (one quiet line; degraded → promoted into attention)
  *
- * v0.3.0 led with infrastructure ("DB STORAGE", "LAST BACKUP") above anything
- * user-relevant. Here infrastructure is demoted to the last section and
- * summarised in product language.
+ * What is GONE: the permanent five-card KPI grid (zero metrics consumed the
+ * fold) and the two always-on backup cards (backups surface only when a
+ * backup actually needs attention — through the project warnings).
  *
- * Every figure comes from `PlatformPulse`, which is scoped to
- * `Access::accessibleProjects()` — so a summary can never count a project the
- * viewer cannot open.
+ * Every figure still comes from `PlatformPulse`, scoped to
+ * `Access::accessibleProjects()` — a viewer is never shown state, counts or
+ * CTAs their capabilities do not cover, and each section degrades
+ * independently: one unavailable source must never 500 the Home.
  */
 class Dashboard extends BaseDashboard
 {
@@ -59,24 +62,185 @@ class Dashboard extends BaseDashboard
         return $this->pulse ??= PlatformPulse::for(PlatformAccess::current()->access());
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // The one primary action (§C1): exactly one, context-sensitive.
+    // ─────────────────────────────────────────────────────────────────
+
     /**
-     * Phase I — this user's effective appearance preferences for the Home
-     * components, in one query. The view applies visibility and density from
-     * this; the Inspect panel writes them.
-     *
-     * @return array<string, array<string, mixed>>
+     * @return array{label: string, url: string}
      */
-    public function uiPreferences(): array
+    public function primaryAction(): array
     {
-        return UiPreferenceService::for(auth()->user())->effectiveForComponents([
-            'home.hero',
-            'home.summary',
-            'home.attention',
-            'home.recent_projects',
-            'home.platform_health',
-        ]);
+        $pulse = $this->pulse();
+
+        // No projects yet: the one thing worth doing is connecting one.
+        if (! $pulse->hasAnyProject()) {
+            if ($this->canCreateProject()) {
+                return ['label' => __('home.cta_connect_first'), 'url' => NewProjectWizard::getUrl()];
+            }
+
+            // A viewer on an empty platform has nothing to create — point
+            // them at the projects they can see (still one honest action).
+            return ['label' => __('home.cta_open_projects'), 'url' => $this->projectsUrl()];
+        }
+
+        // Attention exists: reviewing it is the action.
+        $attention = $this->safeSection(fn () => $pulse->projectsNeedingAttention());
+        if ($attention->isNotEmpty()) {
+            $first = $attention->first();
+
+            return [
+                'label' => __('home.cta_review_issues'),
+                'url' => $first['url'] ?? $this->projectsUrl(),
+            ];
+        }
+
+        // A migration is running: continue it.
+        if ($pulse->activeMigrationCount() > 0) {
+            $continue = $this->safeSection(fn () => $pulse->continueTarget());
+            if ($continue !== null) {
+                return ['label' => __('home.cta_continue_migration'), 'url' => $continue['url'] ?? $this->projectsUrl()];
+            }
+        }
+
+        // Ready for cutover: go verify.
+        $ready = $this->safeSection(fn () => $pulse->readyForCutoverProjects());
+        if ($ready->isNotEmpty()) {
+            $first = $ready->first();
+
+            return [
+                'label' => __('home.cta_verify_migration'),
+                'url' => \App\Services\Product\ProjectPulse::for($first)->urlForStage(\App\Services\Product\JourneyStage::CUTOVER)
+                    ?? $this->projectsUrl(),
+            ];
+        }
+
+        // Everything healthy: the default good action is starting the next
+        // migration (or, without that capability, the projects list).
+        if ($this->canCreateProject()) {
+            return ['label' => __('home.cta_new_migration'), 'url' => NewProjectWizard::getUrl()];
+        }
+
+        return ['label' => __('home.cta_open_projects'), 'url' => $this->projectsUrl()];
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // Section data — each section fails alone (§ERRORS)
+    // ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Run a section data builder; a failing secondary source yields an empty
+     * result instead of a 500 Home.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $build
+     * @return T|mixed
+     */
+    public function safeSection(callable $build): mixed
+    {
+        try {
+            return $build();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Needs attention (§C2): max 3 with the problem's own detail, plus the
+     * total so the view can offer "View all". A degraded SYSTEM (§C7) is
+     * promoted into this list ahead of project items, with "View system
+     * details" as its action — infrastructure never becomes a telemetry card.
+     *
+     * @return array{items: mixed, total: int}
+     */
+    public function attention(): array
+    {
+        $items = $this->safeSection(fn () => $this->pulse()->projectsNeedingAttention());
+
+        $list = $items === null ? collect() : $items;
+
+        $system = $this->systemStatus();
+        if ($system['state'] === 'degraded') {
+            $facets = implode(', ', $system['degraded']);
+            $list = collect([[
+                'project' => null,
+                'state' => JourneyState::NEEDS_ATTENTION,
+                'reason' => __('home.system_attention_title'),
+                'detail' => __('home.system_attention_body', ['facets' => $facets]),
+                'url' => $this->systemUrl(),
+            ]])->merge($list);
+        }
+
+        return ['items' => $list->take(3), 'total' => $list->count()];
+    }
+
+    /**
+     * Continue where you left off (§C3). Hidden (null) when there is no
+     * meaningful, real state to resume.
+     *
+     * @return array{project: mixed, stage: mixed, at: mixed, url: ?string}|null
+     */
+    public function continueTarget(): ?array
+    {
+        if (! $this->pulse()->hasAnyProject()) {
+            return null;
+        }
+
+        return $this->safeSection(fn () => $this->pulse()->continueTarget());
+    }
+
+    /**
+     * Compact project rows (§C4): ≤ 5, attention first, no infrastructure fields.
+     */
+    public function projectSummaries(): mixed
+    {
+        return $this->safeSection(fn () => $this->pulse()->projectSummaries(5));
+    }
+
+    /**
+     * Recent activity (§C6): 5 humanized events (the view humanizes), with
+     * the section only for users who may reach the Activity destination.
+     */
+    public function recentActivity(): mixed
+    {
+        return $this->safeSection(fn () => $this->pulse()->recentActivity(5));
+    }
+
+    public function canViewActivity(): bool
+    {
+        return PlatformAccess::current()->allowsPlatform(Capability::AUDIT_VIEW);
+    }
+
+    /**
+     * System status (§C7): one quiet line for infrastructure viewers; a
+     * degraded system is promoted into the attention list instead of a
+     * telemetry card.
+     *
+     * @return array{state: string, degraded: array<int, string>}
+     */
+    public function systemStatus(): array
+    {
+        if (! PlatformAccess::current()->allowsPlatform(Capability::INFRASTRUCTURE_VIEW)) {
+            return ['state' => 'unknown', 'degraded' => []];
+        }
+
+        $status = $this->safeSection(fn () => $this->pulse()->systemStatus());
+
+        return $status ?? ['state' => 'unknown', 'degraded' => []];
+    }
+
+    public function systemUrl(): string
+    {
+        try {
+            return InfraHealth::getUrl();
+        } catch (\Throwable) {
+            return '/admin/settings';
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Helpers
     // ─────────────────────────────────────────────────────────────────
 
     public function greeting(): string
@@ -163,21 +327,18 @@ class Dashboard extends BaseDashboard
         return PlatformAccess::current()->allowsPlatform(Capability::AI_USE);
     }
 
-    /** Tone class for a summary card. */
-    public function toneClass(string $tone): string
-    {
-        return match ($tone) {
-            'success' => 'nx-stat-card__value--success',
-            'warning' => 'nx-stat-card__value--warning',
-            'danger' => 'nx-stat-card__value--danger',
-            'info' => 'nx-stat-card__value--info',
-            default => '',
-        };
-    }
-
     /** Status modifier for a journey state. */
     public function statusClass(JourneyState $state): string
     {
         return 'nx-status--'.$state->tone();
+    }
+
+    private function projectsUrl(): string
+    {
+        try {
+            return \App\Filament\Resources\Projects\ProjectResource::getUrl('index');
+        } catch (\Throwable) {
+            return '/admin/projects';
+        }
     }
 }

@@ -48,6 +48,36 @@ return [
 
     'recent_activity' => 'النشاط الأخير',
     'activity_empty' => 'لا يوجد نشاط مسجل بعد. ستظهر هنا الإجراءات المتخذة في مشاريعك.',
+
+    // ── الصفحة الرئيسية كمركز قيادة — المرحلة ج من 0.6.0 (§C1–§C15) ─────
+    'cta_connect_first' => 'اربط أول مشروع',
+    'cta_review_issues' => 'مراجعة الملاحظات',
+    'cta_review_issue' => 'مراجعة',
+    'cta_continue_migration' => 'متابعة الترحيل',
+    'cta_continue' => 'متابعة',
+    'cta_verify_migration' => 'التحقق من الترحيل',
+    'cta_new_migration' => 'بدء ترحيل',
+    'cta_open_projects' => 'فتح المشاريع',
+    'learn_how' => 'تعرّف على كيفية عمل TEMM',
+
+    'all_clear_line' => 'كل شيء على ما يرام — لا توجد مشاريع تحتاج انتباهك الآن.',
+    'attention_view_all' => '{1} عرض المشروع الوحيد الذي يحتاج انتباهًا|[2,*] عرض كل الـ :count مشاريع التي تحتاج انتباهًا',
+
+    'continue_context' => ':stage · آخر نشاط :when',
+    'continue_recently' => 'حديثًا',
+
+    'projects_title' => 'المشاريع',
+    'projects_view_all' => 'كل المشاريع',
+
+    'activity_view_all' => 'عرض كل النشاط',
+
+    'system_attention_title' => 'صحة النظام تحتاج انتباهًا',
+    'system_attention_body' => 'أحد مكونات المنصّة أو أكثر يبلغ عن حالة متدهورة (:facets).',
+    'system_normal' => 'جميع الأنظمة تعمل بشكل طبيعي.',
+    'system_degraded' => 'صحة النظام تحتاج انتباهًا.',
+    'system_details' => 'عرض تفاصيل النظام',
+
+    // مفاتيح الملخص القديمة (محفوظة لتفضيلات العرض المخزّنة؛ لم تعد تُعرض).
     'summary_projects' => 'المشاريع',
     'summary_healthy' => 'سليم',
     'summary_active_migrations' => 'ترحيلات نشطة',

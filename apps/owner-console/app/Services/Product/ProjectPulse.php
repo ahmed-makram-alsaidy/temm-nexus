@@ -43,6 +43,36 @@ final class ProjectPulse
     /** A backup older than this raises attention. */
     public const BACKUP_STALE_HOURS = 26;
 
+    /** 0.6.0 Phase C — per-instance read-through caches (§C performance).
+     * One Home render composes several sections over the same project;
+     * without these, each journey() recomputation re-queried every
+     * subsystem. Nothing is cached ACROSS requests. */
+    private ?Collection $sourcesCache = null;
+
+    private ?Collection $runsCache = null;
+
+    private ?Collection $checksCache = null;
+
+    private ?MigrationAnalysis $analysisCache = null;
+
+    private bool $analysisResolved = false;
+
+    private ?MigrationPlan $planCache = null;
+
+    private bool $planResolved = false;
+
+    private ?CutoverPlan $cutoverPlanCache = null;
+
+    private bool $cutoverPlanResolved = false;
+
+    private ?BackupRecord $backupCache = null;
+
+    private bool $backupResolved = false;
+
+    private ?object $checkpointCache = null;
+
+    private bool $checkpointResolved = false;
+
     public function __construct(
         private readonly Project $project,
     ) {}
@@ -145,6 +175,16 @@ final class ProjectPulse
             JourneyStage::VALIDATE => $this->validateDetail(),
             JourneyStage::CUTOVER => $this->cutoverDetail(),
         };
+    }
+
+    /**
+     * 0.6.0 Phase C — public access to the canonical journey→URL mapping.
+     * Home's "Continue where you left off" reuses THIS mapping (§C14: one
+     * interpretation layer) instead of deriving its own destinations.
+     */
+    public function urlForStage(JourneyStage $stage): ?string
+    {
+        return $this->stageUrl($stage);
     }
 
     private function stageUrl(JourneyStage $stage): ?string
@@ -585,7 +625,7 @@ final class ProjectPulse
 
     private function sources(): Collection
     {
-        return $this->safe(
+        return $this->sourcesCache ??= $this->safe(
             fn () => MigrationSource::query()->where('project_id', $this->project->id)->get(),
             new Collection,
         );
@@ -593,23 +633,33 @@ final class ProjectPulse
 
     private function latestAnalysis(): ?MigrationAnalysis
     {
-        return $this->safe(fn () => MigrationAnalysis::query()
-            ->where('project_id', $this->project->id)
-            ->latest('id')
-            ->first());
+        if (! $this->analysisResolved) {
+            $this->analysisCache = $this->safe(fn () => MigrationAnalysis::query()
+                ->where('project_id', $this->project->id)
+                ->latest('id')
+                ->first());
+            $this->analysisResolved = true;
+        }
+
+        return $this->analysisCache;
     }
 
     private function latestPlan(): ?MigrationPlan
     {
-        return $this->safe(fn () => MigrationPlan::query()
-            ->where('project_id', $this->project->id)
-            ->latest('id')
-            ->first());
+        if (! $this->planResolved) {
+            $this->planCache = $this->safe(fn () => MigrationPlan::query()
+                ->where('project_id', $this->project->id)
+                ->latest('id')
+                ->first());
+            $this->planResolved = true;
+        }
+
+        return $this->planCache;
     }
 
     private function runs(): Collection
     {
-        return $this->safe(
+        return $this->runsCache ??= $this->safe(
             fn () => MigrationRun::query()
                 ->where('project_id', $this->project->id)
                 ->latest('id')
@@ -625,7 +675,13 @@ final class ProjectPulse
 
     private function checkpoint(): ?object
     {
-        return $this->safe(function () {
+        if ($this->checkpointResolved) {
+            return $this->checkpointCache;
+        }
+
+        $this->checkpointResolved = true;
+
+        return $this->checkpointCache = $this->safe(function () {
             $runIds = $this->runs()->pluck('id');
             if ($runIds->isEmpty()) {
                 return null;
@@ -640,7 +696,7 @@ final class ProjectPulse
 
     private function readinessChecks(): Collection
     {
-        return $this->safe(
+        return $this->checksCache ??= $this->safe(
             fn () => ReadinessCheck::query()->where('project_id', $this->project->id)->get(),
             new Collection,
         );
@@ -657,18 +713,28 @@ final class ProjectPulse
 
     private function cutoverPlan(): ?CutoverPlan
     {
-        return $this->safe(fn () => CutoverPlan::query()
-            ->where('project_id', $this->project->id)
-            ->latest('id')
-            ->first());
+        if (! $this->cutoverPlanResolved) {
+            $this->cutoverPlanCache = $this->safe(fn () => CutoverPlan::query()
+                ->where('project_id', $this->project->id)
+                ->latest('id')
+                ->first());
+            $this->cutoverPlanResolved = true;
+        }
+
+        return $this->cutoverPlanCache;
     }
 
     private function latestBackup(): ?BackupRecord
     {
-        return $this->safe(fn () => BackupRecord::query()
-            ->where('db_name', $this->project->db_name)
-            ->latest('finished_at')
-            ->first());
+        if (! $this->backupResolved) {
+            $this->backupCache = $this->safe(fn () => BackupRecord::query()
+                ->where('db_name', $this->project->db_name)
+                ->latest('finished_at')
+                ->first());
+            $this->backupResolved = true;
+        }
+
+        return $this->backupCache;
     }
 
     /**
