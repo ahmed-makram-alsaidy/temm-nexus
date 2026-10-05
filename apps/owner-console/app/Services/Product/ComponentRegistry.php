@@ -51,14 +51,14 @@ final class ComponentRegistry
             'description' => 'The greeting, the one-sentence platform state, and the primary call to action.',
             'adjustments' => ['density'],
         ],
-        'home.summary' => [
-            'label' => 'Summary figures',
+        'home.continue' => [
+            'label' => 'Continue where you left off',
             'page' => 'Home',
             'scope' => 'platform',
-            'data_source' => 'PlatformPulse::summary() — scoped to your reachable projects',
+            'data_source' => 'PlatformPulse::continueTarget() — newest active run or latest real event',
             'capability' => 'ai.use',
-            'description' => 'The five headline numbers: projects, active migrations, live syncs, ready for cutover, needs attention.',
-            'adjustments' => ['visibility', 'density'],
+            'description' => 'The one project worth resuming, with its journey stage and last real activity.',
+            'adjustments' => ['visibility'],
         ],
         'home.attention' => [
             'label' => 'Needs attention',
@@ -78,13 +78,13 @@ final class ComponentRegistry
             'description' => 'The projects you can reach, with environment, overall state, and migration progress.',
             'adjustments' => ['visibility', 'density'],
         ],
-        'home.platform_health' => [
-            'label' => 'Platform health',
+        'home.activity' => [
+            'label' => 'Recent activity',
             'page' => 'Home',
             'scope' => 'platform',
-            'data_source' => 'PlatformPulse::backupSummary()',
-            'capability' => 'backups.view',
-            'description' => 'Backup coverage across your projects, in product language.',
+            'data_source' => 'PlatformPulse::recentActivity() — humanized audit events',
+            'capability' => 'audit.view',
+            'description' => 'The latest real events in your projects, in human sentences.',
             'adjustments' => ['visibility'],
         ],
 

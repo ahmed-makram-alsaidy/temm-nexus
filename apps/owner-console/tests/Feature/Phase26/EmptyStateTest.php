@@ -20,8 +20,10 @@ class EmptyStateTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('No projects yet', false);
-        $response->assertSee('Create new project', false);
-        $response->assertSee('Import existing project', false);
+        // 0.6.0 Phase C (§C9): ONE primary action, into the guided wizard.
+        $response->assertSee(__('home.cta_connect_first'), false);
+        $response->assertSee(\App\Filament\Pages\NewProjectWizard::getUrl(), false);
+        $response->assertSee(__('home.learn_how'), false);
         $response->assertSee('v'.config('platform.version'), false);
         // A fresh instance must not display private/customer artifacts.
         foreach (['sample-project', 'Template API (gate proof)', 'demo customer'] as $forbidden) {

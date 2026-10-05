@@ -62,6 +62,25 @@ class Dashboard extends BaseDashboard
         return $this->pulse ??= PlatformPulse::for(PlatformAccess::current()->access());
     }
 
+    /**
+     * Phase I — this user's effective appearance preferences for the Home
+     * sections, in one query. The view applies visibility/density from this;
+     * the Inspect panel writes them. 0.6.0 Phase C keys follow the new
+     * section structure.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function uiPreferences(): array
+    {
+        return \App\Services\Product\UiPreferenceService::for(auth()->user())->effectiveForComponents([
+            'home.hero',
+            'home.attention',
+            'home.continue',
+            'home.recent_projects',
+            'home.activity',
+        ]);
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // The one primary action (§C1): exactly one, context-sensitive.
     // ─────────────────────────────────────────────────────────────────

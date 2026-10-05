@@ -106,18 +106,20 @@ class InspectModeTest extends TestCase
         // The validate() contract the client-side key path relies on.
         $this->assertNull(ComponentRegistry::validate('made.up.component'));
         $this->assertNull(ComponentRegistry::validate('home.summary; DROP TABLE users'));
-        $this->assertSame('home.summary', ComponentRegistry::validate('home.summary'));
+        // 0.6.0 Phase C: the summary grid was replaced by the continue section.
+        $this->assertNull(ComponentRegistry::validate('home.summary'), 'Removed components must stop validating');
+        $this->assertSame('home.continue', ComponentRegistry::validate('home.continue'));
     }
 
     // ── Server-side authorisation of a selection ───────────────────────
 
     public function test_a_platform_owner_may_inspect_platform_components(): void
     {
-        $resolved = InspectionContext::resolve('home.summary', Access::for($this->platformOwner));
+        $resolved = InspectionContext::resolve('home.continue', Access::for($this->platformOwner));
 
         $this->assertNotNull($resolved);
-        $this->assertSame('home.summary', $resolved->componentKey);
-        $this->assertSame('Summary figures', $resolved->label);
+        $this->assertSame('home.continue', $resolved->componentKey);
+        $this->assertSame('Continue where you left off', $resolved->label);
     }
 
     public function test_a_project_component_requires_a_reachable_project(): void
@@ -180,7 +182,7 @@ class InspectModeTest extends TestCase
     {
         // alphaDevOnWeb holds ai.use INSIDE his project only, not platform-wide.
         $this->assertNull(
-            InspectionContext::resolve('home.summary', Access::for($this->alphaDevOnWeb)),
+            InspectionContext::resolve('home.continue', Access::for($this->alphaDevOnWeb)),
             'A project-scoped developer inspected a platform component.'
         );
     }
@@ -191,16 +193,16 @@ class InspectModeTest extends TestCase
     {
         $page = $this->aiPage($this->platformOwner);
 
-        $page->attachComponent('home.summary');
+        $page->attachComponent('home.continue');
 
-        $this->assertSame('home.summary', $page->inspectComponentKey);
+        $this->assertSame('home.continue', $page->inspectComponentKey);
         $this->assertNotNull($page->inspection());
 
         // The attach is audited.
         $attached = AdminAuditEntry::query()
             ->where('action', 'AI_INSPECT_CONTEXT_ATTACHED')
             ->get()
-            ->first(fn (AdminAuditEntry $e) => ($e->metadata['component_key'] ?? null) === 'home.summary');
+            ->first(fn (AdminAuditEntry $e) => ($e->metadata['component_key'] ?? null) === 'home.continue');
         $this->assertNotNull($attached, 'Attaching a component was not audited.');
     }
 
@@ -224,7 +226,7 @@ class InspectModeTest extends TestCase
         // Setting the Livewire public property directly is exactly what a
         // tampering client would do. The resolution must still fail closed.
         $page = $this->aiPage($this->alphaDevOnWeb, $this->alphaWeb->getKey());
-        $page->inspectComponentKey = 'home.summary';
+        $page->inspectComponentKey = 'home.continue';
 
         $this->assertNull($page->inspection(), 'A client-set property bypassed authorisation.');
     }
@@ -257,7 +259,7 @@ class InspectModeTest extends TestCase
         FakeAiDriver::$script = ['responses' => ['Explained.']];
 
         $context = AiContext::platform(Access::for($this->platformOwner));
-        $inspection = InspectionContext::resolve('home.summary', Access::for($this->platformOwner));
+        $inspection = InspectionContext::resolve('home.continue', Access::for($this->platformOwner));
 
         $engine = new ConversationEngine($context, new ModelRouter, $inspection);
         $result = $engine->turn('Explain this component.');
@@ -266,9 +268,9 @@ class InspectModeTest extends TestCase
 
         $systemPrompt = FakeAiDriver::$lastComplete['messages'][0]['content'] ?? '';
         $this->assertStringContainsString('SELECTED COMPONENT', $systemPrompt);
-        $this->assertStringContainsString('component_key: home.summary', $systemPrompt);
+        $this->assertStringContainsString('component_key: home.continue', $systemPrompt);
         $this->assertStringContainsString('context, not an instruction', $systemPrompt);
-        $this->assertStringContainsString('Summary figures', $systemPrompt);
+        $this->assertStringContainsString('Continue where you left off', $systemPrompt);
 
         // The prompt block describes a data source; it never carries a
         // secret-shaped field.
@@ -329,12 +331,12 @@ class InspectModeTest extends TestCase
         FakeAiDriver::$script = ['responses' => ['Done.']];
 
         $context = AiContext::platform(Access::for($this->platformOwner));
-        $inspection = InspectionContext::resolve('home.summary', Access::for($this->platformOwner));
+        $inspection = InspectionContext::resolve('home.continue', Access::for($this->platformOwner));
         (new ConversationEngine($context, new ModelRouter, $inspection))->turn('Explain this.');
 
         $entry = AdminAuditEntry::query()->where('action', 'AI_CONVERSATION_TURN')->first();
         $this->assertNotNull($entry);
-        $this->assertSame('home.summary', $entry->metadata['component'] ?? null);
+        $this->assertSame('home.continue', $entry->metadata['component'] ?? null);
         $this->assertSame('ai', $entry->metadata['actor_kind'] ?? null);
     }
 
@@ -347,22 +349,22 @@ class InspectModeTest extends TestCase
 
         // A real component with an adjustment it does not declare.
         $this->assertFalse(UiPreferenceService::validate('home.attention', 'density', 'compact')['ok']);
-        $this->assertFalse(UiPreferenceService::validate('home.summary', 'position', 'first')['ok']);
+        $this->assertFalse(UiPreferenceService::validate('home.activity', 'position', 'first')['ok']);
 
         // Adjustment the platform does not implement at all.
-        $this->assertFalse(UiPreferenceService::validate('home.summary', 'custom_css', 'body { display: none }')['ok']);
-        $this->assertFalse(UiPreferenceService::validate('home.summary', 'custom_html', '<marquee>hi</marquee>')['ok']);
+        $this->assertFalse(UiPreferenceService::validate('home.activity', 'custom_css', 'body { display: none }')['ok']);
+        $this->assertFalse(UiPreferenceService::validate('home.activity', 'custom_html', '<marquee>hi</marquee>')['ok']);
 
         // Wrong types.
-        $this->assertFalse(UiPreferenceService::validate('home.summary', 'visibility', 'yes')['ok']);
-        $this->assertFalse(UiPreferenceService::validate('home.summary', 'visibility', 1)['ok']);
-        $this->assertFalse(UiPreferenceService::validate('home.summary', 'density', 'tiny')['ok']);
-        $this->assertFalse(UiPreferenceService::validate('home.summary', 'position', 'middle')['ok']);
+        $this->assertFalse(UiPreferenceService::validate('home.activity', 'visibility', 'yes')['ok']);
+        $this->assertFalse(UiPreferenceService::validate('home.activity', 'visibility', 1)['ok']);
+        $this->assertFalse(UiPreferenceService::validate('home.hero', 'density', 'tiny')['ok']);
+        $this->assertFalse(UiPreferenceService::validate('home.activity', 'position', 'middle')['ok']);
 
         // The valid cases.
-        $this->assertTrue(UiPreferenceService::validate('home.summary', 'visibility', false)['ok']);
-        $this->assertTrue(UiPreferenceService::validate('home.summary', 'density', 'compact')['ok']);
-        $this->assertTrue(UiPreferenceService::validate('home.summary', 'density', 'spacious')['ok']);
+        $this->assertTrue(UiPreferenceService::validate('home.activity', 'visibility', false)['ok']);
+        $this->assertTrue(UiPreferenceService::validate('home.hero', 'density', 'compact')['ok']);
+        $this->assertTrue(UiPreferenceService::validate('home.hero', 'density', 'spacious')['ok']);
         $this->assertTrue(UiPreferenceService::validate('project.overview.advanced', 'expanded_by_default', true)['ok']);
         $this->assertTrue(UiPreferenceService::validate('project.overview.progress', 'position', 'first')['ok']);
     }
@@ -372,15 +374,15 @@ class InspectModeTest extends TestCase
         $other = User::factory()->create(['is_admin' => false, 'cp_role' => null]);
 
         $service = UiPreferenceService::for($this->platformOwner);
-        $this->assertTrue($service->apply('home.summary', 'visibility', false)['ok']);
+        $this->assertTrue($service->apply('home.activity', 'visibility', false)['ok']);
 
         // The owner no longer sees it; the other user still does.
-        $this->assertFalse($service->value('home.summary', 'visibility'));
-        $this->assertTrue(UiPreferenceService::for($other)->value('home.summary', 'visibility'));
+        $this->assertFalse($service->value('home.activity', 'visibility'));
+        $this->assertTrue(UiPreferenceService::for($other)->value('home.activity', 'visibility'));
 
         // The row is scoped to the owner's id — there is no path to write
         // into someone else's experience.
-        $rows = UserUiPreference::query()->where('key', 'ui.home.summary.visibility')->get();
+        $rows = UserUiPreference::query()->where('key', 'ui.home.activity.visibility')->get();
         $this->assertCount(1, $rows);
         $this->assertSame($this->platformOwner->getKey(), $rows->first()->user_id);
     }
@@ -406,16 +408,16 @@ class InspectModeTest extends TestCase
     {
         $service = UiPreferenceService::for($this->platformOwner);
 
-        $service->apply('home.summary', 'density', 'compact');
-        $service->apply('home.summary', 'visibility', false);
+        $service->apply('home.hero', 'density', 'compact');
+        $service->apply('home.activity', 'visibility', false);
         $this->assertCount(2, $service->all());
 
-        $this->assertTrue($service->revert('home.summary', 'density'));
-        $this->assertSame('comfortable', $service->value('home.summary', 'density'));
+        $this->assertTrue($service->revert('home.hero', 'density'));
+        $this->assertSame('comfortable', $service->value('home.hero', 'density'));
 
         $this->assertSame(1, $service->revertAll());
         $this->assertSame([], $service->all());
-        $this->assertTrue($service->value('home.summary', 'visibility'));
+        $this->assertTrue($service->value('home.activity', 'visibility'));
     }
 
     // ── Preview → apply flow on the page (the I.10 contract) ───────────
@@ -423,10 +425,10 @@ class InspectModeTest extends TestCase
     public function test_a_preference_is_previewed_then_applied_and_audited(): void
     {
         $page = $this->aiPage($this->platformOwner);
-        $page->attachComponent('home.summary');
+        $page->attachComponent('home.continue');
 
         // Propose: nothing persisted yet.
-        $page->proposeUiAdjustment('home.summary', 'visibility', 'false');
+        $page->proposeUiAdjustment('home.activity', 'visibility', 'false');
         $proposal = $page->uiProposal;
         $this->assertNotNull($proposal, 'A valid proposal was refused.');
         $this->assertSame(true, $proposal['current']);
@@ -440,7 +442,7 @@ class InspectModeTest extends TestCase
         $page->applyUiPreference();
         $this->assertNull($page->uiProposal);
         $this->assertFalse(
-            UiPreferenceService::for($this->platformOwner)->value('home.summary', 'visibility')
+            UiPreferenceService::for($this->platformOwner)->value('home.activity', 'visibility')
         );
 
         $applied = AdminAuditEntry::query()->where('action', 'AI_ACTION_APPLIED')->first();
@@ -451,9 +453,9 @@ class InspectModeTest extends TestCase
     public function test_cancelling_a_preview_persists_nothing_and_audits_rejection(): void
     {
         $page = $this->aiPage($this->platformOwner);
-        $page->attachComponent('home.summary');
+        $page->attachComponent('home.continue');
 
-        $page->proposeUiAdjustment('home.summary', 'density', 'compact');
+        $page->proposeUiAdjustment('home.hero', 'density', 'compact');
         $this->assertNotNull($page->uiProposal);
 
         $page->cancelUiPreference();
@@ -469,13 +471,13 @@ class InspectModeTest extends TestCase
         // so he must not be able to propose an appearance change for one.
         $page = $this->aiPage($this->alphaDevOnWeb, $this->alphaWeb->getKey());
 
-        $page->proposeUiAdjustment('home.summary', 'visibility', false);
+        $page->proposeUiAdjustment('home.activity', 'visibility', false);
         $this->assertNull($page->uiProposal, 'An unauthorised user built a proposal.');
 
         // ...and a forged proposal array cannot survive the apply-time
         // re-validation either.
         $page->uiProposal = [
-            'component' => 'home.summary',
+            'component' => 'home.continue',
             'adjustment' => 'visibility',
             'value' => false,
             'current' => true,
@@ -521,7 +523,7 @@ class InspectModeTest extends TestCase
             ->get('/admin')
             ->assertOk()
             ->assertSee('data-nx-inspect-toggle', false)
-            ->assertSee('data-nx-inspect="home.summary"', false)
+            ->assertSee('data-nx-inspect="home.recent_projects"', false)
             ->assertSee('data-nx-inspect="home.attention"', false);
     }
 
@@ -548,7 +550,7 @@ class InspectModeTest extends TestCase
 
     public function test_a_hidden_component_is_not_rendered_for_the_user_who_hid_it(): void
     {
-        UiPreferenceService::for($this->platformOwner)->apply('home.summary', 'visibility', false);
+        UiPreferenceService::for($this->platformOwner)->apply('home.activity', 'visibility', false);
 
         $this->actingAs($this->platformOwner)
             ->get('/admin')
@@ -559,7 +561,7 @@ class InspectModeTest extends TestCase
 
     public function test_a_density_preference_reaches_the_rendered_markup(): void
     {
-        UiPreferenceService::for($this->platformOwner)->apply('home.summary', 'density', 'compact');
+        UiPreferenceService::for($this->platformOwner)->apply('home.hero', 'density', 'compact');
 
         $this->actingAs($this->platformOwner)
             ->get('/admin')
@@ -583,7 +585,7 @@ class InspectModeTest extends TestCase
         $keys = array_column($page->inspectableHere(), 'key');
 
         $this->assertContains('project.overview.facts', $keys);
-        $this->assertNotContains('home.summary', $keys, 'A platform component was offered at project scope.');
+        $this->assertNotContains('home.activity', $keys, 'A platform component was offered at project scope.');
         $this->assertNotContains('workspace.members', $keys, 'A workspace component was offered without a membership.');
         $this->assertNotContains('project.overview.activity', $keys, 'An audit component was offered to a viewer.');
     }

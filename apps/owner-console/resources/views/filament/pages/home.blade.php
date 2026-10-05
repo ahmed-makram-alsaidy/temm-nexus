@@ -21,10 +21,16 @@
         $activity = $this->recentActivity() ?? collect();
         $system = $this->systemStatus();
         $hasProjects = $this->pulse()->hasAnyProject();
+        // Phase I appearance preferences (Inspect panel writes them).
+        $ui = $this->uiPreferences();
     @endphp
 
     {{-- 1. Platform state: greeting + one sentence + THE one primary action. --}}
-    <header class="nx-hero" data-nx-inspect="home.hero" data-nx-inspect-label="Home header">
+    <header
+        class="nx-hero @if (($ui['home.hero']['density'] ?? 'comfortable') !== 'comfortable') nx-density--{{ $ui['home.hero']['density'] }} @endif"
+        data-nx-inspect="home.hero"
+        data-nx-inspect-label="Home header"
+    >
         <div class="nx-hero__text">
             <h1 class="nx-hero__greeting">{{ $this->greeting() }}, {{ $this->userName() }}.</h1>
             <p class="nx-hero__state">{{ $this->stateSentence() }}</p>
@@ -67,7 +73,12 @@
         />
     @else
         {{-- 2. Needs attention — the highest-priority content when non-empty. --}}
-        <section class="nx-section" data-nx-inspect="home.attention" data-nx-inspect-label="Needs attention">
+        <section
+            class="nx-section"
+            data-nx-inspect="home.attention"
+            data-nx-inspect-label="Needs attention"
+            @if (! ($ui['home.attention']['visibility'] ?? true)) hidden @endif
+        >
             @if ($attention['items']->isEmpty())
                 {{-- All clear is a quiet line, not a card (§C2). --}}
                 <div class="nx-allclear">
@@ -106,7 +117,7 @@
         </section>
 
         {{-- 3. Continue where you left off — deterministic, hidden when nothing to resume. --}}
-        @if ($continue !== null && $continue['url'])
+        @if ($continue !== null && $continue['url'] && ($ui['home.continue']['visibility'] ?? true))
             <section class="nx-section" data-nx-inspect="home.continue" data-nx-inspect-label="Continue where you left off">
                 <div class="nx-continue">
                     <span class="nx-continue__icon" aria-hidden="true">
@@ -127,7 +138,7 @@
         @endif
 
         {{-- 4. Projects — a compact summary, not the Projects page (§C4). --}}
-        @if ($projects->isNotEmpty())
+        @if ($projects->isNotEmpty() && ($ui['home.recent_projects']['visibility'] ?? true))
             <section class="nx-section" data-nx-inspect="home.recent_projects" data-nx-inspect-label="Projects">
                 <h2 class="nx-section__title">{{ __('home.projects_title') }}</h2>
                 <ul class="nx-list">
@@ -156,8 +167,8 @@
         @endif
 
         {{-- 5. Recent activity — human sentences, context, relative time (§C6). --}}
-        @if ($this->canViewActivity())
-            <section class="nx-section">
+        @if ($this->canViewActivity() && ($ui['home.activity']['visibility'] ?? true))
+            <section class="nx-section" data-nx-inspect="home.activity" data-nx-inspect-label="Recent activity">
                 <h2 class="nx-section__title">{{ __('home.recent_activity') }}</h2>
                 @if ($activity->isEmpty())
                     <div class="nx-empty nx-empty--inline">
