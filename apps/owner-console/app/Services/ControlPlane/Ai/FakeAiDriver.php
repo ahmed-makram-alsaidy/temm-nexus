@@ -37,7 +37,13 @@ class FakeAiDriver implements AiDriver
      * lets a test exercise the full tool round-trip deterministically without a
      * network or a paid provider.
      *
-     * @var array{responses?: list<string>, tool_calls?: array<int, string>}|null
+     * Phase F: `throw` scripts a provider-side FAILURE for the next call —
+     * `code` drives the same HTTP-status classification real drivers produce,
+     * `type` picks the exception shape (`provider` = AiProviderException,
+     * `connection` = ConnectionException, `generic` = RuntimeException). This
+     * is how the error-state journeys are exercised without a network.
+     *
+     * @var array{responses?: list<string>, tool_calls?: array<int, string>, throw?: array{type?: string, code?: int, message?: string}|list<array{type?: string, code?: int, message?: string}>}|null
      */
     public static ?array $script = null;
 
@@ -91,6 +97,23 @@ class FakeAiDriver implements AiDriver
         // A static script takes precedence so a test can drive the real gateway.
         if (self::$script !== null) {
             $index = self::$callCount++;
+            $throwSpecs = self::$script['throw'] ?? null;
+            // A single spec applies to every call; a list is consumed per call.
+            $throw = is_array($throwSpecs) && array_is_list($throwSpecs)
+                ? ($throwSpecs[$index] ?? null)
+                : $throwSpecs;
+
+            if (is_array($throw)) {
+                $message = (string) ($throw['message'] ?? 'Scripted provider failure');
+                $code = (int) ($throw['code'] ?? 0);
+
+                match ((string) ($throw['type'] ?? 'provider')) {
+                    'connection' => throw new \Illuminate\Http\Client\ConnectionException($message),
+                    'generic' => throw new \RuntimeException($message),
+                    default => throw new AiProviderException($message, $code),
+                };
+            }
+
             $text = self::$script['responses'][$index] ?? 'Done.';
 
             if (isset(self::$script['tool_calls'][$index])) {

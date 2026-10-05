@@ -57,9 +57,9 @@ final class ConversationEngine
      * @param  string  $message  the user's text
      * @param  list<array{role: string, content: string}>  $history  prior turns
      * @return array{
-     *     ok: bool, error: ?string, reply: ?string, role: string,
+     *     ok: bool, error: ?string, kind: string, technical: ?string, reply: ?string, role: string,
      *     model: ?string, provider: ?string,
-     *     tools: list<array{tool: string, label: string, ok: bool, denied: ?string}>,
+     *     tools: list<array{tool: string, label: string, ok: bool, denied: ?string, duration_ms?: int}>,
      *     actions: list<array<string, mixed>>,
      *     usage: array{input_tokens: int, output_tokens: int},
      *     context: array<string, mixed>
@@ -70,14 +70,15 @@ final class ConversationEngine
         $started = microtime(true);
 
         if (! $this->context->isOpenable()) {
-            return $this->failure('You do not have permission to use Nexus AI at this scope.');
+            return $this->failure('You do not have permission to use Nexus AI at this scope.', 'permission');
         }
 
         $route = $this->router->resolve($role);
         if ($route === null) {
             return $this->failure(
                 'No AI provider is configured, so Nexus AI cannot answer yet. '
-                .'An operator can add one under Settings.'
+                .'An operator can add one under Settings.',
+                'not_configured',
             );
         }
 
@@ -175,13 +176,14 @@ final class ConversationEngine
                         continue;
                     }
 
-                    $result = $dispatcher->dispatch($name, $arguments, fn (array $a, AiContext $c): array => $handler($a, $c));
+                    $result = $this->timedDispatch($dispatcher, $name, $arguments, $handler);
 
                     $toolResults[] = [
                         'tool' => $name,
                         'label' => $result['label'],
                         'ok' => $result['ok'],
                         'denied' => $result['denied'],
+                        'duration_ms' => $result['duration_ms'],
                     ];
 
                     $payloads[] = $result['ok']
@@ -218,13 +220,38 @@ final class ConversationEngine
             // Provider-side failure (auth/client identification, model, rate
             // limit, error envelope, empty completion). The safe message is
             // classified by the driver — never a raw body, never a blank
-            // reply that could look like a successful empty answer.
+            // reply that could look like a successful empty answer. Phase F:
+            // the failure also carries a KIND (driving the product-language
+            // error card) and a Technical details line; the raw text appears
+            // only inside that disclosure.
             Log::warning('Nexus AI provider call failed', [
                 'scope' => $this->context->scope->value,
                 'user_id' => $this->context->access->user()->getKey(),
             ]);
 
-            return $this->failure($e->safeMessage);
+            return $this->failure(
+                $e->safeMessage,
+                $this->kindForStatusCode($e->getCode()),
+                'AiProviderException (HTTP '.($e->getCode() ?: 'n/a').') — '
+                    .'provider: '.($provider->display_name ?? $provider->provider)
+                    .', model: '.($model ?: 'provider default')
+                    .' — '.$e->safeMessage,
+            );
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            // The provider could not be reached at all — an availability
+            // problem, not a configuration or protocol one (F10).
+            Log::warning('Nexus AI provider unreachable', [
+                'scope' => $this->context->scope->value,
+                'user_id' => $this->context->access->user()->getKey(),
+            ]);
+
+            return $this->failure(
+                'The AI provider could not be reached. Check the network or base URL and try again.',
+                'unavailable',
+                'ConnectionException: '.class_basename($e).' — '.mb_substr($e->getMessage(), 0, 200)
+                    .' — provider: '.($provider->display_name ?? $provider->provider)
+                    .', model: '.($model ?: 'provider default'),
+            );
         } catch (\Throwable $e) {
             Log::warning('Nexus Copilot turn failed', [
                 'error' => $e->getMessage(),
@@ -232,7 +259,11 @@ final class ConversationEngine
                 'user_id' => $this->context->access->user()->getKey(),
             ]);
 
-            return $this->failure('The assistant could not complete that request. Nothing was changed.');
+            return $this->failure(
+                'The assistant could not complete that request. Nothing was changed.',
+                'unexpected',
+                class_basename($e).': '.mb_substr($e->getMessage(), 0, 200),
+            );
         }
     }
 
@@ -419,12 +450,44 @@ final class ConversationEngine
     // Result + audit
     // ─────────────────────────────────────────────────────────────────
 
-    /** @return array<string, mixed> */
-    private function failure(string $message): array
+    /**
+     * Map a provider failure to a product error KIND (Phase F §F10). The
+     * drivers already classify HTTP statuses into safe messages; the status
+     * code travels on the exception, so the buckets stay in one place here
+     * without touching any driver.
+     */
+    private function kindForStatusCode(int|string $status): string
+    {
+        return match ((int) $status) {
+            401, 403 => 'auth',
+            404 => 'model_unavailable',
+            429 => 'rate_limited',
+            200 => 'invalid_response', // 200 with an error envelope or empty content
+            500, 502, 503, 504 => 'unavailable',
+            default => (int) $status >= 500 ? 'unavailable' : 'invalid_response',
+        };
+    }
+
+    /** Dispatch one read tool, measuring its real duration for Technical details (§F5). */
+    private function timedDispatch(ToolDispatcher $dispatcher, string $name, array $arguments, callable $handler): array
+    {
+        $started = microtime(true);
+        $result = $dispatcher->dispatch($name, $arguments, fn (array $a, AiContext $c): array => $handler($a, $c));
+        $result['duration_ms'] = (int) round((microtime(true) - $started) * 1000);
+
+        return $result;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function failure(string $message, string $kind = 'unexpected', ?string $technical = null): array
     {
         return [
             'ok' => false,
             'error' => $message,
+            'kind' => $kind,
+            'technical' => $technical,
             'reply' => null,
             'role' => ModelRouter::ROLE_DEFAULT,
             'provider' => null,

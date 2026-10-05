@@ -925,3 +925,442 @@ html[dir='rtl'] .nx-details__summary {
         min-width: 160px;
     }
 }
+
+/* ==========================================================================
+   Phase F — Nexus AI chat-first experience (0.6.0)
+   --------------------------------------------------------------------------
+   The chat + composer lead the page. The tool inventory lives behind the
+   capabilities disclosure; user / assistant / tool activity / proposed
+   action / error are five DIFFERENT visual objects (§F12), kept quiet.
+   ========================================================================== */
+
+/* ── Header row: context banner + thread actions ────────────────────────── */
+.nx-ai-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--nx-space-2, 8px);
+    flex-wrap: wrap;
+    margin-block-end: 12px;
+}
+
+.nx-ai-head .nx-scope-banner {
+    flex: 1 1 320px;
+    margin-block-end: 0;
+}
+
+.nx-ai-head__actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Secondary quiet button (next to .nx-btn / .nx-btn--secondary). */
+.nx-btn--quiet {
+    background: transparent;
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.12));
+    color: var(--nx-text-muted, #555);
+    box-shadow: none;
+}
+
+.nx-btn--quiet:hover {
+    background: var(--nx-neutral-soft, rgba(0, 0, 0, 0.04));
+}
+
+html.dark .nx-btn--quiet {
+    border-color: rgba(255, 255, 255, 0.14);
+    color: var(--nx-text-muted, #a1a1aa);
+}
+
+html.dark .nx-btn--quiet:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Conversation history (§F11) — opened on demand, never a sidebar ───── */
+.nx-ai-history {
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.1));
+    border-radius: 10px;
+    background: var(--nx-surface, #fff);
+    padding: 12px;
+    margin-block-end: 12px;
+}
+
+.nx-ai-history__search {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.12));
+    border-radius: 8px;
+    background: var(--nx-canvas, #f6f6f8);
+    font-size: var(--nx-text-body, 0.875rem);
+    margin-block-end: 8px;
+}
+
+.nx-ai-history__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.nx-ai-history__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    text-align: start;
+    font-size: var(--nx-text-body, 0.875rem);
+    color: var(--nx-text, #111);
+}
+
+.nx-ai-history__row:hover {
+    background: var(--nx-neutral-soft, rgba(0, 0, 0, 0.04));
+}
+
+.nx-ai-history__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-ai-history__when {
+    flex: 0 0 auto;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    color: var(--nx-text-muted, #777);
+}
+
+.nx-ai-history__empty {
+    color: var(--nx-text-muted, #777);
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    padding: 8px 10px;
+}
+
+.nx-ai-history__pager {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-block-start: 8px;
+}
+
+/* ── The conversation itself (§F1) ──────────────────────────────────────── */
+.nx-ai-main .nx-chat {
+    min-height: 200px;
+}
+
+/* Message hierarchy (§F12): a user turn is a quiet bubble aligned to the
+   speaker side; an assistant turn is plain product text on the canvas. */
+.nx-chat__turn--user {
+    max-width: min(72%, 640px);
+    margin-inline-start: auto;
+    background: var(--nx-neutral-soft, rgba(0, 0, 0, 0.045));
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.08));
+    border-radius: 12px;
+    padding: 10px 14px;
+}
+
+html.dark .nx-chat__turn--user {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.nx-chat__who {
+    display: block;
+    font-size: var(--nx-text-eyebrow, 0.6875rem);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--nx-text-muted, #888);
+    margin-block-end: 4px;
+}
+
+.nx-chat__turn--user .nx-chat__who {
+    text-align: end;
+}
+
+/* Markdown-presented answers (§F14): scannable, never rewritten content. */
+.nx-prose {
+    font-size: var(--nx-text-body, 0.875rem);
+    line-height: 1.65;
+    color: var(--nx-text, #1a1a1a);
+    overflow-wrap: anywhere;
+}
+
+.nx-prose > :first-child { margin-block-start: 0; }
+.nx-prose > :last-child { margin-block-end: 0; }
+
+.nx-prose h1,
+.nx-prose h2,
+.nx-prose h3 {
+    font-size: var(--nx-text-card, 0.9375rem);
+    font-weight: 650;
+    margin-block: 0.9em 0.35em;
+    line-height: 1.35;
+}
+
+.nx-prose p { margin-block: 0.45em; }
+
+.nx-prose ul,
+.nx-prose ol {
+    margin-block: 0.45em;
+    padding-inline-start: 1.4em;
+    display: grid;
+    gap: 0.2em;
+}
+
+.nx-prose code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em;
+    background: var(--nx-neutral-soft, rgba(0, 0, 0, 0.06));
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+
+html.dark .nx-prose code {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.nx-prose pre {
+    background: var(--nx-neutral-soft, rgba(0, 0, 0, 0.06));
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.08));
+    border-radius: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    direction: ltr;
+    text-align: start;
+}
+
+html.dark .nx-prose pre {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.nx-prose pre code {
+    background: transparent;
+    padding: 0;
+}
+
+.nx-prose a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.nx-prose table {
+    border-collapse: collapse;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+}
+
+.nx-prose th,
+.nx-prose td {
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.1));
+    padding: 4px 8px;
+    text-align: start;
+}
+
+/* Grounding indicator (§F15): quiet, honest provenance. */
+.nx-grounding {
+    margin-block-start: 8px;
+    padding-block-start: 8px;
+    border-block-start: 1px dashed var(--nx-border, rgba(0, 0, 0, 0.12));
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    color: var(--nx-text-muted, #777);
+}
+
+.nx-grounding span {
+    font-weight: 600;
+    margin-inline-end: 4px;
+}
+
+/* Welcome / empty conversation state (§F3). */
+.nx-welcome {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 40px 16px 32px;
+    max-width: 620px;
+    margin-inline: auto;
+}
+
+.nx-welcome__glyph {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    background: var(--nx-primary-soft, rgba(79, 70, 229, 0.1));
+    color: var(--nx-primary, #4f46e5);
+    margin-block-end: 6px;
+}
+
+.nx-welcome__title {
+    font-size: var(--nx-text-section, 1.25rem);
+    font-weight: 650;
+    color: var(--nx-text, #1a1a1a);
+    margin: 0;
+}
+
+.nx-welcome__body {
+    font-size: var(--nx-text-body, 0.875rem);
+    color: var(--nx-text-muted, #777);
+    margin: 0;
+}
+
+.nx-welcome__prompts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-block-start: 14px;
+}
+
+.nx-prompt-chip {
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.12));
+    background: var(--nx-surface, #fff);
+    color: var(--nx-text, #1a1a1a);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    cursor: pointer;
+}
+
+.nx-prompt-chip:hover {
+    border-color: var(--nx-primary, #4f46e5);
+    color: var(--nx-primary, #4f46e5);
+}
+
+html.dark .nx-prompt-chip {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Thinking state (§F13): honest in-progress signal, no fake streaming. */
+.nx-thinking {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    color: var(--nx-text-muted, #777);
+}
+
+/* Thinking state (§F13): honest in-progress signal, no fake streaming. */
+.nx-thinking {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    color: var(--nx-text-muted, #777);
+}
+
+.nx-thinking[wire\:loading],
+.nx-thinking.wire-loading {
+    display: inline-flex;
+}
+
+.nx-thinking__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--nx-primary, #4f46e5);
+    animation: nx-thinking-pulse 1s ease-in-out infinite;
+}
+
+@keyframes nx-thinking-pulse {
+    0%, 100% { opacity: 0.25; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nx-thinking__dot { animation: none; }
+}
+
+/* ── Capabilities disclosure (§F4) — below the fold, human language ────── */
+.nx-capabilities {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+
+.nx-capability {
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.1));
+    border-radius: 10px;
+    padding: 12px;
+    background: var(--nx-surface, #fff);
+}
+
+html.dark .nx-capability {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.nx-capability__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.nx-capability__head > svg {
+    color: var(--nx-primary, #4f46e5);
+    flex: 0 0 auto;
+}
+
+.nx-capability__name {
+    font-weight: 600;
+    font-size: var(--nx-text-body, 0.875rem);
+    color: var(--nx-text, #1a1a1a);
+}
+
+.nx-capability__description {
+    margin: 6px 0 0;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    color: var(--nx-text-muted, #777);
+    line-height: 1.5;
+}
+
+.nx-tag--action {
+    background: var(--nx-warning-soft, rgba(180, 83, 9, 0.12));
+    color: var(--nx-warning, #b45309);
+}
+
+/* Technical details inside the disclosure: internal tool names only here. */
+.nx-technical-tools {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* Safe-action card refinements (§F6, §F7). */
+.nx-action-card__reason {
+    margin: 6px 0 0;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    color: var(--nx-text-muted, #777);
+}
+
+.nx-action-card__tech {
+    margin-block-start: 10px;
+}
+
+/* History + capabilities respond cleanly down to 1366×768 and below (§F20). */
+@media (max-width: 900px) {
+    .nx-chat__turn--user {
+        max-width: 88%;
+    }
+
+    .nx-capabilities {
+        grid-template-columns: 1fr;
+    }
+}

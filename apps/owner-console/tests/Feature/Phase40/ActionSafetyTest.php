@@ -526,11 +526,14 @@ class ActionSafetyTest extends TestCase
         $this->assertArrayHasKey('expected', $card);
 
         // The blade carries the J.9 decision surface the browser proof drives.
+        // Phase F: the Approve control is permission-aware (canApproveCard) and
+        // the rejection verb is Reject, in the viewer's language.
         $blade = file_get_contents(__DIR__.'/../../../resources/views/filament/pages/nexus-ai.blade.php');
         $this->assertStringContainsString('nx-action-card', (string) $blade);
-        $this->assertStringContainsString('Approve &amp; Apply', (string) $blade);
+        $this->assertStringContainsString("ai.approve", (string) $blade);
         $this->assertStringContainsString('rejectActionPlan', (string) $blade);
         $this->assertStringContainsString('approveActionPlan', (string) $blade);
+        $this->assertStringContainsString('canApproveCard', (string) $blade);
     }
 
     public function test_a_verification_failed_plan_renders_honestly(): void
@@ -546,9 +549,14 @@ class ActionSafetyTest extends TestCase
         $this->assertFalse($card['result']['verification']['verified']);
         $this->assertStringContainsString('Stream status is absent', (string) ($card['result']['verification']['detail'] ?? ''));
 
-        // The blade states the failure honestly, never as success.
+        // The blade states the failure honestly, never as success. Phase F:
+        // the wording is translated (ai.action_outcome_verification_failed
+        // carries the same "could NOT confirm" meaning in EN and AR).
         $blade = file_get_contents(__DIR__.'/../../../resources/views/filament/pages/nexus-ai.blade.php');
-        $this->assertStringContainsString('could NOT confirm', (string) $blade);
+        $this->assertStringContainsString('action_outcome_verification_failed', (string) $blade);
         $this->assertStringContainsString('verification_failed', (string) $blade);
+
+        $en = require __DIR__.'/../../../lang/en/ai.php';
+        $this->assertStringContainsStringIgnoringCase('could NOT confirm', (string) $en['action_outcome_verification_failed']);
     }
 }

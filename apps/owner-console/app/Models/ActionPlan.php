@@ -89,6 +89,11 @@ class ActionPlan extends Model
             'affected' => $this->affected,
             'risk' => $this->risk,
             'expected' => $this->verification,
+            // Phase F: the sanitized arguments (a reason, a job uuid) travel
+            // with the card so the UI can render the intent in the viewer's
+            // language. The registry's redaction runs here too — no
+            // secret-shaped key can ride along.
+            'arguments' => \App\Services\Ai\Actions\ActionRegistry::redactArguments($this->arguments ?? []),
             'expires_at' => $this->expires_at?->toIso8601String(),
             'status' => $this->status,
             'result' => $this->result,

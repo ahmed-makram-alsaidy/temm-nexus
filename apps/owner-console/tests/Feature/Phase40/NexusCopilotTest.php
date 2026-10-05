@@ -405,10 +405,12 @@ class NexusCopilotTest extends TestCase
 
     public function test_the_workspace_scope_page_binds_its_context_from_the_query(): void
     {
+        // Phase F: the context banner speaks product language ("Workspace: X"),
+        // not the old "Workspace — X" and never internal scope ids.
         $this->actingAs($this->alphaOwner)
             ->get('/admin/nexus-ai?scope=workspace&workspace='.$this->alpha->slug)
             ->assertOk()
-            ->assertSee('Workspace — Alpha Client');
+            ->assertSee('Workspace: Alpha Client');
     }
 
     public function test_a_deep_link_cannot_widen_scope_to_another_tenants_project(): void
@@ -417,7 +419,8 @@ class NexusCopilotTest extends TestCase
         $this->actingAs($this->alphaOwner)
             ->get('/admin/nexus-ai?scope=project&project='.$this->betaCrm->id)
             ->assertOk()
-            ->assertDontSee('Project — Beta CRM');
+            ->assertDontSee('Project: Beta CRM')
+            ->assertDontSee('Beta CRM');
     }
 
     // ── Phase K: the runaway budgets are enforced, not decorative ──────
