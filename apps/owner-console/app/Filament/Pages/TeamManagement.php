@@ -63,12 +63,14 @@ class TeamManagement extends Page implements HasTable
     public function content(Schema $schema): Schema
     {
         return $schema->extraAttributes(['class' => 'cp-reference cp-reference--admin'])->components([
-            Section::make('Roles & permissions')->schema([
+            Section::make(__('infra.team_matrix_title'))->schema([
                 Html::make(self::matrixHtml()),
             ])->compact(),
-            Section::make('Control-plane users')->schema([
-                EmbeddedTable::make(),
-            ]),
+            Section::make(__('infra.team_users_title'))
+                ->description(__('infra.team_users_description'))
+                ->schema([
+                    EmbeddedTable::make(),
+                ]),
         ]);
     }
 
@@ -89,7 +91,7 @@ class TeamManagement extends Page implements HasTable
     {
         $roles = ControlPlaneRole::query()->orderBy('id')->get();
         if ($roles->isEmpty()) {
-            return '<div class="cp-empty__hint">Roles not seeded yet.</div>';
+            return '<div class="cp-empty__hint">'.e(__('infra.team_roles_not_seeded')).'</div>';
         }
         $cell = function ($role, string $perm): string {
             $perms = $role->permissions ?? [];
@@ -97,13 +99,13 @@ class TeamManagement extends Page implements HasTable
 
             return '<td class="cp-matrix__cell">'.($has ? '<span class="cp-badge is-success">✓</span>' : '<span style="color:var(--cp-text-faint)">—</span>').'</td>';
         };
-        $html = '<div class="cp-tablewrap"><table class="cp-grid cp-matrix"><thead><tr><th class="cp-matrix__sticky">Permission</th>';
+        $html = '<div class="cp-tablewrap"><table class="cp-grid cp-matrix"><thead><tr><th class="cp-matrix__sticky">'.e(__('infra.team_matrix_permission')).'</th>';
         foreach ($roles as $role) {
             $html .= '<th>'.e($role->name).'</th>';
         }
         $html .= '</tr></thead><tbody>';
         foreach (self::PERMISSION_GROUPS as $group => $perms) {
-            $html .= '<tr class="cp-matrix__group"><td class="cp-matrix__sticky" colspan="'.(count($roles) + 1).'">'.e($group).'</td></tr>';
+            $html .= '<tr class="cp-matrix__group"><td class="cp-matrix__sticky" colspan="'.(count($roles) + 1).'">'.e(__('infra.team_group_'.\Illuminate\Support\Str::of($group)->lower())).'</td></tr>';
             foreach ($perms as $perm) {
                 if (! in_array($perm, CpAccess::PERMISSIONS, true)) {
                     continue;
@@ -117,9 +119,9 @@ class TeamManagement extends Page implements HasTable
         }
 
         return $html.'</tbody></table></div>'
-            .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Infrastructure owners (is_admin) bypass every check. '
-            .'High-risk permissions (secrets.manage, database.write, sql.execute_write, functions.deploy, restore.local, team.manage)'
-            .' are never implied — they must be assigned explicitly.</p>';
+            .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('infra.team_matrix_note', [
+                'perms' => 'secrets.manage, database.write, sql.execute_write, functions.deploy, restore.local, team.manage',
+            ])).'</p>';
     }
 
     public function table(Table $table): Table
@@ -127,34 +129,42 @@ class TeamManagement extends Page implements HasTable
         return $table
             ->query(fn () => User::query()->orderBy('email'))
             ->columns([
-                TextColumn::make('name')->searchable(),
-                TextColumn::make('email')->searchable()->copyable(),
-                TextColumn::make('is_admin')->label(__('labels.owner_login'))->badge()
+                TextColumn::make('name')->label(__('infra.team_col_name'))->searchable(),
+                TextColumn::make('email')->label(__('infra.team_col_email'))->searchable()->copyable(),
+                TextColumn::make('is_admin')->label(__('infra.team_role_owner'))->badge()
                     ->color(fn ($s) => $s ? 'success' : 'gray')
-                    ->formatStateUsing(fn ($s) => $s ? 'yes' : 'no'),
+                    ->formatStateUsing(fn ($s) => $s ? __('infra.team_role_owner') : __('infra.team_role_member')),
                 TextColumn::make('cp_role')->label(__('labels.team_role'))->badge()->placeholder('—'),
             ])
             ->recordActions([
-                Action::make('assign_role')->label(__('labels.assign_role'))
+                Action::make('assign_role')->label(__('infra.team_assign_action'))
                     ->schema([
                         Select::make('cp_role')->label(__('labels.team_role'))->required()->options([
-                            'owner' => 'Owner (full power — use sparingly)',
-                            'admin' => 'Admin (everything except team)',
-                            'developer' => 'Developer (read + invoke + tasks/webhooks/storage)',
-                            'observer' => 'Observer (read-only)',
-                            '' => 'No team access (revoke)',
+                            'owner' => __('infra.team_role_owner_option'),
+                            'admin' => __('infra.team_role_admin_option'),
+                            'developer' => __('infra.team_role_developer_option'),
+                            'observer' => __('infra.team_role_observer_option'),
+                            '' => __('infra.team_role_revoke_option'),
                         ]),
                     ])
                     ->action(function (array $data, User $record) {
                         CpAccess::require(auth()->user(), 'team.manage');
-                        abort_if($record->id === auth()->id(), 422, 'You cannot change your own role.');
+                        // Same server-side rule as before (never your own
+                        // role) — surfaced as a notification instead of a
+                        // bare 422 error page.
+                        if ($record->id === auth()->id()) {
+                            Notification::make()->title(__('infra.team_role_self_error'))->danger()->send();
+
+                            return;
+                        }
                         $record->forceFill(['cp_role' => $data['cp_role'] ?: null])->save();
                         AdminAudit::record('TEAM_ROLE_ASSIGNED', null, 'user', $record->id, [
                             'email' => $record->email, 'cp_role' => $data['cp_role'] ?: null,
                         ]);
-                        Notification::make()->title("Role updated for {$record->email}")->success()->send();
+                        Notification::make()->title(__('infra.team_role_updated', ['email' => $record->email]))->success()->send();
                     }),
             ])
-            ->emptyStateHeading('No users');
+            ->emptyStateHeading(__('infra.team_empty_title'))
+            ->emptyStateDescription(__('infra.team_empty_body'));
     }
 }

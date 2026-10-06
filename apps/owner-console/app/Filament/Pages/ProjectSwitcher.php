@@ -6,6 +6,7 @@ use App\Filament\Resources\Projects\ProjectResource;
 use App\Filament\Support\PlatformAccess;
 use App\Models\Project;
 use App\Services\ControlPlane\CpAccess;
+use App\Support\ProductStatus;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Pages\Page;
@@ -80,11 +81,14 @@ class ProjectSwitcher extends Page implements HasTable
             ->query(fn () => PlatformAccess::current()->projectsQuery()->orderBy('name'))
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
-                TextColumn::make('slug')->badge(),
-                TextColumn::make('status')->badge(),
+                TextColumn::make('slug')->badge()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('status')->badge()
+                    ->formatStateUsing(fn ($s) => ProductStatus::label((string) $s))
+                    ->color(fn ($s) => ProductStatus::color((string) $s)),
                 TextColumn::make('api_domain')->placeholder('—')->toggleable(),
                 TextColumn::make('health_status')->badge()
-                    ->color(fn ($s) => $s === 'healthy' ? 'success' : ($s === 'unhealthy' ? 'danger' : 'warning')),
+                    ->formatStateUsing(fn ($s) => ProductStatus::label((string) $s))
+                    ->color(fn ($s) => ProductStatus::color((string) $s)),
             ])
             ->recordActions([
                 Action::make('open')->label(__('labels.open_workspace'))->icon('heroicon-o-arrow-top-right-on-square')

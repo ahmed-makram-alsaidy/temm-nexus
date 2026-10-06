@@ -39,6 +39,28 @@ return [
     'blocked' => 'Blocked',
     'unavailable' => 'Unavailable',
 
+    // Webhook deliveries.
+    'delivered' => 'Delivered',
+    'exhausted' => 'Gave up after retries',
+
+    // Console users.
+    'disabled' => 'Disabled',
+
+    // Backups / restore drills.
+    'verified' => 'Verified',
+    'drill_running' => 'Restore drill running',
+    'drill_passed' => 'Restore drill passed',
+    'drill_failed' => 'Restore drill failed',
+
+    // Log severities.
+    'info' => 'Info',
+    'warning' => 'Warning',
+    'debug' => 'Debug',
+    'critical' => 'Critical',
+
+    // Setup system checks (uppercase stored values normalize on lookup).
+    'passed' => 'Passed',
+
     // Cutover verdicts.
     'cutover_ready' => 'Ready',
     'cutover_warning' => 'Review needed',

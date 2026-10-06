@@ -45,7 +45,7 @@ class GlobalSearch extends Page
 
     public function getBreadcrumbs(): array
     {
-        return ['Search'];
+        return [__('labels.search')];
     }
 
     public static function canAccess(): bool
@@ -77,7 +77,7 @@ class GlobalSearch extends Page
                     $items[] = ['label' => $p->name.' ('.$p->slug.')', 'url' => \App\Filament\Resources\Projects\ProjectResource::getUrl('overview', ['record' => $p])];
                 }
                 if ($items) {
-                    $groups['Projects'] = $items;
+                    $groups[__('labels.search_group_projects')] = $items;
                 }
             }
             if (CpAccess::allows($user, 'database.read')) {
@@ -101,7 +101,7 @@ class GlobalSearch extends Page
                     }
                 }
                 if ($items) {
-                    $groups['Tables'] = $items;
+                    $groups[__('labels.search_group_tables')] = $items;
                 }
             }
             if (CpAccess::allows($user, 'functions.view')) {
@@ -117,7 +117,7 @@ class GlobalSearch extends Page
                     ];
                 }
                 if ($items) {
-                    $groups['Functions'] = $items;
+                    $groups[__('labels.search_group_functions')] = $items;
                 }
             }
             if (CpAccess::allows($user, 'secrets.manage')) {
@@ -134,14 +134,14 @@ class GlobalSearch extends Page
                     ];
                 }
                 if ($items) {
-                    $groups['Secrets'] = $items;
+                    $groups[__('labels.search_group_secrets')] = $items;
                 }
             }
             foreach ([
-                'Tasks' => [ProjectTask::class, 'name', 'tasks.manage', 'scheduler'],
-                'Webhooks' => [ProjectWebhook::class, 'name', 'webhooks.manage', 'webhooks'],
-                'Saved queries' => [SavedSqlQuery::class, 'name', 'sql.execute_read', 'sql'],
-            ] as $label => [$model, $field, $perm, $page]) {
+                'tasks' => [ProjectTask::class, 'name', 'tasks.manage', 'scheduler'],
+                'webhooks' => [ProjectWebhook::class, 'name', 'webhooks.manage', 'webhooks'],
+                'saved_queries' => [SavedSqlQuery::class, 'name', 'sql.execute_read', 'sql'],
+            ] as $groupKey => [$model, $field, $perm, $page]) {
                 if (! CpAccess::allows($user, $perm)) {
                     continue;
                 }
@@ -157,15 +157,15 @@ class GlobalSearch extends Page
                     ];
                 }
                 if ($items) {
-                    $groups[$label] = $items;
+                    $groups[__('labels.search_group_'.$groupKey)] = $items;
                 }
             }
         }
 
         $html = '<form method="GET" action="" class="cp-toolbar">'
-            .'<input class="cp-toolbar__search" type="search" name="q" value="'.e($q).'" placeholder="Search projects, tables, functions, secrets…" autofocus>'
-            .'<button class="cp-btn is-primary" type="submit">Search</button>'
-            .'<span class="cp-toolbar__count">tip: press <code>/</code> anywhere to jump here</span></form>';
+            .'<input class="cp-toolbar__search" type="search" name="q" value="'.e($q).'" placeholder="'.e(__('labels.search_placeholder')).'" autofocus>'
+            .'<button class="cp-btn is-primary" type="submit">'.e(__('labels.search_action')).'</button>'
+            .'<span class="cp-toolbar__count">'.e(__('labels.search_tip', ['key' => '/'])).'</span></form>';
         foreach ($groups as $label => $items) {
             $html .= '<h4 style="margin:.75rem 0 .25rem">'.e($label).' ('.count($items).')</h4><div class="cp-list">';
             foreach ($items as $item) {
@@ -174,12 +174,12 @@ class GlobalSearch extends Page
             $html .= '</div>';
         }
         if ($q !== '' && $groups === []) {
-            $html .= '<div class="cp-empty"><div class="cp-empty__title">No results</div>'
-                .'<div class="cp-empty__hint">Nothing visible to your role matches.</div></div>';
+            $html .= '<div class="cp-empty"><div class="cp-empty__title">'.e(__('labels.search_no_results')).'</div>'
+                .'<div class="cp-empty__hint">'.e(__('labels.search_no_results_body')).'</div></div>';
         }
 
         return $schema->components([
-            Section::make('Search')->schema([Html::make($html)])->compact(),
+            Section::make(__('labels.search'))->schema([Html::make($html)])->compact(),
         ]);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\InfrastructureHealthService;
+use App\Support\ProductStatus;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Html;
@@ -14,6 +15,11 @@ use Filament\Support\Icons\Heroicon;
 /**
  * Phase 21B: global health split by facet (proxy / app / database / redis /
  * workers / realtime) plus per-node liveness — never one generic state.
+ *
+ * 0.6.0 Phase H: statuses render through the status dictionary (raw enums
+ * never shown), copy through lang/, and the empty states explain what
+ * appears here and why. (This pass also repaired malformed <th> markup in
+ * the nodes/services tables.)
  */
 class InfraHealth extends Page
 {
@@ -34,7 +40,7 @@ class InfraHealth extends Page
 
     public function getBreadcrumbs(): array
     {
-        return ['Infrastructure', 'Health'];
+        return [__('settings.system_title'), __('settings.system_health')];
     }
 
     public static function canAccess(): bool
@@ -52,43 +58,55 @@ class InfraHealth extends Page
     public function infolist(Schema $schema): Schema
     {
         $health = InfrastructureHealthService::global();
-        $badge = function (string $label, string $status) {
-            $tone = $status === 'healthy' ? 'is-success' : ($status === 'unknown' ? '' : 'is-danger');
 
-            return '<span class="cp-badge '.$tone.'">'.e($label).': '.e($status).'</span>';
+        $badge = function (string $label, string $status) {
+            $tone = ProductStatus::color($status);
+
+            return '<span class="cp-badge is-'.e($tone).'">'.e($label).': '.e(ProductStatus::label($status)).'</span>';
         };
+
         $facets = '';
         foreach ($health['facets'] as $facet => $status) {
-            $facets .= $badge($facet, $status).' ';
+            $facets .= $badge(\Illuminate\Support\Str::headline($facet), (string) $status).' ';
         }
+
         $nodeRows = '';
         foreach ($health['nodes'] as $n) {
             $nodeRows .= '<tr><td><a href="'.e(InfraNodeDetail::getUrl(['node' => $n['name']])).'"><code>'
-                .e($n['name']).'</code></a></td><td>'.e($n['status']).'</td>'
-                .'<td><code>'.e($n['last_seen_at'] ?? 'never').'</code></td></tr>';
+                .e($n['name']).'</code></a></td><td>'.e(ProductStatus::label((string) $n['status'])).'</td>'
+                .'<td><code dir="ltr">'.e($n['last_seen_at'] ?? __('infra.never_reported')).'</code></td></tr>';
         }
+
         $svcRows = '';
         foreach ($health['services'] as $key => $status) {
-            $svcRows .= '<tr><td><code>'.e($key).'</code></td><td>'.e($status).'</td></tr>';
+            $svcRows .= '<tr><td><code dir="ltr">'.e($key).'</code></td><td>'.e(ProductStatus::label((string) $status)).'</td></tr>';
         }
 
         return $schema->components([
-            Section::make('Facets')->schema([
-                Html::make('<p>'.$facets.'</p>'
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Profile: <strong>'
-                    .e(config('infrastructure.profile', 'single'))
-                    .'</strong> (descriptive only — no automatic moves).</p>'),
-            ]),
-            Section::make('Nodes')->schema([
+            Section::make(__('infra.health_facets_title'))
+                ->description(__('infra.health_facets_description'))
+                ->schema([
+                    Html::make('<p>'.$facets.'</p>'
+                        .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('infra.health_profile_note', ['profile' => config('infrastructure.profile', 'single')])).'</p>'),
+                ]),
+            Section::make(__('infra.health_nodes_title'))->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>'.e(__('labels.node')).'</th>'.e(__('labels.status')).'<th>'.e(__('labels.last_seen')).'<th></tr></thead><tbody>'
-                    .($nodeRows ?: '<tr><td colspan="3">No nodes registered. Run <code>php artisan infra:seed-local</code>.</td></tr>')
+                    .'<th>'.e(__('infra.col_node')).'</th><th>'.e(__('infra.col_status')).'</th><th>'.e(__('infra.col_last_seen')).'</th></tr></thead><tbody>'
+                    .($nodeRows !== ''
+                        ? $nodeRows
+                        : '<tr><td colspan="3">'.e(__('infra.health_empty_nodes_title')).' — '.e(__('infra.health_empty_nodes_body')).'</td></tr>')
                     .'</tbody></table></div>'),
             ])->compact(),
-            Section::make('Services (worst status wins)')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>.'.e(__('labels.')).'</th><th>'.e(__('labels.status')).'<th></tr></thead><tbody>'
-                    .$svcRows.'</tbody></table></div>'),
-            ])->compact(),
+            Section::make(__('infra.health_services_title'))
+                ->description(__('infra.health_services_hint'))
+                ->schema([
+                    Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
+                        .'<th>'.e(__('infra.col_service')).'</th><th>'.e(__('infra.col_status')).'</th></tr></thead><tbody>'
+                        .($svcRows !== ''
+                            ? $svcRows
+                            : '<tr><td colspan="2">'.e(__('infra.health_services_empty')).'</td></tr>')
+                        .'</tbody></table></div>'),
+                ])->compact(),
         ]);
     }
 }

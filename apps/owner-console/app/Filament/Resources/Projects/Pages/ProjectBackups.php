@@ -11,6 +11,7 @@ use App\Models\BackupRecord;
 use App\Models\BackupRun;
 use App\Services\ControlPlane\BackupCenterService;
 use App\Services\ControlPlane\ProjectBackupService;
+use App\Support\ProductStatus;
 use Filament\Actions\Action;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -99,33 +100,35 @@ class ProjectBackups extends Page implements HasTable
         $drillRows = '';
         foreach ($drills as $drill) {
             $badge = $drill->status === 'drill_passed' ? 'is-success' : ($drill->status === 'drill_failed' ? 'is-danger' : 'is-warning');
-            $drillRows .= '<tr><td>#'.$drill->id.'</td><td><span class="cp-badge '.$badge.'">'.e($drill->status).'</span></td>'
-                .'<td>'.e($drill->finished_at?->format('M j, H:i') ?? 'running…').'</td>'
-                .'<td style="font-size:.75rem">'.e((string) ($drill->meta['tables_restored'] ?? '—')).' tables</td>'
-                .'<td style="font-size:.75rem">'.e(\Illuminate\Support\Str::limit((string) $drill->error, 80)).'</td></tr>';
+            $drillRows .= '<tr><td>#'.$drill->id.'</td><td><span class="cp-badge '.$badge.'">'.e(ProductStatus::label((string) $drill->status)).'</span></td>'
+                .'<td>'.e($drill->finished_at?->locale(app()->getLocale())->translatedFormat('M j, H:i') ?? __('labels.bk_drill_running')).'</td>'
+                .'<td style="font-size:.75rem">'.e(__('labels.bk_drill_tables', ['count' => (int) ($drill->meta['tables_restored'] ?? 0)])) .'</td>'
+                .'<td style="font-size:.75rem"><code dir="ltr">'.e(\Illuminate\Support\Str::limit((string) $drill->error, 80)).'</code></td></tr>';
         }
         if ($drillRows === '') {
-            $drillRows = '<tr><td colspan="5">No restore drills yet. Drills restore into a NEW disposable database and never touch the active DB.</td></tr>';
+            $drillRows = '<tr><td colspan="5">'.e(__('labels.bk_drills_empty')).'</td></tr>';
         }
         $destinations = BackupDestination::where('project_id', $project->id)->orderBy('id')->get();
         $destRows = '';
         foreach ($destinations as $dest) {
-            $destRows .= '<tr><td><strong>'.e($dest->name).'</strong></td><td><code>'.e($dest->driver).'</code></td>'
-                .'<td style="font-size:.75rem"><code>'.e(($dest->config['endpoint'] ?? '')).($dest->config['bucket'] ?? '' ? ' / '.e($dest->config['bucket']) : '').'</code></td>'
-                .'<td>'.($dest->secret_ref ? '<code>'.e($dest->secret_ref).'</code>' : '<span class="cp-badge">no offsite key</span>').'</td></tr>';
+            $destRows .= '<tr><td><strong>'.e($dest->name).'</strong></td><td><code dir="ltr">'.e($dest->driver).'</code></td>'
+                .'<td style="font-size:.75rem"><code dir="ltr">'.e(($dest->config['endpoint'] ?? '')).($dest->config['bucket'] ?? '' ? ' / '.e($dest->config['bucket']) : '').'</code></td>'
+                .'<td>'.($dest->secret_ref ? '<code dir="ltr">'.e($dest->secret_ref).'</code>' : '<span class="cp-badge">'.e(__('labels.bk_no_offsite_key')).'</span>').'</td></tr>';
         }
         if ($destRows === '') {
-            $destRows = '<tr><td colspan="4">No offsite destinations. S3-compatible endpoints (R2/B2/MinIO/S3) reference vault keys by name — never pasted here.</td></tr>';
+            $destRows = '<tr><td colspan="4">'.e(__('labels.bk_destinations_empty')).'</td></tr>';
         }
 
         return $schema->components([
-            Section::make('Status')->schema([
-                TextEntry::make('last')->label(__('labels.latest_backup'))->state($stats['last_backup'] ? $stats['last_backup']->finished_at?->toDateTimeString().' · '.$stats['last_backup']->status : 'none yet')
+            Section::make(__('labels.bk_status'))->schema([
+                TextEntry::make('last')->label(__('labels.latest_backup'))->state($stats['last_backup']
+                    ? $stats['last_backup']->finished_at?->locale(app()->getLocale())->translatedFormat('M j, H:i').' · '.ProductStatus::label((string) $stats['last_backup']->status)
+                    : __('labels.bk_none_yet'))
                     ->badge()->color($stats['last_backup'] ? 'success' : 'gray'),
-                TextEntry::make('verified')->label(__('labels.verified'))->state($verifiedAt ?? 'not verified yet')
+                TextEntry::make('verified')->label(__('labels.verified'))->state($verifiedAt ?? __('labels.bk_not_verified_yet'))
                     ->badge()->color($verifiedAt ? 'success' : 'warning'),
                 TextEntry::make('drill')->label(__('labels.restore_drill'))
-                    ->state($health['latest_restore_test_at'] ? \Illuminate\Support\Str::limit($health['latest_restore_test_at'], 16).' · passed' : 'never tested')
+                    ->state($health['latest_restore_test_at'] ? \Illuminate\Support\Str::limit($health['latest_restore_test_at'], 16).' · '.ProductStatus::label('drill_passed') : __('labels.bk_never_tested'))
                     ->badge()->color($health['latest_restore_test_at'] ? 'success' : 'warning'),
                 TextEntry::make('retention')->label(__('labels.retention'))->state($this->retentionLine($stats)),
                 TextEntry::make('db_size')->label(__('labels.live_db_size'))->state($this->bytes($stats['db_bytes'])),
@@ -138,33 +141,38 @@ class ProjectBackups extends Page implements HasTable
                         try {
                             $record = ProjectBackupService::for($this->project())->trigger();
                         } catch (\Throwable $e) {
-                            Notification::make()->title(__('labels.backup_failed'))->body($e->getMessage())->danger()->send();
+                            // The raw message stays in the logs (report())
+                            // and the audit ledger — the notification speaks
+                            // the product error pattern instead.
+                            report($e);
+                            Notification::make()->title(__('labels.backup_failed'))
+                                ->body(__('labels.backup_failed_body'))->danger()->send();
 
                             return;
                         }
                         $this->audit('BACKUP_TRIGGERED', 'backup', $record->id, ['file' => basename((string) $record->log)]);
-                        Notification::make()->title(__('labels.backup_complete'))->body(number_format($record->size_bytes).' bytes')->success()->send();
+                        Notification::make()->title(__('labels.backup_complete'))->body(__('labels.bk_backup_size', ['size' => $this->bytes((int) $record->size_bytes)]))->success()->send();
                     }),
             ])->compact(),
-            \Filament\Schemas\Components\Html::make('<details class="cp-details"><summary>Restore policy · why there is no restore button</summary>'
-                .'<p>One-click restore to the live database is deliberately unavailable: restoring needs CREATEDB-level privileges that no web request holds '
-                .'(least privilege), and same-DB restore would destroy live data. The Phase 24 restore DRILL closes the testability gap: it restores into a NEW '
-                .'disposable <code>restore_drill_*</code> database, validates table counts, then drops it — the active DB is never touched. '
-                .'Backups are integrity-verified (checksum + archive listing) from this page.</p></details>'),
-            Section::make('Backup health — <span class="cp-badge '.$healthBadge.'">'.e($health['overall']).'</span>')->schema([
+            \Filament\Schemas\Components\Html::make('<details class="cp-details"><summary>'.e(__('labels.bk_policy_summary')).'</summary>'
+                .'<p>'.e(__('labels.bk_policy_body')).'</p>'
+                .'<p><code dir="ltr">restore_drill_*</code> — '.e(__('labels.bk_policy_drill_note')).'</p></details>'),
+            Section::make(__('labels.bk_health_title').' — <span class="cp-badge '.$healthBadge.'">'.e(ProductStatus::label((string) $health['overall'])).'</span>')->schema([
                 \Filament\Schemas\Components\Html::make(
                     '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_policy')).'</th><th>'.e(__('labels.th_scope')).'</th><th>'.e(__('labels.th_schedule')).'</th><th>'.e(__('labels.retention')).'</th><th>'.e(__('labels.th_backup')).'</th><th>'.e(__('labels.restore_test')).'</th><th>'.e(__('labels.th_last_run')).'</th></tr></thead><tbody>'
                     .$policyRows.'</tbody></table></div>'
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">Offsite configured: '.($health['offsite_configured'] ? 'yes (s3-compatible destination registered)' : 'no — local only').'.</p>'
+                    .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">'.e(__('labels.bk_offsite_configured', [
+                        'state' => $health['offsite_configured'] ? __('labels.bk_offsite_yes') : __('labels.bk_offsite_no'),
+                    ])).'</p>'
                 ),
             ])->compact(),
-            Section::make('Restore drills')->schema([
+            Section::make(__('labels.bk_drills_title'))->schema([
                 \Filament\Schemas\Components\Html::make(
                     '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.run')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_finished')).'</th><th>'.e(__('labels.th_result')).'</th><th>'.e(__('labels.th_error')).'</th></tr></thead><tbody>'
                     .$drillRows.'</tbody></table></div>'
                 ),
             ])->compact(),
-            Section::make('Offsite destinations')->schema([
+            Section::make(__('labels.bk_destinations_title'))->schema([
                 \Filament\Schemas\Components\Html::make(
                     '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_driver')).'</th><th>'.e(__('labels.endpoint')).'</th><th>'.e(__('labels.key')).'</th></tr></thead><tbody>'
                     .$destRows.'</tbody></table></div>'
@@ -227,7 +235,8 @@ class ProjectBackups extends Page implements HasTable
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'backups.policy');
                     $policy = BackupPolicy::where('project_id', $this->project()->id)->findOrFail($data['policy_id']);
                     $run = BackupCenterService::runBackup($policy, 'manual');
-                    Notification::make()->title(__('labels.policy_run_frag').$run->status)->success($run->status === 'completed')->danger($run->status === 'failed')->send();
+                    Notification::make()->title(__('labels.bk_policy_run', ['status' => ProductStatus::label((string) $run->status)]))
+                        ->success($run->status === 'completed')->danger($run->status === 'failed')->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
             Action::make('restore_drill')->label(__('labels.restore_drill'))->icon('heroicon-o-lifebuoy')->color('warning')
@@ -244,8 +253,10 @@ class ProjectBackups extends Page implements HasTable
                     \App\Services\ControlPlane\CpAccess::require(auth()->user(), 'restore.local');
                     $backup = BackupRun::where('project_id', $this->project()->id)->findOrFail($data['backup_id']);
                     $drill = BackupCenterService::requestRestoreDrill($backup);
-                    Notification::make()->title(__('labels.drill_frag').$drill->status)
-                        ->body($drill->meta['tables_restored'] ?? $drill->error ?? '')
+                    Notification::make()->title(__('labels.bk_drill_result', ['status' => ProductStatus::label((string) $drill->status)]))
+                        ->body($drill->status === 'drill_passed'
+                            ? __('labels.bk_drill_passed_body', ['tables' => (int) ($drill->meta['tables_restored'] ?? 0)])
+                            : __('labels.bk_drill_failed_body'))
                         ->success($drill->status === 'drill_passed')->danger($drill->status === 'drill_failed')->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
@@ -259,8 +270,11 @@ class ProjectBackups extends Page implements HasTable
         $old = array_filter($files, fn ($f) => strtotime($f['modified']) < time() - 30 * 86400);
         $total = array_sum(array_column($files, 'size'));
 
-        return count($files).' local dumps · '.$this->bytes((int) $total)
-            .' · '.count($old).' older than 30 days (prune from host/backups/data; offsite target still pending per Phase 17).';
+        return __('labels.bk_retention_line', [
+            'count' => count($files),
+            'size' => $this->bytes((int) $total),
+            'old' => count($old),
+        ]);
     }
 
     public function table(Table $table): Table
@@ -269,28 +283,38 @@ class ProjectBackups extends Page implements HasTable
             ->query(fn () => BackupRecord::where('db_name', $this->project()->db_name)->orderByDesc('finished_at'))
             ->columns([
                 TextColumn::make('finished_at')->label(__('labels.created'))->dateTime()->sortable(),
-                TextColumn::make('type')->badge(),
-                TextColumn::make('status')->badge()->color(fn ($s) => $s === 'ok' ? 'success' : 'danger'),
+                TextColumn::make('type')->badge()
+                    ->formatStateUsing(fn ($s) => \Illuminate\Support\Facades\Lang::has('labels.bk_type_'.(string) $s, app()->getLocale())
+                        ? __('labels.bk_type_'.(string) $s) : (string) $s),
+                TextColumn::make('status')->badge()
+                    ->formatStateUsing(fn ($s) => ProductStatus::label((string) $s))
+                    ->color(fn ($s) => ProductStatus::color((string) $s)),
                 TextColumn::make('size_bytes')->label(__('labels.size'))->formatStateUsing(fn ($s) => $this->bytes((int) $s)),
                 TextColumn::make('verified_at')->label(__('labels.verified'))->dateTime()->placeholder('—'),
-                TextColumn::make('restore_test_status')->label(__('labels.restore_test'))->badge(),
-                TextColumn::make('location')->badge()->color('gray'),
+                TextColumn::make('restore_test_status')->label(__('labels.restore_test'))->badge()
+                    ->formatStateUsing(fn ($s) => $s === null ? '—' : ProductStatus::label((string) $s))
+                    ->color(fn ($s) => ProductStatus::color((string) $s)),
+                TextColumn::make('location')->badge()->color('gray')
+                    ->formatStateUsing(fn ($s) => \Illuminate\Support\Facades\Lang::has('labels.bk_location_'.(string) $s, app()->getLocale())
+                        ? __('labels.bk_location_'.(string) $s) : (string) $s),
             ])
             ->recordActions([
                 Action::make('verify')->label(__('labels.verify'))->icon('heroicon-o-check-badge')
                     ->visible(fn ($record) => $record->verified_at === null)
                     ->requiresConfirmation()
-                    ->action(function (BackupRecord $record) {
-                        try {
-                            ProjectBackupService::for($this->project())->verify($record);
-                        } catch (\Throwable $e) {
-                            Notification::make()->title(__('labels.verification_failed'))->body($e->getMessage())->danger()->send();
+                ->action(function (BackupRecord $record) {
+                    try {
+                        ProjectBackupService::for($this->project())->verify($record);
+                    } catch (\Throwable $e) {
+                        report($e);
+                        Notification::make()->title(__('labels.verification_failed'))
+                            ->body(__('labels.bk_verify_failed_body'))->danger()->send();
 
-                            return;
-                        }
-                        $this->audit('BACKUP_VERIFIED', 'backup', $record->id);
-                        Notification::make()->title(__('labels.backup_verified'))->success()->send();
-                    }),
+                        return;
+                    }
+                    $this->audit('BACKUP_VERIFIED', 'backup', $record->id);
+                    Notification::make()->title(__('labels.backup_verified'))->success()->send();
+                }),
             ])
             ->emptyStateHeading('No backups recorded for this project yet');
     }

@@ -13,6 +13,7 @@ use App\Services\ControlPlane\Ai\AiGateway;
 use App\Services\ControlPlane\Ai\MigrationCopilot;
 use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\EnvironmentContext;
+use App\Support\ProductStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -80,14 +81,14 @@ class ProjectCopilot extends Page
         $providerRows = '';
         foreach ($providers as $provider) {
             $providerRows .= '<tr><td><strong>'.e($provider->display_name).'</strong></td>'
-                .'<td><code>'.e($provider->provider).'</code></td>'
-                .'<td><code>'.e($provider->model ?? '—').'</code></td>'
-                .'<td>'.($provider->project_id ? '<span class="cp-badge">project</span>' : '<span class="cp-badge is-info">global</span>').'</td>'
-                .'<td><span class="cp-badge '.($provider->status === 'connected' ? 'is-success' : ($provider->status === 'error' ? 'is-danger' : '')).'">'.e($provider->status).'</span></td>'
+                .'<td><code dir="ltr">'.e($provider->provider).'</code></td>'
+                .'<td><code dir="ltr">'.e($provider->model ?? '—').'</code></td>'
+                .'<td>'.($provider->project_id ? '<span class="cp-badge">'.e(__('labels.cp_scope_project')).'</span>' : '<span class="cp-badge is-info">'.e(__('labels.cp_scope_global')).'</span>').'</td>'
+                .'<td><span class="cp-badge '.($provider->status === 'connected' ? 'is-success' : ($provider->status === 'error' ? 'is-danger' : '')).'">'.e(ProductStatus::label((string) $provider->status)).'</span></td>'
                 .'</tr>';
         }
         if ($providerRows === '') {
-            $providerRows = '<tr><td colspan="5">No AI provider configured yet — add one to enable the Copilot.</td></tr>';
+            $providerRows = '<tr><td colspan="5">'.e(__('labels.cp_providers_empty')).'</td></tr>';
         }
 
         $runs = CopilotRun::where('project_id', $project->id)->orderByDesc('id')->limit(12)->get();
@@ -97,50 +98,51 @@ class ProjectCopilot extends Page
                 'completed' => 'is-success', 'failed' => 'is-danger', default => 'is-warning',
             };
             $modeBadge = ['advisor' => 'is-info', 'builder' => 'is-warning', 'validator' => 'is-success'][$run->mode] ?? '';
-            $runRows .= '<tr><td><code>'.e(substr($run->run_id, 0, 8)).'…</code></td>'
-                .'<td><span class="cp-badge '.$modeBadge.'">'.e($run->mode).'</span></td>'
-                .'<td>'.e($run->action).'</td>'
-                .'<td><span class="cp-badge '.$badge.'">'.e($run->status).'</span></td>'
-                .'<td>'.e($run->provider ?? '—').'/'.e($run->model ?? '—').'</td>'
-                .'<td>'.e($run->created_at->format('M j, H:i')).'</td></tr>';
+            $runRows .= '<tr><td><code dir="ltr">'.e(substr($run->run_id, 0, 8)).'…</code></td>'
+                .'<td><span class="cp-badge '.$modeBadge.'">'.e(__('labels.cp_mode_'.(string) $run->mode)).'</span></td>'
+                .'<td>'.e(__('labels.cp_action_'.(string) $run->action)).'</td>'
+                .'<td><span class="cp-badge '.$badge.'">'.e(ProductStatus::label((string) $run->status)).'</span></td>'
+                .'<td><code dir="ltr">'.e($run->provider ?? '—').'/'.e($run->model ?? '—').'</code></td>'
+                .'<td>'.e($run->created_at->locale(app()->getLocale())->translatedFormat('M j, H:i')).'</td></tr>';
         }
         if ($runRows === '') {
-            $runRows = '<tr><td colspan="6">No Copilot runs yet.</td></tr>';
+            $runRows = '<tr><td colspan="6">'.e(__('labels.cp_runs_empty')).'</td></tr>';
         }
 
         $patches = AiPatchRun::where('project_id', $project->id)->orderByDesc('id')->limit(8)->get();
         $patchRows = '';
         foreach ($patches as $patch) {
             $badge = ['proposed' => 'is-warning', 'approved' => 'is-info', 'applied' => 'is-success', 'rejected' => 'is-danger'][$patch->status] ?? '';
-            $patchRows .= '<tr><td><code>'.e(substr($patch->run_id, 0, 8)).'…</code></td>'
-                .'<td>'.e((string) $patch->files()->count()).' files</td>'
-                .'<td><span class="cp-badge '.$badge.'">'.e($patch->status).'</span></td>'
-                .'<td>'.e($patch->created_at->format('M j, H:i')).'</td></tr>';
+            $patchRows .= '<tr><td><code dir="ltr">'.e(substr($patch->run_id, 0, 8)).'…</code></td>'
+                .'<td>'.e(__('labels.cp_files_count', ['count' => (int) $patch->files()->count()])).'</td>'
+                .'<td><span class="cp-badge '.$badge.'">'.e(__('labels.cp_patch_'.(string) $patch->status)).'</span></td>'
+                .'<td>'.e($patch->created_at->locale(app()->getLocale())->translatedFormat('M j, H:i')).'</td></tr>';
         }
         if ($patchRows === '') {
-            $patchRows = '<tr><td colspan="4">No patch runs yet. Generated patches always await explicit review + approval.</td></tr>';
+            $patchRows = '<tr><td colspan="4">'.e(__('labels.cp_patches_empty')).'</td></tr>';
         }
 
-        $context = 'Analysis: '.($analysis ? '#'.$analysis->id.' ('.substr($analysis->run_id, 0, 8).'…)' : 'none')
-            .' · Repository: '.($repo ? e($repo->display_name) : 'not linked')
-            .' · Environment: '.e($env->slug);
+        $context = __('labels.cp_context_line', [
+            'analysis' => $analysis ? '#'.$analysis->id.' ('.substr($analysis->run_id, 0, 8).'…)' : __('labels.cp_context_none'),
+            'repo' => $repo ? e($repo->display_name) : __('labels.cp_context_not_linked'),
+            'env' => e($env->slug),
+        ]);
 
         return $schema->components([
-            Section::make('AI providers')->schema([Html::make(
+            Section::make(__('labels.cp_providers'))->schema([Html::make(
                 '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_provider')).'</th><th>'.e(__('labels.th_model')).'</th><th>'.e(__('labels.th_scope')).'</th><th>'.e(__('labels.status')).'</th></tr></thead><tbody>'
                 .$providerRows.'</tbody></table></div>'
-                .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">API keys are encrypted at rest and never rendered. '
-                .'Privacy: only minimized/redacted project material is sent to providers — never secrets, hashes or row data.</p>'
+                .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">'.e(__('labels.cp_keys_encrypted')).' '
+                .e(__('labels.cp_privacy_note')).'</p>'
             )])->compact(),
-            Section::make('Context — '.$context)->schema([Html::make(
-                '<p style="font-size:.8rem;color:var(--cp-text-dim)">Runs consume platform artifacts (analysis, RLS/RPC/edge inventories, callsite manifest, '
-                .'selected files) through scoped, redacted context packs. Source content is treated as UNTRUSTED DATA.</p>'
+            Section::make(__('labels.cp_context', ['context' => $context]))->schema([Html::make(
+                '<p style="font-size:.8rem;color:var(--cp-text-dim)">'.e(__('labels.cp_context_body')).'</p>'
             )])->compact(),
-            Section::make('Copilot run history')->schema([Html::make(
+            Section::make(__('labels.cp_run_history'))->schema([Html::make(
                 '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.run')).'</th><th>'.e(__('labels.th_mode')).'</th><th>'.e(__('labels.th_action')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_provider_model')).'</th><th>'.e(__('labels.th_when')).'</th></tr></thead><tbody>'
                 .$runRows.'</tbody></table></div>'
             )])->compact(),
-            Section::make('Patch runs — PLAN → PATCH → REVIEW → APPROVE → APPLY')->schema([Html::make(
+            Section::make(__('labels.cp_patches'))->schema([Html::make(
                 '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.run')).'</th><th>'.e(__('labels.th_files')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_when')).'</th></tr></thead><tbody>'
                 .$patchRows.'</tbody></table></div>'
             )])->compact(),
@@ -254,11 +256,15 @@ class ProjectCopilot extends Page
                 'repository' => ClientRepository::where('project_id', $project->id)->orderByDesc('id')->first(),
             ];
             $run = (new MigrationCopilot(new AiGateway))->run($project, $action, $context);
-            Notification::make()->title(__('labels.copilot_frag').$action.': '.$run->status)
-                ->body($run->status === 'completed' ? 'Result stored — see run history.' : (string) ($run->result['error'] ?? ''))
+            Notification::make()->title(__('labels.copilot_done', ['action' => __('labels.cp_action_'.(string) $action), 'status' => ProductStatus::label((string) $run->status)]))
+                ->body($run->status === 'completed' ? __('labels.copilot_completed_body') : __('labels.copilot_failed_body'))
                 ->success($run->status === 'completed')->danger($run->status === 'failed')->send();
         } catch (\Throwable $e) {
-            Notification::make()->title(\Illuminate\Support\Str::limit($e->getMessage(), 160))->danger()->send();
+            // Raw diagnostics stay in the log; the notification speaks the
+            // product error pattern (H3).
+            report($e);
+            Notification::make()->title(__('labels.copilot_failed_title'))
+                ->body(__('labels.copilot_failed_body'))->danger()->send();
         }
         $this->redirect(static::getUrl(['record' => $project]));
     }

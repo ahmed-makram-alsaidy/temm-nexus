@@ -82,36 +82,36 @@ class ProjectDbHealth extends Page
             }
 
             $sections[] = Grid::make(3)->schema([
-                Section::make('Database')->schema([
-                    TextEntry::make('db')->state($p->db_name)->copyable(),
-                    TextEntry::make('size')->state($sizeRow->size ?? '—'),
-                    TextEntry::make('conns')->state(($sizeRow->conns ?? '—').' / '.($maxConns->max_connections ?? '?')),
+                Section::make(__('labels.dbh_database'))->schema([
+                    TextEntry::make('db')->label(__('labels.th_db'))->state($p->db_name)->copyable(),
+                    TextEntry::make('size')->label(__('labels.size'))->state($sizeRow->size ?? '—'),
+                    TextEntry::make('conns')->label(__('labels.dbh_conns'))->state(($sizeRow->conns ?? '—').' / '.($maxConns->max_connections ?? '?')),
                 ]),
-                Section::make('Server')->schema([
-                    TextEntry::make('pg')->state($this->shortVersion($version)),
-                    TextEntry::make('uptime')->state((string) ($up->up ?? '—')),
-                    TextEntry::make('slow_src')->label(__('labels.slow_queries'))->state($slow === null ? 'pg_stat_statements unavailable' : count($slow).' slowest shown'),
+                Section::make(__('labels.dbh_server'))->schema([
+                    TextEntry::make('pg')->label(__('labels.dbh_pg_version'))->state($this->shortVersion($version)),
+                    TextEntry::make('uptime')->label(__('labels.dbh_uptime'))->state((string) ($up->up ?? '—')),
+                    TextEntry::make('slow_src')->label(__('labels.slow_queries'))->state($slow === null ? __('labels.dbh_slow_unavailable') : __('labels.dbh_slow_count', ['count' => count($slow)])),
                 ]),
-                Section::make('Tables')->schema([
-                    TextEntry::make('count')->state(count($largest).' largest shown below'),
+                Section::make(__('labels.dbh_tables'))->schema([
+                    TextEntry::make('count')->label(__('labels.dbh_largest_count'))->state(__('labels.dbh_largest_shown', ['count' => count($largest)])),
                 ]),
             ]);
             $sections[] = Grid::make(2)->schema([
-                Section::make('Largest tables')->schema([
+                Section::make(__('labels.dbh_largest'))->schema([
                     RepeatableEntry::make('largest')->state(array_map(fn ($r) => (array) $r, $largest))
-                        ->schema([TextEntry::make('table')->badge(), TextEntry::make('size')])->contained(false),
-                ]),
-                Section::make('Least-scanned indexes')->schema([
+                        ->schema([TextEntry::make('table')->label(__('labels.th_table'))->badge(), TextEntry::make('size')->label(__('labels.size'))])->contained(false),
+                ])->description(__('labels.dbh_largest_hint')),
+                Section::make(__('labels.dbh_least_scanned'))->schema([
                     RepeatableEntry::make('idx')->state(array_map(fn ($r) => (array) $r, $indexStats))
-                        ->schema([TextEntry::make('index'), TextEntry::make('scans'), TextEntry::make('size')])->contained(false),
-                ]),
+                        ->schema([TextEntry::make('index')->label(__('labels.dbh_index')), TextEntry::make('scans')->label(__('labels.dbh_scans')), TextEntry::make('size')->label(__('labels.size'))])->contained(false),
+                ])->description(__('labels.dbh_least_scanned_hint')),
             ]);
             if ($slow !== null && $slow !== []) {
-                $sections[] = Section::make('Slowest queries (mean)')->schema([
+                $sections[] = Section::make(__('labels.dbh_slowest'))->schema([
                     RepeatableEntry::make('slow')->state(array_map(fn ($r) => (array) $r, $slow))
-                        ->schema([TextEntry::make('query'), TextEntry::make('calls'), TextEntry::make('mean_ms')->label(__('labels.mean_ms'))])
+                        ->schema([TextEntry::make('query')->label(__('labels.dbh_query'))->copyable(), TextEntry::make('calls')->label(__('labels.dbh_calls')), TextEntry::make('mean_ms')->label(__('labels.mean_ms'))])
                         ->contained(false),
-                ]);
+                ])->description(__('labels.dbh_slowest_hint'));
             }
         } catch (\Throwable $e) {
             $sections[] = static::connectionError($e);

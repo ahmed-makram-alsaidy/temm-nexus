@@ -54,6 +54,29 @@ class ProductStatus
         'blocked' => ['danger', 'blocked'],
         'unavailable' => ['neutral', 'unavailable'],
 
+        // Webhook deliveries (stored enums unchanged).
+        'delivered' => ['success', 'delivered'],
+        'exhausted' => ['danger', 'exhausted'],
+
+        // Console users (stored enums unchanged).
+        'disabled' => ['neutral', 'disabled'],
+
+        // Backups / restore drills (stored enums unchanged).
+        'verified' => ['success', 'verified'],
+        'drill_running' => ['info', 'drill_running'],
+        'drill_passed' => ['success', 'drill_passed'],
+        'drill_failed' => ['danger', 'drill_failed'],
+
+        // Log severities (stored enums unchanged).
+        'info' => ['info', 'info'],
+        'warning' => ['warning', 'warning'],
+        'debug' => ['neutral', 'debug'],
+        'critical' => ['danger', 'critical'],
+
+        // Setup system checks (stored uppercase; case-normalized below).
+        'pass' => ['success', 'passed'],
+        'fail' => ['danger', 'failed'],
+
         // Cutover verdicts (stored uppercase; normalize before lookup).
         'READY' => ['success', 'cutover_ready'],
         'WARNING' => ['warning', 'cutover_warning'],
@@ -69,7 +92,7 @@ class ProductStatus
     /** Human label for a raw status value, translated. */
     public static function label(string $raw): string
     {
-        $entry = self::MAP[$raw] ?? self::MAP[strtoupper($raw)] ?? null;
+        $entry = self::entry($raw);
 
         if ($entry !== null) {
             return __("status.{$entry[1]}");
@@ -81,7 +104,20 @@ class ProductStatus
     /** Semantic tone: success | warning | danger | info | neutral. */
     public static function tone(string $raw): string
     {
-        return self::MAP[$raw][0] ?? self::MAP[strtoupper($raw)][0] ?? 'neutral';
+        return self::entry($raw)[0] ?? 'neutral';
+    }
+
+    /**
+     * Case-normalized lookup. Setup checks store PASS/FAIL/INFO uppercase
+     * while every other domain stores lowercase — the dictionary handles
+     * both without changing a single stored enum.
+     */
+    private static function entry(string $raw): ?array
+    {
+        return self::MAP[$raw]
+            ?? self::MAP[strtoupper($raw)]
+            ?? self::MAP[strtolower($raw)]
+            ?? null;
     }
 
     /** Filament badge color name for a raw status value. */
@@ -99,6 +135,6 @@ class ProductStatus
     /** True when the dictionary knows this raw value. */
     public static function known(string $raw): bool
     {
-        return isset(self::MAP[$raw]) || isset(self::MAP[strtoupper($raw)]);
+        return self::entry($raw) !== null;
     }
 }

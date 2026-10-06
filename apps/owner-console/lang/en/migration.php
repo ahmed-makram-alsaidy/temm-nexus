@@ -122,6 +122,7 @@ return [
     'sync_mode' => 'Mode',
     'sync_mode_dry_run' => 'Dry run (no writes)',
     'sync_mode_rehearsal' => 'Rehearsal (disposable target)',
+    'sync_mode_real' => 'Live transfer (real target)',
     'sync_progress' => 'Progress',
     'sync_target' => 'Target',
     'sync_source_to_target' => ':source → :target',

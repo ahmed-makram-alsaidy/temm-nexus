@@ -122,6 +122,7 @@ return [
     'sync_mode' => 'الوضع',
     'sync_mode_dry_run' => 'تجربة جافة (بلا كتابة)',
     'sync_mode_rehearsal' => 'تجريبي (وجهة قابلة للإتلاف)',
+    'sync_mode_real' => 'نقل حقيقي (هدف حقيقي)',
     'sync_progress' => 'التقدّم',
     'sync_target' => 'الوجهة',
     'sync_source_to_target' => ':source ← :target',

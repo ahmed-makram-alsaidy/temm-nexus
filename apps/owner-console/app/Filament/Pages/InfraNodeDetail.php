@@ -7,6 +7,7 @@ use App\Models\InfrastructureNode;
 use App\Models\ProjectServiceNode;
 use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\CpAccess;
+use App\Support\ProductStatus;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -21,6 +22,10 @@ use Livewire\Attributes\Url;
  * Phase 21B: node detail — status, roles, resources, services, projects
  * using the node, health history, last heartbeat. No shell terminal: the
  * only credential operation is token rotation (hash stored, shown once).
+ *
+ * 0.6.0 Phase H: all chrome flows through lang/, statuses through the
+ * status dictionary, technical values stay LTR-isolated (Arabic-safe),
+ * and every empty table row carries a meaningful sentence.
  */
 class InfraNodeDetail extends Page
 {
@@ -37,12 +42,17 @@ class InfraNodeDetail extends Page
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return $this->node ? 'Node · '.$this->node : 'Node';
+        return $this->node
+            ? __('infra.node_title', ['node' => $this->node])
+            : __('infra.node_section_title');
     }
 
     public function getBreadcrumbs(): array
     {
-        return [InfraNodes::getUrl() => 'Nodes', $this->node ?? 'Node'];
+        return [
+            InfraNodes::getUrl() => __('settings.system_nodes'),
+            $this->node ?? __('infra.node_section_title'),
+        ];
     }
 
     public static function canAccess(): bool
@@ -62,7 +72,9 @@ class InfraNodeDetail extends Page
         $node = $this->node ? InfrastructureNode::query()->where('name', $this->node)->first() : null;
         if (! $node) {
             return $schema->components([
-                Section::make('Unknown node')->description('Pick a node from the Nodes list.')->compact(),
+                Section::make(__('infra.node_unknown_title'))
+                    ->description(__('infra.node_unknown_body'))
+                    ->compact(),
             ]);
         }
         $status = $node->computedStatus();
@@ -70,60 +82,62 @@ class InfraNodeDetail extends Page
 
         $svcRows = '';
         foreach ($node->services()->orderBy('key')->get() as $s) {
-            $svcRows .= '<tr><td><code>'.e($s->key).'</code></td><td>'.e($s->label ?? '—').'</td>'
-                .'<td>'.e($s->scope).'</td><td>'.e($s->status).'</td>'
-                .'<td><code>'.e($s->endpoint ?? '—').'</code></td>'
-                .'<td><code>'.e($s->version ?? '—').'</code></td></tr>';
+            $svcRows .= '<tr><td><code dir="ltr">'.e($s->key).'</code></td><td>'.e($s->label ?? '—').'</td>'
+                .'<td>'.e($s->scope).'</td><td>'.e(ProductStatus::label((string) $s->status)).'</td>'
+                .'<td><code dir="ltr">'.e($s->endpoint ?? '—').'</code></td>'
+                .'<td><code dir="ltr">'.e($s->version ?? '—').'</code></td></tr>';
         }
 
         $projRows = '';
         foreach (ProjectServiceNode::query()->where('node_id', $node->id)->with('project')->get() as $m) {
             $projRows .= '<tr><td>'.e($m->project?->name ?? '#'.$m->project_id).'</td>'
-                .'<td><code>'.e($m->service).'</code></td></tr>';
+                .'<td><code dir="ltr">'.e($m->service).'</code></td></tr>';
         }
 
         $histRows = '';
         foreach (InfrastructureEvent::query()->where('source', 'node-heartbeat')
             ->where('message', 'like', '%'.$node->name.'%')
             ->orderByDesc('id')->limit(10)->get() as $e) {
-            $histRows .= '<tr><td>'.e($e->created_at?->format('M j, H:i') ?? '—').'</td>'
+            $when = $e->created_at?->locale(app()->getLocale())->translatedFormat('M j, H:i') ?? '—';
+            $histRows .= '<tr><td>'.e($when).'</td>'
                 .'<td>'.e($e->severity).'</td><td>'.e($e->message).'</td></tr>';
         }
 
         $res = fn ($label, $v) => '<tr><td>'.e($label).'</td><td>'.e($v).'</td></tr>';
 
         return $schema->components([
-            Section::make('Node')->schema([
+            Section::make(__('infra.node_section_title'))->schema([
                 Html::make(
                     '<p><span class="cp-dot '.$dot.'"></span> <strong>'.e($node->name).'</strong> '
                     .'<span class="cp-badge">'.e(strtoupper($node->environment ?? 'local')).'</span> '
-                    .'<span class="cp-badge">'.e($status).'</span></p>'
+                    .'<span class="cp-badge">'.e(ProductStatus::label((string) $status)).'</span></p>'
                     .'<div class="cp-tablewrap"><table class="cp-grid"><tbody>'
-                    .$res('Hostname / IP ref', $node->hostname ?? '—')
-                    .$res('Roles', implode(', ', $node->roles ?? []))
-                    .$res('Provider / region', ($node->provider ?? '—').' / '.($node->region ?? '—'))
-                    .$res('CPU / RAM / disk', ($node->cpu_cores ?? '?').' cores / '.($node->ram_mb ?? '?').' MB / '.($node->disk_gb ?? '?').' GB')
-                    .$res('Load (last heartbeat)', "CPU {$node->cpu_pct}% · RAM {$node->ram_pct}% · disk {$node->disk_pct}%")
-                    .$res('Agent version', $node->agent_version ?? '—')
-                    .$res('Token prefix', $node->token_prefix ?? 'none issued')
-                    .$res('Last heartbeat', $node->last_seen_at?->toIso8601String() ?? 'never')
+                    .$res(__('infra.node_col_hostname'), $node->hostname ?? '—')
+                    .$res(__('infra.node_col_roles'), implode(', ', $node->roles ?? []))
+                    .$res(__('infra.node_col_provider'), ($node->provider ?? '—').' / '.($node->region ?? '—'))
+                    .$res(__('infra.node_col_resources'), ($node->cpu_cores ?? '?').' / '.($node->ram_mb ?? '?').' MB / '.($node->disk_gb ?? '?').' GB')
+                    .$res(__('infra.node_col_load'), "CPU {$node->cpu_pct}% · RAM {$node->ram_pct}% · disk {$node->disk_pct}%")
+                    .$res(__('infra.node_col_agent_version'), $node->agent_version ?? '—')
+                    .$res(__('infra.node_col_token_prefix'), $node->token_prefix ?? __('infra.node_no_token'))
+                    .$res(__('infra.node_col_last_heartbeat'), $node->last_seen_at?->locale(app()->getLocale())->translatedFormat('M j, H:i') ?? __('infra.never_reported'))
                     .'</tbody></table></div>'
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Enabled: '.($node->enabled ? 'yes' : 'no (reports offline)').'. '
-                    .'Status is computed from heartbeat age (degraded &gt;90s, offline &gt;300s).</p>'
+                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'
+                    .e($node->enabled ? __('infra.node_enabled_yes') : __('infra.node_enabled_no')).'. '
+                    .e(__('infra.node_status_note')).'</p>'
                 ),
             ]),
-            Section::make('Services ('.$node->services()->count().')')->schema([
+            Section::make(__('infra.node_services_title', ['count' => $node->services()->count()]))->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>'.e(__('labels.key')).'</th><th>'.e(__('labels.th_label')).'</th><th>'.e(__('labels.th_scope')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.endpoint')).'</th><th>'.e(__('labels.version')).'</th>'
-                    .'</tr></thead><tbody>'.($svcRows ?: '<tr><td colspan="6">No services reported.</td></tr>').'</tbody></table></div>'),
+                    .'<th>'.e(__('infra.node_col_key')).'</th><th>'.e(__('infra.node_col_label')).'</th><th>'.e(__('infra.node_col_scope')).'</th><th>'.e(__('infra.col_status')).'</th><th>'.e(__('infra.node_col_endpoint')).'</th><th>'.e(__('infra.node_col_version')).'</th>'
+                    .'</tr></thead><tbody>'.($svcRows !== '' ? $svcRows : '<tr><td colspan="6">'.e(__('infra.node_services_empty')).'</td></tr>').'</tbody></table></div>'),
             ])->compact(),
-            Section::make('Projects using this node')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.project')).'</th><th>'.e(__('labels.th_service')).'</th></tr></thead><tbody>'
-                    .($projRows ?: '<tr><td colspan="2">None.</td></tr>').'</tbody></table></div>'),
+            Section::make(__('infra.node_projects_title'))->schema([
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('infra.node_col_project')).'</th><th>'.e(__('infra.node_col_service')).'</th></tr></thead><tbody>'
+                    .($projRows !== '' ? $projRows : '<tr><td colspan="2">'.e(__('infra.node_projects_empty')).'</td></tr>').'</tbody></table></div>'),
             ])->compact(),
-            Section::make('Health history')->schema([
-                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_at')).'</th><th>'.e(__('labels.th_severity')).'</th><th>'.e(__('labels.event')).'</th></tr></thead><tbody>'
-                    .($histRows ?: '<tr><td colspan="3">No transitions recorded.</td></tr>').'</tbody></table></div>'),
+            Section::make(__('infra.node_history_title'))->schema([
+                Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('infra.node_col_at')).'</th><th>'.e(__('infra.node_col_severity')).'</th><th>'.e(__('infra.node_col_event')).'</th></tr></thead><tbody>'
+                    .($histRows !== '' ? $histRows : '<tr><td colspan="3">'.e(__('infra.node_history_empty')).'</td></tr>').'</tbody></table></div>'),
             ])->compact(),
         ]);
     }

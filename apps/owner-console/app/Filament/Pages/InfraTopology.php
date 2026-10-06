@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\InfrastructureTopologyService;
+use App\Support\ProductStatus;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Html;
@@ -15,6 +16,10 @@ use Filament\Support\Icons\Heroicon;
  * Phase 21B: visual infrastructure/service topology (NOT the database ERD).
  * Automatic layered layout by role; click a node for its detail panel.
  * Server-rendered SVG — no graph library needed at this scale.
+ *
+ * 0.6.0 Phase H: heading and summary flow through lang/, status colors and
+ * labels come from the status dictionary, and an empty state explains why
+ * nothing is drawn before the first heartbeat.
  */
 class InfraTopology extends Page
 {
@@ -44,7 +49,7 @@ class InfraTopology extends Page
 
     public function getBreadcrumbs(): array
     {
-        return ['Infrastructure', 'Topology'];
+        return [__('settings.system_title'), __('settings.system_topology')];
     }
 
     public static function canAccess(): bool
@@ -63,11 +68,25 @@ class InfraTopology extends Page
     {
         $topo = InfrastructureTopologyService::topology();
 
+        if ($topo['nodes'] === []) {
+            return $schema->components([
+                Section::make(__('infra.topology_title'))->schema([
+                    Html::make('<p class="cp-empty__hint">'.e(__('infra.topology_empty_title')).' — '.e(__('infra.topology_empty_body')).'</p>'),
+                ])->compact(),
+            ]);
+        }
+
+        $summary = __('infra.topology_summary', [
+            'nodes' => count($topo['nodes']),
+            'node_word' => trans_choice('infra.topology_node', count($topo['nodes'])),
+            'edges' => count($topo['edges']),
+            'edge_word' => trans_choice('infra.topology_edge', count($topo['edges'])),
+        ]);
+
         return $schema->components([
-            Section::make('Service topology')->schema([
+            Section::make(__('infra.topology_title'))->schema([
                 Html::make($this->svg($topo)
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.count($topo['nodes']).' nodes · '
-                    .count($topo['edges']).' serving relationships. Click a node for detail.</p>'),
+                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e($summary).'</p>'),
             ]),
         ]);
     }
@@ -96,8 +115,13 @@ class InfraTopology extends Page
         $viewW = 10 + ($maxLayer + 1) * $gapX;
         $viewH = 10 + $maxRows * (92 + $gapY);
 
-        $color = fn (string $s) => $s === 'healthy' ? '#34d399' : ($s === 'unknown' ? '#fbbf24' : '#f87171');
-        $svg = '<svg viewBox="0 0 '.$viewW.' '.$viewH.'" style="width:100%;max-width:'.$viewW.'px;height:auto;background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:.625rem" role="img" aria-label="Infrastructure topology">';
+        $color = fn (string $s) => match (ProductStatus::color($s)) {
+            'success' => '#34d399',
+            'warning' => '#fbbf24',
+            'danger' => '#f87171',
+            default => '#fbbf24',
+        };
+        $svg = '<svg viewBox="0 0 '.$viewW.' '.$viewH.'" style="width:100%;max-width:'.$viewW.'px;height:auto;background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:.625rem" role="img" aria-label="'.e(__('infra.topology_title')).'">';
         $svg .= '<defs><marker id="cp-topo-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#818cf8" stroke-width="1.5"/></marker></defs>';
         foreach ($topo['edges'] as $e) {
             if (! isset($pos[$e['from']], $pos[$e['to']])) {
@@ -123,9 +147,9 @@ class InfraTopology extends Page
             $svg .= '<a href="'.$url.'"><g>'
                 .'<rect x="'.$p['x'].'" y="'.$p['y'].'" width="'.$w.'" height="92" rx="8" style="fill:var(--cp-surface-2);stroke:'.$color($node['status']).';stroke-width:1.5"/>'
                 .'<circle cx="'.($p['x'] + 18).'" cy="'.($p['y'] + 22).'" r="6" fill="'.$color($node['status']).'"/>'
-                .'<text x="'.($p['x'] + 32).'" y="'.($p['y'] + 27).'" font-size="13" font-family="monospace" style="fill:var(--cp-text)">'.e(mb_substr($name, 0, 22)).'</text>'
-                .'<text x="'.($p['x'] + 12).'" y="'.($p['y'] + 50).'" font-size="11" font-family="monospace" style="fill:var(--cp-text-dim)">'.e(mb_substr(implode(',', $node['roles']), 0, 34)).'</text>'
-                .'<text x="'.($p['x'] + 12).'" y="'.($p['y'] + 70).'" font-size="11" font-family="monospace" style="fill:var(--cp-text-faint)">'.e($node['status']).'</text>'
+                .'<text x="'.($p['x'] + 32).'" y="'.($p['y'] + 27).'" font-size="13" font-family="monospace" style="fill:var(--cp-text)" dir="ltr">'.e(mb_substr($name, 0, 22)).'</text>'
+                .'<text x="'.($p['x'] + 12).'" y="'.($p['y'] + 50).'" font-size="11" font-family="monospace" style="fill:var(--cp-text-dim)" dir="ltr">'.e(mb_substr(implode(',', $node['roles']), 0, 34)).'</text>'
+                .'<text x="'.($p['x'] + 12).'" y="'.($p['y'] + 70).'" font-size="11" font-family="monospace" style="fill:var(--cp-text-faint)" dir="ltr">'.e(ProductStatus::label((string) $node['status'])).'</text>'
                 .'</g></a>';
         }
 

@@ -427,8 +427,11 @@
                                     .($latestRun->status === 'completed' ? ' nx-status--success' : '')
                                     .($latestRun->status === 'running' ? ' nx-status--warning' : '')
                                     .($latestRun->status === 'failed' ? ' nx-status--danger' : '');
+                                // Stored enum → status dictionary word; the
+                                // raw value stays in audit/technical views.
+                                $runStatusLabel = \App\Support\ProductStatus::label((string) $latestRun->status);
                             @endphp
-                            <span class="{{ $runStatusClass }}">{{ $latestRun->status }}</span>
+                            <span class="{{ $runStatusClass }}">{{ $runStatusLabel }}</span>
                         </dd>
                     </div>
                     <div class="nx-status-list__row">
@@ -441,7 +444,7 @@
                     </div>
                     <div class="nx-status-list__row">
                         <dt>{{ __('migration.sync_mode') }}</dt>
-                        <dd>{{ $latestRun->dry_run ? __('migration.sync_mode_dry_run') : ($latestRun->mode === 'rehearsal' ? __('migration.sync_mode_rehearsal') : $latestRun->mode) }}</dd>
+                        <dd>{{ $latestRun->dry_run ? __('migration.sync_mode_dry_run') : __('migration.sync_mode_'.(string) $latestRun->mode) }}</dd>
                     </div>
                     @if ($latestRunLastItem)
                         <div class="nx-status-list__row">

@@ -12,6 +12,7 @@ use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\EnvironmentContext;
 use App\Services\ControlPlane\Migration\MigrationCenterService;
 use App\Services\ControlPlane\Migration\MigrationRunManager;
+use App\Support\ProductStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -148,31 +149,31 @@ class ProjectMigrationCenter extends Page
                 $compatHtml .= '<span class="cp-badge" style="margin:.1rem">'.e($label).': '.e((string) $n).'</span> ';
             }
             if ($compatHtml === '') {
-                $compatHtml = '<span class="cp-badge">no classification yet</span>';
+                $compatHtml = '<span class="cp-badge">'.e(__('labels.mc_compat_empty')).'</span>';
             }
             foreach ($riskCounts as $risk => $n) {
                 $riskHtml .= '<span class="cp-badge is-warning" style="margin:.1rem">'.e($risk).' × '.e((string) $n).'</span> ';
             }
             if ($riskHtml === '') {
-                $riskHtml = '<span class="cp-badge is-success">no automatic risks flagged</span>';
+                $riskHtml = '<span class="cp-badge is-success">'.e(__('labels.mc_risks_empty')).'</span>';
             }
         }
 
         $plan = MigrationPlan::where('project_id', $project->id)->orderByDesc('id')->first();
-        $planHtml = '<p style="color:var(--cp-text-dim);font-size:.8rem">No plan yet.</p>';
+        $planHtml = '<p style="color:var(--cp-text-dim);font-size:.8rem">'.e(__('labels.mc_plan_empty')).'</p>';
         $stageRows = '';
         if ($plan) {
             $byStage = $plan->items()->orderBy('stage')->get()->groupBy('stage');
             foreach ($byStage as $stage => $items) {
                 $names = $items->take(8)->pluck('source_name')->implode(', ');
-                $more = $items->count() > 8 ? ' +'.($items->count() - 8).' more' : '';
+                $more = $items->count() > 8 ? ' +'.($items->count() - 8).__('labels.mc_plan_more_suffix') : '';
                 $statuses = $items->groupBy('status')->map(fn ($g) => $g->count())->map(fn ($n, $s) => $s.':'.$n)->implode(' ');
                 $stageRows .= '<tr><td>'.e((string) $stage).'</td><td>'.e($names.$more).'</td><td style="font-size:.75rem">'.e($statuses).'</td></tr>';
             }
             $planHtml = '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_stage')).'</th><th>'.e(__('labels.th_objects_dependency_order')).'</th><th>'.e(__('labels.th_statuses')).'</th></tr></thead><tbody>'
                 .$stageRows.'</tbody></table></div>'
-                .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">Plan "'.e($plan->name).'" — '.e((string) $plan->items()->count()).' items. '
-                .'Ordering is FK-dependency based (auth first), never alphabetical.</p>';
+                .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">'.e(__('labels.mc_plan_named', ['name' => $plan->name, 'count' => $plan->items()->count()])).' '
+                .e(__('labels.mc_plan_ordering')).'</p>';
         }
 
         $runs = MigrationRun::where('project_id', $project->id)->orderByDesc('id')->limit(10)->get();
@@ -182,43 +183,43 @@ class ProjectMigrationCenter extends Page
                 'completed' => 'is-success', 'failed' => 'is-danger', 'running' => 'is-warning', default => '',
             };
             $p = $run->progress ?? [];
-            $runRows .= '<tr><td><code>'.e(substr($run->run_id, 0, 8)).'…</code></td>'
-                .'<td><span class="cp-badge '.($run->dry_run ? 'is-info' : ($run->mode === 'rehearsal' ? 'is-warning' : '')).'">'.e($run->mode).'</span></td>'
-                .'<td><span class="cp-badge '.$statusBadge.'">'.e($run->status).'</span></td>'
+            $runRows .= '<tr><td><code dir="ltr">'.e(substr($run->run_id, 0, 8)).'…</code></td>'
+                .'<td><span class="cp-badge '.($run->dry_run ? 'is-info' : ($run->mode === 'rehearsal' ? 'is-warning' : '')).'">'.e(__('migration.sync_mode_'.($run->dry_run ? 'dry_run' : (string) $run->mode))).'</span></td>'
+                .'<td><span class="cp-badge '.$statusBadge.'">'.e(ProductStatus::label((string) $run->status)).'</span></td>'
                 .'<td>'.e(($p['done'] ?? 0).'/'.($p['total'] ?? 0)).'</td>'
-                .'<td>'.e($run->target_connection !== null ? json_decode($run->target_connection, true)['database'] ?? '—' : '—').'</td>'
-                .'<td>'.e($run->finished_at?->format('M j, H:i') ?? '—').'</td></tr>';
+                .'<td><code dir="ltr">'.e($run->target_connection !== null ? json_decode($run->target_connection, true)['database'] ?? '—' : '—').'</code></td>'
+                .'<td>'.e($run->finished_at?->locale(app()->getLocale())->translatedFormat('M j, H:i') ?? '—').'</td></tr>';
         }
         if ($runRows === '') {
-            $runRows = '<tr><td colspan="6">No runs yet.</td></tr>';
+            $runRows = '<tr><td colspan="6">'.e(__('labels.mc_runs_empty')).'</td></tr>';
         }
 
         $artifacts = \App\Models\MigrationArtifact::where('project_id', $project->id)->orderByDesc('id')->limit(8)->get();
         $artifactRows = '';
         foreach ($artifacts as $artifact) {
-            $artifactRows .= '<tr><td><code>'.e($artifact->kind).'</code></td><td style="font-size:.75rem"><code>'.e($artifact->path).'</code></td>'
-                .'<td>'.e($artifact->created_at->format('M j, H:i')).'</td></tr>';
+            $artifactRows .= '<tr><td><code dir="ltr">'.e($artifact->kind).'</code></td><td style="font-size:.75rem"><code dir="ltr">'.e($artifact->path).'</code></td>'
+                .'<td>'.e($artifact->created_at->locale(app()->getLocale())->translatedFormat('M j, H:i')).'</td></tr>';
         }
         if ($artifactRows === '') {
-            $artifactRows = '<tr><td colspan="3">Artifacts appear here after analysis/validation. Stored under private storage — never in public web dirs.</td></tr>';
+            $artifactRows = '<tr><td colspan="3">'.e(__('labels.mc_artifacts_empty')).'</td></tr>';
         }
 
         return $schema->components([
-            Section::make('Migration sources')->schema([Html::make(
+            Section::make(__('labels.mc_sources'))->schema([Html::make(
                 '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.th_connector')).'</th><th>'.e(__('labels.th_ref')).'</th><th>'.e(__('labels.th_mode')).'</th><th>'.e(__('labels.health')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_last_analyzed')).'</th></tr></thead><tbody>'
                 .$sourceRows.'</tbody></table></div>'
             )])->compact(),
-            Section::make('Connector capabilities (27Q.2)')->schema([Html::make($capabilityHtml)])->compact(),
-            Section::make('Latest analysis')->schema([Html::make($analysisHtml)])->compact(),
-            Section::make('Compatibility')->schema([Html::make($compatHtml)])->compact(),
-            Section::make('Risks')->schema([Html::make($riskHtml)])->compact(),
-            Section::make('Migration plan')->schema([Html::make($planHtml)])->compact(),
-            Section::make('Runs (SOURCE → TARGET shown per run)')->schema([Html::make(
+            Section::make(__('labels.mc_capabilities'))->schema([Html::make($capabilityHtml)])->compact(),
+            Section::make(__('labels.mc_latest_analysis'))->schema([Html::make($analysisHtml)])->compact(),
+            Section::make(__('labels.mc_compatibility'))->schema([Html::make($compatHtml)])->compact(),
+            Section::make(__('labels.mc_risks'))->schema([Html::make($riskHtml)])->compact(),
+            Section::make(__('labels.mc_plan'))->schema([Html::make($planHtml)])->compact(),
+            Section::make(__('labels.mc_runs'))->schema([Html::make(
                 '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.run')).'</th><th>'.e(__('labels.th_mode')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_progress')).'</th><th>'.e(__('labels.th_target_db')).'</th><th>'.e(__('labels.th_finished')).'</th></tr></thead><tbody>'
                 .$runRows.'</tbody></table></div>'
-                .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">Guard: production targets are refused; destructive reset requires a disposable target; source ≠ target enforced.</p>'
+                .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">'.e(__('labels.mc_guard')).'</p>'
             )])->compact(),
-            Section::make('Artifacts')->schema([Html::make(
+            Section::make(__('labels.mc_artifacts'))->schema([Html::make(
                 '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_kind')).'</th><th>'.e(__('labels.th_path')).'</th><th>'.e(__('labels.created')).'</th></tr></thead><tbody>'
                 .$artifactRows.'</tbody></table></div>'
             )])->compact(),

@@ -22,6 +22,7 @@ use App\Services\ControlPlane\Cutover\CutoverCenterService;
 use App\Services\ControlPlane\Migration\AnalysisOutcomeClassifier;
 use App\Services\ControlPlane\Migration\MigrationCenterService;
 use App\Services\ControlPlane\Migration\MigrationRunManager;
+use App\Support\ProductStatus;
 use App\Services\ControlPlane\ReadinessService;
 use App\Services\Product\JourneyState;
 use App\Services\Product\ProjectPulse;
@@ -428,8 +429,10 @@ class ProjectMigration extends Page
                 : null,
             'runHistory' => $history->map(fn (MigrationRun $run) => [
                 'id' => $run->id,
-                'mode' => $run->mode,
-                'status' => $run->status,
+                // Presentation-only translation: stored enums are unchanged,
+                // the blade never renders a raw mode/status word.
+                'mode' => __('migration.sync_mode_'.($run->dry_run ? 'dry_run' : (string) $run->mode)),
+                'status' => ProductStatus::label((string) $run->status),
                 'progress' => (array) ($run->progress ?? []),
                 'target' => $run->target_connection !== null
                     ? (json_decode($run->target_connection, true)['database'] ?? '—')
