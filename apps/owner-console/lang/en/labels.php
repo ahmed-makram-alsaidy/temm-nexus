@@ -45,7 +45,6 @@ return [
     'ask_a_platform_operator_to_create_the_ac' => 'Ask a platform operator to create the account first, then add them here.',
     'ask_nexus_ai' => 'Ask Nexus AI',
     'assign_role' => 'Assign role',
-    'audit_log' => 'Audit Log',
     'auth_configuration_saved' => 'Auth configuration saved',
     'available_connectors' => 'Available connectors',
     'back' => 'Back',

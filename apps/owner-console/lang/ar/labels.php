@@ -43,7 +43,6 @@ return [
     'ask_a_platform_operator_to_create_the_ac' => 'اطلب من مشغّل المنصة إنشاء الحساب أولًا، ثم أضفه هنا.',
     'ask_nexus_ai' => 'اسأل Nexus AI',
     'assign_role' => 'إسناد دور',
-    'audit_log' => 'سجل التدقيق',
     'auth_configuration_saved' => 'تم حفظ إعدادات المصادقة',
     'available_connectors' => 'الموصلات المتاحة',
     'back' => 'رجوع',
