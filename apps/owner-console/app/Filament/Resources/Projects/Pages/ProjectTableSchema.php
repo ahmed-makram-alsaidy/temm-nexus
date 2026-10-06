@@ -75,8 +75,8 @@ class ProjectTableSchema extends Page
             }
 
             return $schema->components([
-                Section::make('Choose a table')->schema([
-                    Html::make('<div class="cp-qa">'.($links ?: 'No tables in this database yet.').'</div>'),
+                Section::make(__('labels.ts_choose_table'))->schema([
+                    Html::make('<div class="cp-qa">'.($links ?: e(__('labels.ts_no_tables'))).'</div>'),
                 ]),
             ]);
         }
@@ -85,13 +85,13 @@ class ProjectTableSchema extends Page
         try {
             $explorer = $this->explorer();
             $table = $explorer->assertTable((string) $this->table);
-            $components[] = Section::make("Columns · {$table}")
+            $components[] = Section::make(__('labels.ts_columns_table', ['table' => $table]))
                 ->schema([
                     RepeatableEntry::make('columns')->state($explorer->columns($table))->schema([
                         TextEntry::make('name')->badge(),
-                        TextEntry::make('type'),
-                        TextEntry::make('nullable')->formatStateUsing(fn ($s) => $s ? 'yes' : 'no'),
-                        TextEntry::make('default')->placeholder('—'),
+                        TextEntry::make('type')->label(__('labels.ts_type')),
+                        TextEntry::make('nullable')->label(__('labels.ts_nullable'))->formatStateUsing(fn ($s) => $s ? __('labels.inf_yes') : __('labels.inf_no')),
+                        TextEntry::make('default')->label(__('labels.ts_default'))->placeholder('—'),
                         TextEntry::make('pk')->label(__('labels.pk'))->formatStateUsing(fn ($s) => $s ? '✓' : '—'),
                     ])->columns(5)->contained(false),
                 ]);
@@ -100,29 +100,31 @@ class ProjectTableSchema extends Page
                 $explorer->foreignKeys($table)
             );
             $fkSection = $fks === []
-                ? Section::make('Relationships')->schema([TextEntry::make('none')->state('No foreign keys declared.')])
-                : Section::make('Relationships')->schema([
+                ? Section::make(__('labels.ts_relationships'))->schema([TextEntry::make('none')->label(__('labels.ts_fk'))->state(__('labels.ts_no_fks'))])
+                : Section::make(__('labels.ts_relationships'))->schema([
                     RepeatableEntry::make('fks')->state($fks)
-                        ->schema([TextEntry::make('path')])->contained(false),
+                        ->schema([TextEntry::make('path')->label(__('labels.ts_fk'))])->contained(false),
                 ]);
             $indexes = $explorer->indexes($table);
-            $idxSection = Section::make('Indexes & size')->schema(array_filter([
-                TextEntry::make('rows')->state(number_format($explorer->exactCount($table))),
+            $idxSection = Section::make(__('labels.ts_indexes_size'))->schema(array_filter([
+                TextEntry::make('rows')->label(__('labels.ts_rows'))->state(number_format($explorer->exactCount($table))),
                 $indexes === []
-                    ? TextEntry::make('idx_none')->state('No indexes.')
+                    ? TextEntry::make('idx_none')->label(__('labels.ts_indexes'))->state(__('labels.ts_no_indexes'))
                     : RepeatableEntry::make('indexes')->state($indexes)->schema([
                         TextEntry::make('name')->badge(),
-                        TextEntry::make('definition'),
+                        TextEntry::make('definition')->label(__('labels.ts_definition')),
                     ])->contained(false),
             ]));
             $components[] = Grid::make(2)->schema([$fkSection, $idxSection]);
-            $components[] = Section::make('Actions')->schema([
+            $components[] = Section::make(__('labels.ts_actions'))->schema([
                 \Filament\Schemas\Components\Actions::make($this->schemaPageActions($table)),
             ]);
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
             // Unknown table etc: plain notice, never the "unreachable" panel.
-            $components[] = Section::make('Schema')->schema([
-                TextEntry::make('notice')->state($e->getMessage() ?: 'Table not available.'),
+            // The raw reason stays in the log (H3); the face is product copy.
+            report($e);
+            $components[] = Section::make(__('labels.ts_schema'))->schema([
+                TextEntry::make('notice')->label(__('labels.ts_notice'))->state(__('labels.ts_table_unavailable')),
             ]);
         } catch (\Throwable $e) {
             $components[] = static::connectionError($e);

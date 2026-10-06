@@ -83,7 +83,7 @@ class ProjectSecrets extends Page
             .'documented limitation, see 20M report section.</p>';
 
         return $schema->components([
-            Section::make('Secrets Vault')->schema([Html::make($grid)])->compact(),
+            Section::make(__('labels.sec_vault'))->schema([Html::make($grid)])->compact(),
         ]);
     }
 

@@ -82,21 +82,21 @@ class ProjectConnect extends Page
         $keyRows = '';
         foreach ($keys as $k) {
             $state = $k->revoked_at
-                ? '<span class="cp-badge is-danger">revoked</span>'
+                ? '<span class="cp-badge is-danger">'.e(__('labels.cn_key_revoked')).'</span>'
                 : (($k->expires_at && $k->expires_at->isPast())
-                    ? '<span class="cp-badge is-warning">expired</span>'
-                    : '<span class="cp-badge is-success">active</span>');
-            $keyRows .= '<tr><td>'.e($k->name).'</td><td><code>'.e($k->prefix).'…</code></td>'
+                    ? '<span class="cp-badge is-warning">'.e(__('labels.cn_key_expired')).'</span>'
+                    : '<span class="cp-badge is-success">'.e(__('labels.cn_key_active')).'</span>');
+            $keyRows .= '<tr><td>'.e($k->name).'</td><td><code dir="ltr">'.e($k->prefix).'…</code></td>'
                 .'<td>'.e(implode(', ', $k->scopes ?? [])).'</td><td>'.$state.'</td></tr>';
         }
         if ($keyRows === '') {
             $keysUrl = ProjectApiKeys::getUrl(['record' => $p]);
-            $keyRows = '<tr><td colspan="4">No API keys yet — <a href="'.e($keysUrl).'">create one on the API Keys page</a> (shown once, then only prefixes here).</td></tr>';
+            $keyRows = '<tr><td colspan="4">'.e(__('labels.cn_no_keys_a', ['url' => e($keysUrl)])).' '.e(__('labels.cn_no_keys_b')).'</td></tr>';
         }
 
         $snippets = [
             'JavaScript' => [
-                'install' => 'npm install @platform/backend-sdk   # Phase 22: private — file: link until published',
+                'install' => 'npm install @platform/backend-sdk',
                 'code' => "import { BackendClient } from '@platform/backend-sdk';\n\n"
                     ."const client = new BackendClient({\n"
                     ."  baseUrl: '{$apiUrl}',\n"
@@ -122,7 +122,7 @@ class ProjectConnect extends Page
                     ."const me = await server.auth.me();",
             ],
             'Flutter' => [
-                'install' => "dependencies:\n  backend_sdk:\n    path: ../../packages/backend_sdk_dart   # Phase 22: path/git until published",
+                'install' => "dependencies:\n  backend_sdk:\n    path: ../../packages/backend_sdk_dart",
                 'code' => "final client = BackendClient(\n"
                     ."  baseUrl: '{$apiUrl}',\n"
                     ."  apiKey: 'PUBLIC_KEY', // CLIENT-SAFE key only\n"

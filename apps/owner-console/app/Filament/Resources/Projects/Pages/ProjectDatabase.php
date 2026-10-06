@@ -110,7 +110,7 @@ class ProjectDatabase extends Page
                 .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
 
             $components = [
-                Section::make('Tables & views')->schema([Html::make($grid)])->compact(),
+                Section::make(__('labels.dat_tables_views'))->schema([Html::make($grid)])->compact(),
             ];
         } catch (\Throwable $e) {
             $components = [static::connectionError($e)];

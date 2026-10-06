@@ -71,27 +71,27 @@ class ProjectQueues extends Page implements HasTable
             $queueRows .= '<tr><td><code>'.e($q['queue']).'</code></td><td class="cp-num">'.(int) $q['pending'].'</td></tr>';
         }
         $queuesHtml = $queueRows !== ''
-            ? '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_queue')).'</th><th class="cp-num">Pending</th></tr></thead><tbody>'.$queueRows.'</tbody></table></div>'
+            ? '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_queue')).'</th><th class="cp-num">'.e(__('labels.qu_pending')).'</th></tr></thead><tbody>'.$queueRows.'</tbody></table></div>'
             : '<div class="cp-empty"><div class="cp-empty__icon">∅</div>'
-                .'<div class="cp-empty__title">No queued work</div>'
-                .'<div class="cp-empty__hint">All project queues are empty right now.</div></div>';
+                .'<div class="cp-empty__title">'.e(__('labels.qu_empty_title')).'</div>'
+                .'<div class="cp-empty__hint">'.e(__('labels.qu_empty_body')).'</div></div>';
 
         $healthLine = '<span class="cp-badge '.($stats['running'] ? 'is-success' : '').'">'
-            .'Horizon · '.($stats['running'] ? 'seen recently' : 'not running').'</span> '
+            .'Horizon · '.($stats['running'] ? e(__('labels.qu_horizon_seen')) : e(__('labels.qu_horizon_not_running'))).'</span> '
             .'<span class="cp-badge '.((int) $stats['failed'] > 0 ? 'is-danger' : 'is-success').'">'
-            .(int) $stats['failed'].' failed</span> '
-            .'<span class="cp-badge">'.(int) $depth.' pending</span> '
-            .'<span class="cp-badge">'.(int) $stats['processed'].' processed</span>';
+            .e(__('labels.qu_failed_count', ['count' => (int) $stats['failed']])).'</span> '
+            .'<span class="cp-badge">'.e(__('labels.qu_pending_count', ['count' => (int) $depth])).'</span> '
+            .'<span class="cp-badge">'.e(__('labels.qu_processed_count', ['count' => (int) $stats['processed']])).'</span>';
 
         return $schema->components([
-            Section::make('Queue health')->schema([
+            Section::make(__('labels.qu_health'))->schema([
                 Html::make('<div class="cp-toolbar" style="margin-bottom:.5rem">'.$healthLine.'</div>'
-                    .'<p class="cp-healthline__sub">Counters come from the Horizon Redis namespace when Horizon ran; failed count always comes from failed_jobs.</p>'
-                    .'<details class="cp-details"><summary>Horizon detail</summary><p>'
-                    .($stats['supervisors'] === [] ? 'No supervisors observed.' : count($stats['supervisors']).' supervisor(s) observed.')
+                    .'<p class="cp-healthline__sub">'.e(__('labels.qu_counters_note')).'</p>'
+                    .'<details class="cp-details"><summary>'.e(__('labels.qu_horizon_detail')).'</summary><p>'
+                    .($stats['supervisors'] === [] ? e(__('labels.qu_no_supervisors')) : e(__('labels.qu_supervisors', ['count' => count($stats['supervisors'])])))
                     .'</p></details>'),
             ])->compact(),
-            Section::make('Queues · '.count($stats['queues']))->schema([
+            Section::make(__('labels.qu_queues_count', ['count' => count($stats['queues'])]))->schema([
                 Html::make($queuesHtml),
             ])->compact(),
         ]);
@@ -107,7 +107,7 @@ class ProjectQueues extends Page implements HasTable
         }
 
         if (! $hasFailed) {
-            return $this->emptyTable($table, 'No failed-jobs table', 'The project database is unreachable or has no failed_jobs table.');
+            return $this->emptyTable($table, __('labels.qu_no_failed_table'), __('labels.qu_no_failed_table_body'));
         }
 
         $failed = \App\Models\ProjectRecord::onTable($conn, 'failed_jobs', 'id');
@@ -115,10 +115,14 @@ class ProjectQueues extends Page implements HasTable
         return $table
             ->query(fn () => $failed->newQuery()->orderByDesc('failed_at'))
             ->columns([
-                TextColumn::make('id')->sortable(),
+                // Internal PK + raw payload are implementation detail: hidden
+                // by default, reachable through the column manager (H5).
+                TextColumn::make('id')->sortable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('queue')->badge()->searchable(),
-                TextColumn::make('payload')->limit(60)->formatStateUsing(fn ($s) => is_string($s) ? mb_substr($s, 0, 60) : '—'),
-                TextColumn::make('exception')->limit(80)->toggleable(),
+                TextColumn::make('payload')->limit(60)
+                    ->formatStateUsing(fn ($s) => is_string($s) ? mb_substr($s, 0, 60) : '—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('exception')->limit(80)->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('failed_at')->dateTime()->sortable(),
             ])
             ->recordActions([
@@ -127,7 +131,11 @@ class ProjectQueues extends Page implements HasTable
                     ->action(function ($record) {
                         // queue:retry addresses jobs by UUID, not numeric id.
                         $result = ProjectArtisan::run($this->project(), 'queue:retry', [(string) $record->uuid]);
-                        abort_unless($result['ok'], 422, 'Retry failed: '.$result['output']);
+                        if (! $result['ok']) {
+                            // Raw command output stays in the log (H3).
+                            report(new \RuntimeException('queue:retry failed: '.$result['output']));
+                            abort(422, __('labels.qu_retry_failed'));
+                        }
                         $this->audit('QUEUE_JOB_RETRIED', 'failed_job', $record->uuid);
                         Notification::make()->title(__('labels.job_pushed_back_to_the_queue'))->success()->send();
                     }),
@@ -135,14 +143,17 @@ class ProjectQueues extends Page implements HasTable
                     ->requiresConfirmation()
                     ->action(function ($record) {
                         $result = ProjectArtisan::run($this->project(), 'queue:forget', [(string) $record->uuid]);
-                        abort_unless($result['ok'], 422, 'Delete failed: '.$result['output']);
+                        if (! $result['ok']) {
+                            report(new \RuntimeException('queue:forget failed: '.$result['output']));
+                            abort(422, __('labels.qu_delete_failed'));
+                        }
                         $this->audit('QUEUE_JOB_DELETED', 'failed_job', $record->uuid);
                         Notification::make()->title(__('labels.failed_job_deleted'))->success()->send();
                     }),
             ])
-            ->heading('Failed jobs')
-            ->emptyStateHeading('No failed jobs')
-            ->emptyStateDescription('Failures land here with queue, payload and exception — retry or delete with audit trail.')
+            ->heading(__('labels.qu_failed_jobs'))
+            ->emptyStateHeading(__('labels.qu_no_failed_jobs'))
+            ->emptyStateDescription(__('labels.qu_no_failed_jobs_body'))
             ->emptyStateIcon('heroicon-o-check-circle');
     }
 }

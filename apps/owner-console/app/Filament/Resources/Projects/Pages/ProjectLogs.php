@@ -9,6 +9,7 @@ use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\LogExplorerService;
 use App\Services\ControlPlane\ProjectArtisan;
 use App\Services\ControlPlane\ProjectLogReader;
+use App\Support\ProductStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -124,22 +125,20 @@ class ProjectLogs extends Page
             $badge = in_array($sev, ['error', 'critical', 'alert', 'emergency'], true) ? 'is-danger'
                 : (in_array($sev, ['warning'], true) ? 'is-warning' : 'is-info');
             $detail = $this->self(['show' => $r['ref']]);
-            $rows .= '<tr><td style="white-space:nowrap">'.e($r['time'] ? mb_substr($r['time'], 5, 14) : '—').'</td>'
+            $rows .= '<tr><td style="white-space:nowrap"><code dir="ltr">'.e($r['time'] ? mb_substr($r['time'], 5, 14) : '—').'</code></td>'
                 .'<td>'.e($r['source']).'</td>'
-                .'<td><span class="cp-badge '.$badge.'">'.e($sev).'</span></td>'
+                .'<td><span class="cp-badge '.$badge.'">'.e(ProductStatus::label((string) $sev)).'</span></td>'
                 .'<td>'.e(mb_substr($r['summary'], 0, 220)).'</td>'
-                .'<td>'.($r['request_id'] ? '<a href="'.e($this->self(['request_id' => $r['request_id'], 'show' => null])).'"><code>'.e(mb_substr($r['request_id'], 0, 8)).'…</code></a>' : '—').'</td>'
-                .'<td><a href="'.e($detail).'">Detail →</a></td></tr>';
+                .'<td>'.($r['request_id'] ? '<a href="'.e($this->self(['request_id' => $r['request_id'], 'show' => null])).'"><code dir="ltr">'.e(mb_substr($r['request_id'], 0, 8)).'…</code></a>' : '—').'</td>'
+                .'<td><a href="'.e($detail).'">'.e(__('labels.lg_detail')).' →</a></td></tr>';
         }
         if ($rows === '') {
-            $rows = '<tr><td colspan="6">No log entries match. Try clearing filters'
-                .($files === 0 ? ' (note: this project has no Laravel log files on this host — checkout not deployed)' : '')
-                .'.</td></tr>';
+            $rows = '<tr><td colspan="6">'.e(__('labels.lg_no_match').($files === 0 ? ' '.__('labels.lg_no_files_note') : '')).'</td></tr>';
         }
         $filterChips = [];
         foreach (['source' => $this->source, 'severity' => $this->severity, 'q' => $this->search, 'request_id' => $this->requestId, 'since' => $this->since] as $k => $v) {
             if ($v) {
-                $filterChips[] = '<span class="cp-badge is-info">'.e($k).': '.e(mb_substr((string) $v, 0, 40)).'</span>';
+                $filterChips[] = '<span class="cp-badge is-info"><code dir="ltr">'.e($k).': '.e(mb_substr((string) $v, 0, 40)).'</code></span>';
             }
         }
 
@@ -190,12 +189,15 @@ class ProjectLogs extends Page
                         try {
                             $result = ProjectArtisan::run($this->project(), 'demo:throw-test-exception');
                         } catch (\Throwable $e) {
-                            Notification::make()->title(__('labels.not_available'))->body($e->getMessage())->warning()->send();
+                            // Raw diagnostics stay in the log (H3).
+                            report($e);
+                            Notification::make()->title(__('labels.lg_test_failed_title'))
+                                ->body(__('labels.lg_test_failed_body'))->warning()->send();
 
                             return;
                         }
                         $this->audit('PROJECT_HEALTH_CHECKED', 'logs', 'test-exception');
-                        Notification::make()->title(__('labels.test_exception_logged'))->body(mb_substr($result['output'], 0, 200))->success()->send();
+                        Notification::make()->title(__('labels.test_exception_logged'))->body(__('labels.lg_test_logged_body'))->success()->send();
                         $this->redirect($this->self(['source' => 'laravel', 'severity' => 'error']));
                     }),
             ]),

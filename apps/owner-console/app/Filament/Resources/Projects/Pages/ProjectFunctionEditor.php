@@ -116,8 +116,8 @@ class ProjectFunctionEditor extends Page
 
         return $schema->components([
             Html::make($tabs),
-            Section::make('Function')->schema([Html::make($grid)])->compact(),
-            Section::make('Versions')->schema([Html::make($history)])->compact(),
+            Section::make(__('labels.fn_function'))->schema([Html::make($grid)])->compact(),
+            Section::make(__('labels.fn_versions'))->schema([Html::make($history)])->compact(),
         ]);
     }
 

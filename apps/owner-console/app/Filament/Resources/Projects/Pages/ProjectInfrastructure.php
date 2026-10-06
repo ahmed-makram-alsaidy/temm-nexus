@@ -7,6 +7,7 @@ use App\Filament\Resources\Projects\ProjectResource;
 use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\InfrastructureHealthService;
 use App\Services\ControlPlane\InfrastructureMapper;
+use App\Support\ProductStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -79,36 +80,36 @@ class ProjectInfrastructure extends Page
         foreach ($health['facets'] as $facet => $info) {
             $tone = $info['status'] === 'healthy' ? 'is-success'
                 : (($info['status'] === 'unknown' ? '' : 'is-danger'));
-            $facetHtml .= '<span class="cp-badge '.$tone.'">'.e($facet).': '.e($info['status'])
-                .' → '.e($info['node'] ?? '—').'</span> ';
+            $facetHtml .= '<span class="cp-badge '.$tone.'">'.e(\Illuminate\Support\Str::headline($facet)).': '.e(ProductStatus::label((string) $info['status']))
+                .' → <code dir="ltr">'.e($info['node'] ?? '—').'</code></span> ';
         }
         $mapRows = '';
         foreach ($mapping as $service => $m) {
-            $mapRows .= '<tr><td><code>'.e($service).'</code></td><td><code>'.e($m['node'] ?? '—')
-                .'</code></td><td><code>'.e($m['endpoint_override'] ?? '—').'</code></td></tr>';
+            $mapRows .= '<tr><td><code dir="ltr">'.e($service).'</code></td><td><code dir="ltr">'.e($m['node'] ?? '—')
+                .'</code></td><td><code dir="ltr">'.e($m['endpoint_override'] ?? '—').'</code></td></tr>';
         }
-        $ep = fn ($label, $v) => '<tr><td>'.e($label).'</td><td><code>'.e($v).'</code></td></tr>';
-        $overridden = ($p->db_host || $p->redis_host || $p->reverb_host) ? 'yes' : 'no';
+        $ep = fn ($label, $v) => '<tr><td>'.e($label).'</td><td><code dir="ltr">'.e($v).'</code></td></tr>';
+        $overridden = ($p->db_host || $p->redis_host || $p->reverb_host) ? __('labels.inf_yes') : __('labels.inf_no');
 
         return $schema->components([
-            Section::make('Profile: '.e($health['profile']))->schema([
+            Section::make(__('labels.inf_profile', ['profile' => e($health['profile'])]))->schema([
                 Html::make('<p>'.$facetHtml.'</p>'
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Single-node default maps every service to '
-                    .'node-local-01. Overrides active: <strong>'.e($overridden).'</strong>. '
-                    .'Endpoint changes are explicit and audited; services are never moved automatically.</p>'),
+                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('labels.inf_profile_note')).' '
+                    .e(__('labels.inf_overrides', ['state' => $overridden])).' '
+                    .e(__('labels.inf_explicit_note')).'</p>'),
             ]),
-            Section::make('Service mapping')->schema([
+            Section::make(__('labels.inf_mapping'))->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
                     .'<th>'.e(__('labels.th_service')).'</th><th>'.e(__('labels.node')).'</th><th>'.e(__('labels.th_endpoint_override')).'</th></tr></thead><tbody>'
                     .$mapRows.'</tbody></table></div>'),
             ])->compact(),
-            Section::make('Resolved endpoints')->schema([
+            Section::make(__('labels.inf_endpoints'))->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><tbody>'
-                    .$ep('PostgreSQL', $db['host'].':'.$db['port'].' (db '.$p->db_name.')')
-                    .$ep('Redis', $redis['host'].':'.$redis['port'].' (prefix '.$p->redis_prefix.')')
-                    .$ep('Reverb', $reverb['host'].':'.$reverb['port'])
+                    .$ep(__('labels.inf_postgres'), $db['host'].':'.$db['port'].' ('.__('labels.inf_db').' '.$p->db_name.')')
+                    .$ep(__('labels.inf_redis'), $redis['host'].':'.$redis['port'].' ('.__('labels.inf_prefix').' '.$p->redis_prefix.')')
+                    .$ep(__('labels.inf_reverb'), $reverb['host'].':'.$reverb['port'])
                     .'</tbody></table></div>'
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Resolution: mapping override → project columns → environment defaults.</p>'),
+                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('labels.inf_resolution_note')).'</p>'),
             ])->compact(),
         ]);
     }

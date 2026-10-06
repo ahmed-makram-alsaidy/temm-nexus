@@ -99,17 +99,17 @@ class ProjectScheduler extends Page
         }
 
         $components = [
-            Section::make('Scheduled jobs ('.$tasks->count().')')->schema([
+            Section::make(__('labels.sch_jobs_count', ['count' => $tasks->count()]))->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
                     .'<th>'.e(__('labels.job')).'</th><th>'.e(__('labels.th_schedule')).'</th><th>'.e(__('labels.state')).'</th><th>'.e(__('labels.th_last_run')).'</th><th>'.e(__('labels.th_next_run')).'</th><th>'.e(__('labels.th_last_status')).'</th>'
                     .'</tr></thead><tbody>'.$rows.'</tbody></table></div>'
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Due jobs run every minute via the console scheduler. '
-                    .'Targets: allowlisted artisan commands, server functions. Never shell.</p>'),
+                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('labels.sch_due_note')).' '
+                    .e(__('labels.sch_targets_note')).'</p>'),
             ]),
-            Section::make('Run history')->schema([
+            Section::make(__('labels.sch_history'))->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
                     .'<th>'.e(__('labels.time')).'</th><th>'.e(__('labels.job')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_duration')).'</th><th>'.e(__('labels.request_id')).'</th>'
-                    .'</tr></thead><tbody>'.($history ?: '<tr><td colspan="5">No runs yet.</td></tr>').'</tbody></table></div>'),
+                    .'</tr></thead><tbody>'.($history ?: '<tr><td colspan="5">'.e(__('labels.sch_no_runs')).'</td></tr>').'</tbody></table></div>'),
             ])->compact(),
         ];
 
@@ -118,8 +118,8 @@ class ProjectScheduler extends Page
             $info = SchedulerInfo::for($this->project());
             $defined = $info->definedTasks();
             if ($defined !== []) {
-                $components[] = Section::make('Project checkout schedule ('.count($defined).')')->schema([
-                    TextEntry::make('note')->state('Static tasks from the project checkout routes/console.php. Manage timing through jobs above.'),
+                $components[] = Section::make(__('labels.sch_checkout_schedule', ['count' => count($defined)]))->schema([
+                    TextEntry::make('note')->label(__('labels.sch_note'))->state(__('labels.sch_checkout_note')),
                 ])->collapsed();
             }
         } catch (\Throwable) {

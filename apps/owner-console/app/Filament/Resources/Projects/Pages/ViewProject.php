@@ -386,7 +386,10 @@ class ViewProject extends Page
         $downFile = ControlPlanePaths::projectDir($this->project()->slug).'/storage/framework/down';
         if ($on) {
             @mkdir(dirname($downFile), 0755, true);
-            file_put_contents($downFile, json_encode(['message' => 'Maintenance via control plane', 'time' => time()]));
+            // The maintenance message is written in the PLATFORM default
+            // language (this file is rendered by the deployed project, whose
+            // locale is unknown here) — product words, no console jargon.
+            file_put_contents($downFile, json_encode(['message' => __('labels.vp_maintenance_message'), 'time' => time()]));
             $this->project()->update(['maintenance_mode' => true]);
             $this->audit('PROJECT_MAINTENANCE_ENABLED');
             Notification::make()->title(__('labels.maintenance_mode_enabled'))->warning()->send();

@@ -82,21 +82,18 @@ class ProjectMigrations extends Page
         }
 
         return $schema->components([
-            Section::make('Checkout migrations')->schema([
+            Section::make(__('labels.mig_checkout'))->schema([
                 Html::make($status === null
-                    ? '<div class="cp-empty"><div class="cp-empty__title">No project checkout on this host</div>'
-                      .'<div class="cp-empty__hint">migrate:status/run/rollback execute inside the deployed project checkout. '
-                      .'Local checkouts carry storage only, so these actions are unavailable here — the change history below '
-                      .'still records every visual-tool modification.</div></div>'
+                    ? '<div class="cp-empty"><div class="cp-empty__title">'.e(__('labels.mig_no_checkout_title')).'</div>'
+                      .'<div class="cp-empty__hint">'.e(__('labels.mig_no_checkout_body')).'</div></div>'
                     : '<div class="cp-code">'.e($status).'</div>'),
             ])->headerActions($this->migrationActions($status !== null)),
-            Section::make('Schema change history ('.$changes->count().')')->schema([
+            Section::make(__('labels.mig_history_count', ['count' => $changes->count()]))->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>'.e(__('labels.time')).'</th>.'.e(__('labels.')).'</th><th>'.e(__('labels.detail')).'<th>'.e(__('labels.owner')).'<th>'
-                    .'</tr></thead><tbody>'.($rows ?: '<tr><td colspan="4">No visual-tool changes recorded yet.</td></tr>')
+                    .'<th>'.e(__('labels.time')).'</th><th>'.e(__('labels.th_change')).'</th><th>'.e(__('labels.detail')).'</th><th>'.e(__('labels.owner')).'</th>'
+                    .'</tr></thead><tbody>'.($rows ?: '<tr><td colspan="4">'.e(__('labels.mig_no_changes')).'</td></tr>')
                     .'</tbody></table></div>'
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Table/column/FK/index/trigger/function operations '
-                    .'from Database Studio are traced here instead of becoming invisible manual changes.</p>'),
+                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('labels.mig_trace_note')).'</p>'),
             ])->compact(),
         ]);
     }

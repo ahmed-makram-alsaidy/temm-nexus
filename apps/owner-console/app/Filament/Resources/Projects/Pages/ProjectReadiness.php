@@ -9,6 +9,7 @@ use App\Models\ReadinessSnapshot;
 use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\EnvironmentContext;
 use App\Services\ControlPlane\ReadinessService;
+use App\Support\ProductStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -76,53 +77,52 @@ class ProjectReadiness extends Page
         $badge = ['green' => 'is-success', 'yellow' => 'is-warning', 'red' => 'is-danger', 'not_applicable' => ''];
         $rows = '';
         foreach ($summary['checks'] as $check) {
-            $ack = $check['acknowledged_at'] ? '<span class="cp-badge" title="'.e((string) $check['acknowledgement_note']).'">ack</span>' : '';
+            $ack = $check['acknowledged_at'] ? '<span class="cp-badge" title="'.e((string) $check['acknowledgement_note']).'">'.e(__('labels.rd_ack')).'</span>' : '';
             $rows .= '<tr><td>'.e($check['category']).'</td>'
-                .'<td><span class="cp-badge '.($badge[$check['status']] ?? '').'">'.e(strtoupper($check['status'])).'</span></td>'
+                .'<td><span class="cp-badge '.($badge[$check['status']] ?? '').'">'.e(ProductStatus::label((string) $check['status'])).'</span></td>'
                 .'<td>'.e($check['title']).'</td>'
                 .'<td>'.e($check['origin']).'</td>'
                 .'<td style="font-size:.75rem">'.e((string) $check['detail']).'</td>'
-                .'<td>'.($check['blocks_production'] ? '<span class="cp-badge is-danger">blocks</span>' : '—').'</td>'
+                .'<td>'.($check['blocks_production'] ? '<span class="cp-badge is-danger">'.e(__('labels.rd_blocks')).'</span>' : '—').'</td>'
                 .'<td>'.$ack.'</td></tr>';
         }
         if ($rows === '') {
-            $rows = '<tr><td colspan="7">No checks yet — run evaluation.</td></tr>';
+            $rows = '<tr><td colspan="7">'.e(__('labels.rd_no_checks')).'</td></tr>';
         }
 
         $blockers = '';
         foreach ($summary['blockers'] as $b) {
-            $blockers .= '<tr><td><span class="cp-badge is-danger">BLOCKER</span></td><td>'.e($b['title']).'</td>'
+            $blockers .= '<tr><td><span class="cp-badge is-danger">'.e(__('labels.rd_blocker')).'</span></td><td>'.e($b['title']).'</td>'
                 .'<td style="font-size:.75rem">'.e((string) $b['detail']).'</td></tr>';
         }
         if ($blockers === '') {
-            $blockers = '<tr><td><span class="cp-badge is-success">NONE</span></td><td>No production blockers</td><td></td></tr>';
+            $blockers = '<tr><td><span class="cp-badge is-success">'.e(__('labels.rd_none')).'</span></td><td>'.e(__('labels.rd_no_blockers')).'</td><td></td></tr>';
         }
 
         $histRows = '';
         foreach ($history as $snap) {
             $counts = $snap->summary['counts'] ?? [];
-            $histRows .= '<tr><td>#'.$snap->id.'</td><td>'.e($snap->created_at->format('M j, H:i')).'</td>'
-                .'<td>'.e((string) ($counts['green'] ?? 0)).' green</td>'
-                .'<td>'.e((string) ($counts['yellow'] ?? 0)).' yellow</td>'
-                .'<td>'.e((string) ($counts['red'] ?? 0)).' red</td>'
-                .'<td>'.count($snap->summary['blockers'] ?? []).' blockers</td></tr>';
+            $histRows .= '<tr><td>#'.$snap->id.'</td><td>'.e($snap->created_at->locale(app()->getLocale())->translatedFormat('M j, H:i')).'</td>'
+                .'<td>'.e(__('labels.rd_count', ['count' => (int) ($counts['green'] ?? 0), 'state' => ProductStatus::label('green')])).'</td>'
+                .'<td>'.e(__('labels.rd_count', ['count' => (int) ($counts['yellow'] ?? 0), 'state' => ProductStatus::label('yellow')])).'</td>'
+                .'<td>'.e(__('labels.rd_count', ['count' => (int) ($counts['red'] ?? 0), 'state' => ProductStatus::label('red')])).'</td>'
+                .'<td>'.e(__('labels.rd_blockers_count', ['count' => count($snap->summary['blockers'] ?? [])])).'</td></tr>';
         }
         if ($histRows === '') {
-            $histRows = '<tr><td colspan="6">No snapshots recorded.</td></tr>';
+            $histRows = '<tr><td colspan="6">'.e(__('labels.rd_no_snapshots')).'</td></tr>';
         }
 
         return $schema->components([
-            Section::make('Checklist — environment: '.e($env->slug))->schema([Html::make(
-                '<p style="font-size:.75rem;color:var(--cp-text-dim);margin-bottom:.5rem">Status only (no numeric score). Machine checks carry platform evidence; '
-                .'manual acknowledgements cannot hide a RED machine check.</p>'
+            Section::make(__('labels.rd_checklist', ['env' => e($env->slug)]))->schema([Html::make(
+                '<p style="font-size:.75rem;color:var(--cp-text-dim);margin-bottom:.5rem">'.e(__('labels.rd_status_note')).'</p>'
                 .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_category')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.th_check')).'</th><th>'.e(__('labels.th_origin')).'</th><th>'.e(__('labels.th_evidence')).'</th><th>'.e(__('labels.th_prod')).'</th><th>'.e(__('labels.th_ack')).'</th></tr></thead><tbody>'
                 .$rows.'</tbody></table></div>'
             )])->compact(),
-            Section::make('Production blockers')->schema([Html::make(
+            Section::make(__('labels.rd_blockers_title'))->schema([Html::make(
                 '<div class="cp-tablewrap"><table class="cp-grid"><tbody>'.$blockers.'</tbody></table></div>'
             )])->compact(),
-            Section::make('History')->schema([Html::make(
-                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_id')).'</th><th>'.e(__('labels.th_when')).'</th><th colspan="4">Counts</th></tr></thead><tbody>'
+            Section::make(__('labels.rd_history'))->schema([Html::make(
+                '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_id')).'</th><th>'.e(__('labels.th_when')).'</th><th colspan="4">'.e(__('labels.rd_counts')).'</th></tr></thead><tbody>'
                 .$histRows.'</tbody></table></div>'
             )])->compact(),
         ]);
@@ -136,8 +136,11 @@ class ProjectReadiness extends Page
             Action::make('evaluate')->label(__('labels.evaluate_now'))->icon('heroicon-o-play')
                 ->action(function () {
                     $summary = ReadinessService::evaluate($this->project(), EnvironmentContext::active($this->project()));
-                    Notification::make()->title("{$summary['counts']['green']} green, {$summary['counts']['yellow']} yellow, {$summary['counts']['red']} red")
-                        ->warning($summary['counts']['red'] > 0)->success($summary['counts']['red'] === 0)->send();
+                    Notification::make()->title(__('labels.rd_evaluated', [
+                        'green' => (int) $summary['counts']['green'],
+                        'yellow' => (int) $summary['counts']['yellow'],
+                        'red' => (int) $summary['counts']['red'],
+                    ]))->warning($summary['counts']['red'] > 0)->success($summary['counts']['red'] === 0)->send();
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),
             Action::make('acknowledge')->label(__('labels.acknowledge_check'))->icon('heroicon-o-check-badge')
@@ -155,7 +158,10 @@ class ProjectReadiness extends Page
                         ReadinessService::acknowledge($this->project(), EnvironmentContext::active($this->project()), $data['check_key'], $data['note']);
                         Notification::make()->title(__('labels.acknowledgement_recorded'))->success()->send();
                     } catch (\Throwable $e) {
-                        Notification::make()->title($e->getMessage())->danger()->send();
+                        // Raw diagnostics stay in the log; the notification
+                        // follows the product error pattern (H3).
+                        report($e);
+                        Notification::make()->title(__('labels.rd_ack_failed'))->danger()->send();
                     }
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),

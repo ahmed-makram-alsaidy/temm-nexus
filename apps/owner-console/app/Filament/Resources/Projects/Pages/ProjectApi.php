@@ -106,20 +106,21 @@ class ProjectApi extends Page
         }
 
         return $schema->components([
-            Section::make('Overview')->schema([
+            Section::make(__('labels.api_overview'))->schema([
                 Html::make('<dl class="cp-kv">'
-                    .'<dt>Base URL</dt><dd><code>'.e($p->api_domain ? 'https://'.$p->api_domain : '—').'</code></dd>'
-                    .'<dt>Health</dt><dd><code>/api/health</code></dd>'
-                    .'<dt>Version</dt><dd>'.e($p->api_version ?? 'v1 (default)').'</dd>'
-                    .'<dt>Snapshot</dt><dd>'.e($snapshot?->captured_at?->format('M j, H:i') ?? 'never')
-                    .' · '.count($routes).' routes · <a href="'.e(route('control-plane.openapi', ['project' => $p->id])).'">openapi.json ↓</a></dd>'
-                    .'<dt>Auth strategy</dt><dd>Project API keys (Keys page) + user tokens; auth-guarded routes marked below.</dd>'
+                    .'<dt>'.e(__('labels.api_base_url')).'</dt><dd><code dir="ltr">'.e($p->api_domain ? 'https://'.$p->api_domain : '—').'</code></dd>'
+                    .'<dt>'.e(__('labels.api_health')).'</dt><dd><code dir="ltr">/api/health</code></dd>'
+                    .'<dt>'.e(__('labels.api_version')).'</dt><dd>'.e($p->api_version ?? __('labels.api_version_default')).'</dd>'
+                    .'<dt>'.e(__('labels.api_snapshot')).'</dt><dd>'.e($snapshot?->captured_at?->locale(app()->getLocale())->translatedFormat('M j, H:i') ?? __('labels.crep_never_scanned'))
+                    .' · '.e(__('labels.api_routes_count', ['count' => count($routes)])).' · <a href="'.e(route('control-plane.openapi', ['project' => $p->id])).'" dir="ltr">openapi.json ↓</a></dd>'
+                    .'<dt>'.e(__('labels.api_auth_strategy')).'</dt><dd>'.e(__('labels.api_auth_strategy_body')).'</dd>'
                     .'</dl>'),
             ])->compact(),
-            Section::make('Endpoints · '.count($routes))->schema([Html::make($explorer)])->compact(),
-            Section::make('Request builder + response')->schema([
-                Html::make('<p style="font-size:.75rem;color:var(--cp-text-dim)">Calls the project API or this console through the proxy. '
-                    .'Only allowlisted hosts ('.e(implode(', ', ApiStudioService::allowedHosts($p))).'). Timeouts and size caps enforced.</p>'.$result),
+            Section::make(__('labels.api_endpoints', ['count' => count($routes)]))->schema([Html::make($explorer)])->compact(),
+            Section::make(__('labels.api_builder'))->schema([
+                Html::make('<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('labels.api_builder_note')).' '
+                    .e(__('labels.api_allowed_hosts', ['hosts' => e(implode(', ', ApiStudioService::allowedHosts($p)))]))
+                    .' '.e(__('labels.api_limits_note')).'</p>'.$result),
             ])->compact(),
         ]);
     }

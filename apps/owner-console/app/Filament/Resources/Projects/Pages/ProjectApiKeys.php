@@ -89,7 +89,7 @@ class ProjectApiKeys extends Page
             .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
 
         return $schema->components([
-            Section::make('API keys')->schema([Html::make($grid)])->compact(),
+            Section::make(__('labels.keys_title'))->schema([Html::make($grid)])->compact(),
         ]);
     }
 
