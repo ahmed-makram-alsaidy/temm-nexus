@@ -956,5 +956,14 @@ return [
     'wh_code' => 'Code',
     'wh_attempts' => 'Attempts',
     'wh_no_deliveries' => 'No deliveries yet — deliveries appear here after the first event fires.',
+
+    // ── Activity / audit table (Phase H) ──────────────────────────────
+    'aud_empty_title' => 'No activity yet',
+    'aud_empty_body' => 'Platform actions — setup, project changes, approvals, deletions — are recorded here with their actor, project and technical details.',
+    'aud_system' => 'system',
+    'aud_metadata' => 'Metadata',
+
+    // ── Sessions (Phase H) ────────────────────────────────────────────
+    'ss_never_used' => 'Never used',
 ];
 

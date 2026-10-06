@@ -76,8 +76,10 @@ class ProjectSessions extends Page implements HasTable
             ->columns([
                 TextColumn::make('email')->searchable()->sortable(),
                 TextColumn::make('name')->label(__('labels.device_client'))->searchable(),
-                TextColumn::make('abilities')->limit(40)->placeholder('—'),
-                TextColumn::make('last_used_at')->dateTime()->placeholder('never')->sortable(),
+                // Raw Sanctum abilities JSON is implementation detail: hidden
+                // by default, reachable through the column manager (H5).
+                TextColumn::make('abilities')->limit(40)->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('last_used_at')->dateTime()->placeholder(__('labels.ss_never_used'))->sortable(),
                 TextColumn::make('expires_at')->dateTime()->placeholder('—')->toggleable(),
                 TextColumn::make('created_at')->dateTime()->sortable(),
             ])

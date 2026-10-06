@@ -95,7 +95,8 @@ class ManageProjectPermissions extends Page implements HasTable
         return $table
             ->query(fn () => $model->newQuery())
             ->columns([
-                TextColumn::make('id')->sortable(),
+                // Internal PK — hidden by default, reachable via the column manager.
+                TextColumn::make('id')->sortable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('name')->searchable()->sortable()->badge()->color('info'),
                 TextColumn::make('description')->limit(60)->placeholder('—'),
                 TextColumn::make('created_at')->dateTime()->sortable()->toggleable(),
