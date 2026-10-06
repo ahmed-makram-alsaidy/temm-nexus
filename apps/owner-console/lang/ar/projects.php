@@ -86,7 +86,7 @@ return [
     'attention_title' => 'يحتاج انتباهًا',
     'attention_open' => 'فتح',
     'activity_title' => 'النشاط الأخير',
-    'activity_empty' => 'لا يوجد نشاط مسجل بعد.',
+    'activity_empty' => 'لا يوجد نشاط مسجل بعد. ستظهر هنا الإجراءات المتخذة في هذا المشروع.',
     'activity_view' => 'عرض نشاط المشروع',
     'activity_backup_state' => 'نسخة احتياطية: :state',
     'activity_schema_change' => 'تغيير في المخطط: :what',

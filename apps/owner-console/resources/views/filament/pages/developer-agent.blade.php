@@ -377,7 +377,12 @@
         <section class="nx-card" data-nx-inspect="agent.activity" data-nx-inspect-label="Activity">
             <h2 class="nx-card__title">{{ __('agents.activity_title') }}</h2>
             @if (count($d['timeline']) === 0)
-                <p class="nx-empty">{{ __('agents.activity_empty') }}</p>
+                <x-nx.empty-state
+                    icon="heroicon-o-inbox"
+                    compact
+                    :title="__('agents.activity_empty_title')"
+                    :body="__('agents.activity_empty_body')"
+                />
             @else
                 <ul class="nx-timeline">
                     @foreach ($d['timeline'] as $row)

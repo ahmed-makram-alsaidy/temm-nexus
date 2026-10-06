@@ -18,7 +18,11 @@
         <h2 class="nx-card__title">{{ __('agents.runtimes_title') }}</h2>
 
         @if (count($runtimes) === 0)
-            <p class="nx-empty">{{ __('agents.runtimes_empty') }}</p>
+            <x-nx.empty-state
+                icon="heroicon-o-cog-6-tooth"
+                :title="__('agents.runtimes_empty_title')"
+                :body="__('agents.runtimes_empty_body')"
+            />
         @else
             <div class="nx-stack">
                 @foreach ($runtimes as $runtime)

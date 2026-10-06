@@ -87,7 +87,7 @@ return [
     'attention_title' => 'Needs attention',
     'attention_open' => 'Open',
     'activity_title' => 'Recent activity',
-    'activity_empty' => 'No activity recorded yet.',
+    'activity_empty' => 'No activity recorded yet. Actions taken in this project will appear here.',
     'activity_view' => 'View project activity',
     'activity_backup_state' => 'Backup :state',
     'activity_schema_change' => 'Schema change: :what',

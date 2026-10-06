@@ -21,7 +21,8 @@ return [
 
     // Runtimes list
     'runtimes_title' => 'Configured runtimes',
-    'runtimes_empty' => 'No agent runtime is configured yet.',
+    'runtimes_empty_title' => 'No agent runtime configured yet',
+    'runtimes_empty_body' => 'A runtime is the engine that executes developer agent tasks. The platform can manage one for you, or you can connect an external one — add it with the form below.',
     'status_untested' => 'Untested',
     'unknown' => 'Unknown',
     'model_runtime_default_none' => 'Runtime default (not set)',
@@ -131,7 +132,8 @@ return [
 
     // Activity stream
     'activity_title' => 'Activity',
-    'activity_empty' => 'No activity yet.',
+    'activity_empty_title' => 'No activity yet',
+    'activity_empty_body' => 'Agent activity appears here as tasks run — every read, edit and verification, in plain language.',
     'event_status' => 'Status',
     'event_thinking' => 'Reasoning',
     'event_reading' => 'Reading',
