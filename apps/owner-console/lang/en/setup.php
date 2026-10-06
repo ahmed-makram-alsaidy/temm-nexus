@@ -22,6 +22,7 @@ return [
         12 => 'Complete',
     ],
 
+    'step_progress' => 'Step :step of :total',
     'back' => 'Back',
     'continue' => 'Continue',
     'finish' => 'Finish setup',

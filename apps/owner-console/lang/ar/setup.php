@@ -22,6 +22,7 @@ return [
         12 => 'الاكتمال',
     ],
 
+    'step_progress' => 'الخطوة :step من :total',
     'back' => 'رجوع',
     'continue' => 'متابعة',
     'finish' => 'إنهاء الإعداد',
