@@ -1,3 +1,13 @@
+## [0.6.0-rc.1] — 2026-10-07
+
+**PRE-RELEASE — release candidate.** The product experience release: a
+light-first redesign of the whole operator surface, Projects as the product's
+center of gravity, a guided migration journey, a chat-first Nexus AI with
+durable conversations, and a status-first Developer Agent workbench. Fully
+additive schema (two migrations); existing v0.5.0 installations upgrade in
+place with no data loss. Full feature set in
+`docs/open-source/RELEASE_NOTES_0.6.0-rc.1.md`.
+
 ## [0.5.0] — 2026-10-04
 
 **STABLE.** First stable release of the Agent Runtime Platform. Identical
