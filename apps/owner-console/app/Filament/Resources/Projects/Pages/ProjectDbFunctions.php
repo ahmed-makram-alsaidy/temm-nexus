@@ -178,16 +178,20 @@ class ProjectDbFunctions extends Page
                 ])
                 ->action(function (array $data) {
                     $args = json_decode((string) ($data['args_json'] ?? '[]'), true);
-                    abort_unless(is_array($args), 422, 'Arguments must be a JSON array.');
+                    abort_unless(is_array($args), 422, __('labels.dfn_args_must_be_json'));
                     $result = DbFunctionService::invoke($this->project(), (int) $data['oid'], array_values($args));
                     $this->audit('DB_FUNCTION_TESTED', 'function', $data['oid'], ['ok' => $result['ok']]);
                     if (! $result['ok']) {
-                        Notification::make()->title(__('labels.invocation_failed'))->body(mb_substr((string) $result['error'], 0, 300))->danger()->send();
+                        // The redacted DB error (SqlRunner::safeError) is
+                        // operator detail — it stays on the invocation result
+                        // and in the audit; the notification speaks product copy (H3).
+                        Notification::make()->title(__('labels.invocation_failed'))
+                            ->body(__('labels.dfn_invocation_failed_body'))->danger()->send();
 
                         return;
                     }
-                    Notification::make()->title("OK in {$result['duration_ms']} ms · ".count($result['rows']).' row(s)')
-                        ->body(mb_substr(json_encode($result['rows']), 0, 500))->success()->send();
+                    Notification::make()->title(__('labels.dfn_invoked', ['ms' => (int) $result['duration_ms'], 'rows' => count($result['rows'])]))
+                        ->body(__('labels.dfn_rows_preview'))->success()->send();
                 }),
             $options === [] ? null : Action::make('edit_function')->label(__('labels.edit'))
                 ->schema(array_merge(

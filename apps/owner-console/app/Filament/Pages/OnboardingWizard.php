@@ -286,9 +286,12 @@ class OnboardingWizard extends Page
                         $analysis = $service->analyze($source);
                         if ($analysis->status === 'completed') {
                             $service->classify($analysis);
-                            Notification::make()->title(__('labels.analysis_completed_frag').collect($analysis->counts)->sum().' objects (read-only)')->success()->send();
+                            Notification::make()->title(__('labels.mc_analyzed', ['count' => (int) collect($analysis->counts)->sum()]))->success()->send();
                         } else {
-                            Notification::make()->title(__('labels.analysis_failed_frag').($analysis->errors['message'] ?? ''))->danger()->send();
+                            // Classified failure detail stays on the analysis
+                            // row (H3); the notification speaks product copy.
+                            Notification::make()->title(__('labels.analysis_failed'))
+                                ->body(__('labels.mc_analysis_failed_body'))->danger()->send();
                         }
                     }
                 });
@@ -318,13 +321,17 @@ class OnboardingWizard extends Page
             $actions[] = Action::make('copilot_plan')->label('9. AI Copilot plan')->icon('heroicon-o-sparkles')
                 ->action(function () {
                     $project = $this->session->project;
-                    abort_if($project === null, 422, 'Select a project first.');
+                    abort_if($project === null, 422, __('labels.ob_select_project_first'));
                     try {
                         $analysis = \App\Models\MigrationAnalysis::where('project_id', $project->id)->where('status', 'completed')->orderByDesc('id')->first();
                         $run = (new \App\Services\ControlPlane\Ai\MigrationCopilot)->run($project, 'explain_blockers', ['analysis' => $analysis]);
-                        Notification::make()->title(__('labels.copilot_plan_frag').$run->status)->success($run->status === 'completed')->danger($run->status !== 'completed')->send();
+                        Notification::make()->title(__('labels.copilot_done', ['action' => __('labels.cp_action_explain_blockers'), 'status' => \App\Support\ProductStatus::label((string) $run->status)]))
+                            ->success($run->status === 'completed')->danger($run->status !== 'completed')->send();
                     } catch (\Throwable $e) {
-                        Notification::make()->title(__('labels.copilot_skipped_frag').\Illuminate\Support\Str::limit($e->getMessage(), 120))->warning()->send();
+                        // Raw diagnostics stay in the log (H3).
+                        report($e);
+                        Notification::make()->title(__('labels.copilot_skipped_frag'))
+                            ->body(__('labels.copilot_failed_body'))->warning()->send();
                     }
                 });
         }

@@ -80,26 +80,27 @@ class ProjectMigrationCenter extends Page
             $statusBadge = match ($source->status) {
                 'ready' => 'is-success', 'error' => 'is-danger', default => '',
             };
-            // Phase 27Q.3 — connector instance health (generic).
+            // Connector instance health (generic) — connector-declared enum,
+            // translated through the migration dictionary at render time.
             $health = \App\Services\ControlPlane\Connectors\ConnectorCapabilityProbe::health($source);
             $healthBadge = match ($health) {
                 'CONNECTED' => 'is-success', 'PARTIAL' => 'is-warning', 'ERROR' => 'is-danger', 'DISABLED' => '', default => 'is-info',
             };
             $sourceRows .= '<tr><td><strong>'.e($source->display_name).'</strong></td>'
-                .'<td><code>'.e($source->effectiveConnectorKey()).'</code>'.($source->connector_version ? ' <span style="font-size:.7rem;color:var(--cp-text-dim)">v'.e($source->connector_version).'</span>' : '').'</td>'
-                .'<td>'.e((string) $source->source_ref).'</td>'
-                .'<td><span class="cp-badge '.($source->read_only ? 'is-info' : 'is-warning').'">'.($source->read_only ? 'READ-ONLY SOURCE' : 'read-write').'</span></td>'
-                .'<td><span class="cp-badge '.$healthBadge.'">'.e($health).'</span></td>'
-                .'<td><span class="cp-badge '.$statusBadge.'">'.e($source->status).'</span></td>'
-                .'<td>'.e($source->last_analyzed_at?->format('M j, H:i') ?? 'never').'</td></tr>';
+                .'<td><code dir="ltr">'.e($source->effectiveConnectorKey()).'</code>'.($source->connector_version ? ' <span style="font-size:.7rem;color:var(--cp-text-dim)" dir="ltr">v'.e($source->connector_version).'</span>' : '').'</td>'
+                .'<td><code dir="ltr">'.e((string) $source->source_ref).'</code></td>'
+                .'<td><span class="cp-badge '.($source->read_only ? 'is-info' : 'is-warning').'">'.($source->read_only ? e(__('labels.mc_read_only_source')) : e(__('labels.mc_read_write'))).'</span></td>'
+                .'<td><span class="cp-badge '.$healthBadge.'">'.e(__('labels.mc_health_'.(string) $health)).'</span></td>'
+                .'<td><span class="cp-badge '.$statusBadge.'">'.e(ProductStatus::label((string) $source->status)).'</span></td>'
+                .'<td>'.e($source->last_analyzed_at?->locale(app()->getLocale())->translatedFormat('M j, H:i') ?? __('labels.mc_never_analyzed')).'</td></tr>';
         }
         if ($sourceRows === '') {
-            $sourceRows = '<tr><td colspan="7">No migration sources yet. A source is a READ-ONLY connection to the system you migrate FROM.</td></tr>';
+            $sourceRows = '<tr><td colspan="7">'.e(__('labels.mc_no_sources')).'</td></tr>';
         }
 
-        // Phase 27Q.2 — generic connector capability matrix (any connector).
+        // Generic connector capability matrix (any connector).
         $latestSource = MigrationSource::where('project_id', $project->id)->orderByDesc('id')->first();
-        $capabilityHtml = '<p style="color:var(--cp-text-dim);font-size:.8rem">No source yet — the capability matrix appears once a connector source exists.</p>';
+        $capabilityHtml = '<p style="color:var(--cp-text-dim);font-size:.8rem">'.e(__('labels.mc_no_capability_source')).'</p>';
         if ($latestSource) {
             $matrix = \App\Services\ControlPlane\Connectors\ConnectorCapabilityProbe::matrix($latestSource);
             $capRows = '';
@@ -111,29 +112,29 @@ class ProjectMigrationCenter extends Page
                     'NOT_APPLICABLE' => '',
                     default => 'is-danger',
                 };
-                $capRows .= '<tr><td>'.e($row['label']).'</td><td><span class="cp-badge '.$badge.'">'.e($row['status']).'</span></td>'
+                $capRows .= '<tr><td>'.e($row['label']).'</td><td><span class="cp-badge '.$badge.'">'.e(__('labels.mc_cap_'.(string) $row['status'])).'</span></td>'
                     .'<td style="font-size:.75rem;color:var(--cp-text-dim)">'.e($row['detail']).'</td></tr>';
             }
             $capabilityHtml = '<div class="cp-tablewrap"><table class="cp-grid"><thead><tr><th>'.e(__('labels.th_capability')).'</th><th>'.e(__('labels.status')).'</th><th>'.e(__('labels.detail')).'</th></tr></thead><tbody>'
                 .$capRows.'</tbody></table></div>'
-                .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">Connector: <code>'.e($latestSource->effectiveConnectorKey()).'</code> — statuses are declared by the connector, never faked.</p>';
+                .'<p style="font-size:.75rem;color:var(--cp-text-dim);margin-top:.3rem">'.e(__('labels.mc_connector_note', ['connector' => $latestSource->effectiveConnectorKey()])).'</p>';
         }
 
         $analysis = MigrationAnalysis::where('project_id', $project->id)->orderByDesc('id')->first();
-        $analysisHtml = '<p style="color:var(--cp-text-dim);font-size:.8rem">No analysis yet — analyze a source to inventory it (read-only).</p>';
+        $analysisHtml = '<p style="color:var(--cp-text-dim);font-size:.8rem">'.e(__('labels.mc_no_analysis')).'</p>';
         $compatHtml = '';
         $riskHtml = '';
         if ($analysis) {
             $counts = $analysis->counts ?? [];
             $countCells = '';
             foreach ($counts as $kind => $n) {
-                $countCells .= '<div style="min-width:7rem"><span style="font-size:.7rem;color:var(--cp-text-dim);text-transform:uppercase">'.e($kind).'</span><br><strong>'.e((string) $n).'</strong></div>';
+                $countCells .= '<div style="min-width:7rem"><span style="font-size:.7rem;color:var(--cp-text-dim);text-transform:uppercase">'.e(__('migration.counts_'.$kind, [], app()->getLocale()) !== 'migration.counts_'.$kind ? __('migration.counts_'.$kind) : (string) $kind).'</span><br><strong>'.e((string) $n).'</strong></div>';
             }
             $statusBadge = $analysis->status === 'completed' ? 'is-success' : ($analysis->status === 'failed' ? 'is-danger' : 'is-warning');
             $analysisHtml = '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.5rem">'.$countCells.'</div>'
-                .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Run <code>'.e($analysis->run_id).'</code> — '
-                .'<span class="cp-badge '.$statusBadge.'">'.e($analysis->status).'</span> at '.e($analysis->completed_at?->format('M j, H:i') ?? '—')
-                .' — fingerprint <code>'.e(substr((string) $analysis->source_fingerprint, 0, 16)).'…</code></p>';
+                .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('labels.mc_analysis_run', ['run' => $analysis->run_id])).' — '
+                .'<span class="cp-badge '.$statusBadge.'">'.e(ProductStatus::label((string) $analysis->status)).'</span> '.e(__('labels.mc_analysis_at', ['time' => $analysis->completed_at?->locale(app()->getLocale())->translatedFormat('M j, H:i') ?? '—']))
+                .' — '.e(__('labels.mc_fingerprint')).' <code dir="ltr">'.e(substr((string) $analysis->source_fingerprint, 0, 16)).'…</code></p>';
 
             $compatCounts = [];
             $riskCounts = [];
@@ -292,9 +293,13 @@ class ProjectMigrationCenter extends Page
                     if ($analysis->status === 'completed') {
                         $service->classify($analysis);
                         $service->rlsMappingArtifact($analysis);
-                        Notification::make()->title(__('labels.analysis_completed_frag').collect($analysis->counts)->sum().' objects inventoried')->success()->send();
+                        Notification::make()->title(__('labels.mc_analyzed', ['count' => (int) collect($analysis->counts)->sum()]))->success()->send();
                     } else {
-                        Notification::make()->title(__('labels.analysis_failed'))->body(($analysis->errors['message'] ?? 'unknown error'))->danger()->send();
+                        // The classified failure detail lives on the analysis
+                        // row and inside the Analyze stage's Technical
+                        // details; the notification speaks product copy (H3).
+                        Notification::make()->title(__('labels.analysis_failed'))
+                            ->body(__('labels.mc_analysis_failed_body'))->danger()->send();
                     }
                     $this->redirect(static::getUrl(['record' => $this->project()]));
                 }),

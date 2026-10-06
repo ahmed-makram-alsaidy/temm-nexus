@@ -905,5 +905,56 @@ return [
     'lg_test_failed_title' => 'The test exception could not be generated',
     'lg_test_failed_body' => 'The diagnostic command did not run. Technical details are in the activity log.',
     'lg_test_logged_body' => 'A test error entry was written to the project log.',
+
+    // ── Migration Center rows (Phase H) ───────────────────────────────
+    'mc_read_only_source' => 'Read-only source',
+    'mc_read_write' => 'Read-write',
+    'mc_health_CONNECTED' => 'Connected',
+    'mc_health_PARTIAL' => 'Partial',
+    'mc_health_ERROR' => 'Error',
+    'mc_health_DISABLED' => 'Disabled',
+    'mc_health_UNKNOWN' => 'Unknown',
+    'mc_never_analyzed' => 'Never analyzed',
+    'mc_no_sources' => 'No migration sources yet. A source is a read-only connection to the system you migrate from.',
+    'mc_no_capability_source' => 'No source yet — the capability matrix appears once a connector source exists.',
+    'mc_cap_SUPPORTED' => 'Supported',
+    'mc_cap_SUPPORTED_WITH_CONFIGURATION' => 'Supported with configuration',
+    'mc_cap_PARTIAL' => 'Partial',
+    'mc_cap_NOT_APPLICABLE' => 'Not applicable',
+    'mc_cap_UNSUPPORTED' => 'Unsupported',
+    'mc_connector_note' => 'Connector: :connector — statuses are declared by the connector, never faked.',
+    'mc_no_analysis' => 'No analysis yet — analyze a source to inventory it (read-only).',
+    'mc_analysis_run' => 'Run :run',
+    'mc_analysis_at' => 'completed at :time',
+    'mc_fingerprint' => 'source fingerprint',
+    'mc_analyzed' => 'Analysis complete — :count objects inventoried (read-only).',
+    'mc_analysis_failed_body' => 'The analysis could not complete. The source was not changed. The classified reason is on the analysis result and in the activity log.',
+
+    // ── Onboarding wizard (Phase H) ───────────────────────────────────
+    'ob_select_project_first' => 'Select a project first.',
+    'copilot_skipped_frag' => 'Copilot skipped — ',
+
+    // ── Schema diff (Phase H) ─────────────────────────────────────────
+    'sd_introspection_failed_body' => 'The live database could not be reached for introspection. Check that the project database is reachable, then try again. Technical details are in the activity log.',
+
+    // ── Database functions (Phase H) ──────────────────────────────────
+    'dfn_args_must_be_json' => 'Arguments must be a JSON array.',
+    'dfn_invocation_failed_body' => 'The function ran and returned an error. The database message (secrets redacted) is in the invocation result and the audit trail.',
+    'dfn_invoked' => 'Completed in :ms ms — :rows row(s).',
+    'dfn_rows_preview' => 'Row data is shown in the result table above.',
+
+    // ── Webhooks (Phase H) ────────────────────────────────────────────
+    'wh_enabled' => 'Enabled',
+    'wh_disabled' => 'Disabled',
+    'wh_empty' => 'No webhooks yet.',
+    'wh_events_list' => 'Available events: :events.',
+    'wh_title' => 'Webhooks (:count)',
+    'wh_retries' => 'Retries',
+    'wh_signed_note' => 'Deliveries are signed (HMAC-SHA256) with backoff retries.',
+    'wh_ssrf_note' => 'Targets are SSRF-guarded: allowlisted platform hosts or public IPs only — localhost, private ranges, metadata endpoints and raw IPs are refused.',
+    'wh_delivery_log' => 'Delivery log',
+    'wh_code' => 'Code',
+    'wh_attempts' => 'Attempts',
+    'wh_no_deliveries' => 'No deliveries yet — deliveries appear here after the first event fires.',
 ];
 

@@ -8,6 +8,7 @@ use App\Models\ProjectWebhook;
 use App\Models\WebhookDelivery;
 use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\WebhookService;
+use App\Support\ProductStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
@@ -66,13 +67,15 @@ class ProjectWebhooks extends Page
         $webhooks = ProjectWebhook::query()->where('project_id', $this->project()->id)->orderBy('name')->get();
         $rows = '';
         foreach ($webhooks as $w) {
-            $state = $w->enabled ? '<span class="cp-badge is-success">enabled</span>' : '<span class="cp-badge">disabled</span>';
-            $rows .= '<tr><td><strong>'.e($w->name).'</strong><br><code style="font-size:.7rem">'.e($w->url).'</code></td>'
-                .'<td>'.e(implode(', ', $w->events ?? [])).'</td><td>'.$state.'</td>'
+            $state = $w->enabled
+                ? '<span class="cp-badge is-success">'.e(__('labels.wh_enabled')).'</span>'
+                : '<span class="cp-badge">'.e(__('labels.wh_disabled')).'</span>';
+            $rows .= '<tr><td><strong>'.e($w->name).'</strong><br><code dir="ltr" style="font-size:.7rem">'.e($w->url).'</code></td>'
+                .'<td><code dir="ltr">'.e(implode(', ', $w->events ?? [])).'</code></td><td>'.$state.'</td>'
                 .'<td class="cp-num">'.(int) $w->max_attempts.'×</td></tr>';
         }
         if ($rows === '') {
-            $rows = '<tr><td colspan="4">No webhooks yet. Events: '.e(implode(', ', WebhookService::EVENTS)).'.</td></tr>';
+            $rows = '<tr><td colspan="4">'.e(__('labels.wh_empty')).' '.e(__('labels.wh_events_list', ['events' => implode(', ', WebhookService::EVENTS)])).'</td></tr>';
         }
         $log = '';
         foreach (
@@ -80,30 +83,29 @@ class ProjectWebhooks extends Page
                 ->orderByDesc('id')->limit(20)->get() as $d
         ) {
             $badge = $d->status === 'delivered' ? 'is-success' : ($d->status === 'exhausted' ? 'is-danger' : 'is-warning');
-            $log .= '<tr><td>'.e($d->created_at?->format('H:i:s') ?? '—').'</td>'
+            $log .= '<tr><td><code dir="ltr">'.e($d->created_at?->format('H:i:s') ?? '—').'</code></td>'
                 .'<td>'.e($webhooks->firstWhere('id', $d->webhook_id)?->name ?? '#'.$d->webhook_id).'</td>'
-                .'<td><code>'.e($d->event).'</code></td>'
-                .'<td><span class="cp-badge '.$badge.'">'.$d->status.'</span></td>'
+                .'<td><code dir="ltr">'.e($d->event).'</code></td>'
+                .'<td><span class="cp-badge '.$badge.'">'.e(ProductStatus::label((string) $d->status)).'</span></td>'
                 .'<td class="cp-num">'.($d->http_code ?? '—').'</td>'
                 .'<td class="cp-num">'.(int) $d->attempts.'</td>'
-                .'<td>'.(int) $d->duration_ms.' ms</td>'
-                .'<td><code>'.e($d->request_id).'</code></td></tr>';
+                .'<td class="cp-num">'.(int) $d->duration_ms.' ms</td>'
+                .'<td><code dir="ltr">'.e($d->request_id).'</code></td></tr>';
         }
 
         return $schema->components([
-            Section::make('Webhooks ('.$webhooks->count().')')->schema([
+            Section::make(__('labels.wh_title', ['count' => $webhooks->count()]))->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>'.e(__('labels.webhook')).'</th>.'.e(__('labels.')).'</th><th>'.e(__('labels.state')).'<th><th class="cp-num">Retries</th>'
+                    .'<th>'.e(__('labels.webhook')).'</th><th>'.e(__('labels.event')).'</th><th>'.e(__('labels.state')).'</th><th class="cp-num">'.e(__('labels.wh_retries')).'</th>'
                     .'</tr></thead><tbody>'.$rows.'</tbody></table></div>'
-                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">Signed (HMAC-SHA256) deliveries with backoff retries. '
-                    .'Targets are SSRF-guarded: allowlisted platform hosts or public IPs only — localhost, private ranges, '
-                    .'metadata endpoints and raw IPs are refused.</p>'),
+                    .'<p style="font-size:.75rem;color:var(--cp-text-dim)">'.e(__('labels.wh_signed_note')).' '
+                    .e(__('labels.wh_ssrf_note')).'</p>'),
             ]),
-            Section::make('Delivery log')->schema([
+            Section::make(__('labels.wh_delivery_log'))->schema([
                 Html::make('<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                    .'<th>'.e(__('labels.time')).'</th>'.e(__('labels.webhook')).'<th>'.e(__('labels.event')).'<th>'.e(__('labels.status')).'<th><th class="cp-num">Code</th>'
-                    .'<th class="cp-num">Attempts</th>.'.e(__('labels.')).'</th><th>'.e(__('labels.request_id')).'<th>'
-                    .'</tr></thead><tbody>'.($log ?: '<tr><td colspan="8">No deliveries yet.</td></tr>').'</tbody></table></div>'),
+                    .'<th>'.e(__('labels.time')).'</th><th>'.e(__('labels.webhook')).'</th><th>'.e(__('labels.event')).'</th><th>'.e(__('labels.status')).'</th><th class="cp-num">'.e(__('labels.wh_code')).'</th>'
+                    .'<th class="cp-num">'.e(__('labels.wh_attempts')).'</th><th>'.e(__('labels.th_duration')).'</th><th>'.e(__('labels.request_id')).'</th>'
+                    .'</tr></thead><tbody>'.($log ?: '<tr><td colspan="8">'.e(__('labels.wh_no_deliveries')).'</td></tr>').'</tbody></table></div>'),
             ])->compact(),
         ]);
     }

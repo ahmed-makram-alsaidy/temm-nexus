@@ -129,7 +129,10 @@ class ProjectSchemaDiff extends Page
                             (string) ($config['password'] ?? '')
                         );
                     } catch (\Throwable $e) {
-                        Notification::make()->title(__('labels.live_introspection_unavailable'))->body(\Illuminate\Support\Str::limit($e->getMessage(), 200))->danger()->send();
+                        // Raw connection diagnostics stay in the log (H3).
+                        report($e);
+                        Notification::make()->title(__('labels.live_introspection_unavailable'))
+                            ->body(__('labels.sd_introspection_failed_body'))->danger()->send();
 
                         return;
                     }
