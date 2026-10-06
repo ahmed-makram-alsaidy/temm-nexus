@@ -104,14 +104,6 @@
             </label>
 
             <label class="nx-field">
-                <span class="nx-field__label">{{ __('ai.base_url') }}</span>
-                <input type="url" wire:model="providerForm.base_url" class="nx-field__input"
-                       placeholder="https://" @if (in_array($this->providerForm['provider'], (array) config('nexus-ai.requires_base_url', []))) required @endif />
-                <span class="nx-field__hint">{{ __('ai.base_url_helper') }}</span>
-                @error('providerForm.base_url')<span class="nx-field__error">{{ $message }}</span>@enderror
-            </label>
-
-            <label class="nx-field">
                 <span class="nx-field__label">{{ __('ai.default_model') }}</span>
                 <input type="text" wire:model="providerForm.model" class="nx-field__input"
                        placeholder="gpt-4.1-mini / claude-sonnet-4 / gemini-2.0-flash" />
@@ -129,21 +121,50 @@
                 @endif
                 @error('providerForm.api_key')<span class="nx-field__error">{{ $message }}</span>@enderror
             </label>
-
-            <label class="nx-field">
-                <span class="nx-field__label">{{ __('ai.timeout') }}</span>
-                <input type="number" wire:model="providerForm.timeout_seconds" class="nx-field__input" min="5" max="600" />
-            </label>
-
-            <label class="nx-field">
-                <span class="nx-field__label">{{ __('ai.max_output_tokens') }}</span>
-                <input type="number" wire:model="providerForm.max_output_tokens" class="nx-field__input" min="64" max="200000" />
-            </label>
         </div>
 
-        {{-- rc.7 — Advanced: custom HTTP headers (client identification). --}}
-        <details class="nx-advanced" @if (! empty($this->providerForm['custom_headers'])) open @endif>
-            <summary class="nx-advanced__summary">{{ __('ai.custom_headers_section') }}</summary>
+        {{-- H7: operator-level transport fields live behind Advanced. Base URL
+             is promoted out of the grid only when the provider requires it. --}}
+        @if (in_array($this->providerForm['provider'], (array) config('nexus-ai.requires_base_url', [])))
+            <div class="nx-form-grid">
+                <label class="nx-field">
+                    <span class="nx-field__label">{{ __('ai.base_url') }}</span>
+                    <input type="url" wire:model="providerForm.base_url" class="nx-field__input"
+                           placeholder="https://" required />
+                    <span class="nx-field__hint">{{ __('ai.base_url_helper') }}</span>
+                    @error('providerForm.base_url')<span class="nx-field__error">{{ $message }}</span>@enderror
+                </label>
+            </div>
+        @endif
+
+        <details class="nx-advanced" @if (!empty($this->providerForm['custom_headers']) || !empty($this->providerForm['base_url'])) open @endif>
+            <summary class="nx-advanced__summary">{{ __('ai.advanced_section') }}</summary>
+            <p class="nx-hint">{{ __('ai.advanced_section_hint') }}</p>
+            <div class="nx-form-grid">
+                @if (! in_array($this->providerForm['provider'], (array) config('nexus-ai.requires_base_url', [])))
+                    <label class="nx-field">
+                        <span class="nx-field__label">{{ __('ai.base_url') }}</span>
+                        <input type="url" wire:model="providerForm.base_url" class="nx-field__input"
+                               placeholder="https://" />
+                        <span class="nx-field__hint">{{ __('ai.base_url_helper') }}</span>
+                        @error('providerForm.base_url')<span class="nx-field__error">{{ $message }}</span>@enderror
+                    </label>
+                @endif
+
+                <label class="nx-field">
+                    <span class="nx-field__label">{{ __('ai.timeout') }}</span>
+                    <input type="number" wire:model="providerForm.timeout_seconds" class="nx-field__input" min="5" max="600" />
+                </label>
+
+                <label class="nx-field">
+                    <span class="nx-field__label">{{ __('ai.max_output_tokens') }}</span>
+                    <input type="number" wire:model="providerForm.max_output_tokens" class="nx-field__input" min="64" max="200000" />
+                </label>
+            </div>
+
+            {{-- rc.7 — custom HTTP headers (client identification) live in
+                 the same Advanced disclosure as the other transport fields. --}}
+            <p class="nx-hint" style="margin-top:1rem">{{ __('ai.custom_headers_section') }}</p>
             <p class="nx-hint">{{ __('ai.custom_headers_help') }}</p>
 
             @if ($this->providerForm['provider'] === 'openai_compatible')

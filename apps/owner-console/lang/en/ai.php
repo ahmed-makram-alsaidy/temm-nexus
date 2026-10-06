@@ -74,8 +74,15 @@ return [
     'status_model' => 'Model',
     'status_last_test' => 'Last successful test',
     'status_last_test_never' => 'Never tested',
-    'status_last_error' => 'Last safe error',
-    'status_none_recorded' => 'None recorded',
+    // H7: operator-level transport fields live behind Advanced (base URL is
+    // promoted to the primary grid only for providers that require it).
+    'advanced_section' => 'Advanced',
+    'advanced_section_hint' => 'Transport and diagnostic options — most setups never need these.',
+
+    // The stored value is always the safe classified test message — the
+    // product word is "Last connection result" (audit H7 vocabulary fix).
+    'status_last_error' => 'Last connection result',
+    'status_none_recorded' => 'No test run yet',
     'status_scope' => 'Configuration scope',
     'status_scope_platform' => 'Using platform default',
     'status_scope_project' => 'A project has its own provider configured (:count total). Project users inherit the platform default unless the project defines its own.',
