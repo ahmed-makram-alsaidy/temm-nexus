@@ -217,7 +217,7 @@ class DeveloperAgentSettings extends Page
             'version' => $connection->version ?? $runtime->version,
             'last_tested_at' => now(),
             'last_test_status' => $connection->ok ? 'passed' : 'failed',
-            'last_test_message' => $connection->ok ? __('agents.test_passed') : ($connection->message ?? __('agents.test_failed')),
+            'last_test_message' => $connection->ok ? __('agents.test_passed') : $this->localizedRuntimeError($connection->errorCategory),
             'last_error_category' => $connection->ok ? null : $connection->errorCategory,
         ]);
 
@@ -233,7 +233,7 @@ class DeveloperAgentSettings extends Page
 
         $connection->ok
             ? Notification::make()->title(__('agents.test_passed').' ('.$connection->version.')')->success()->send()
-            : Notification::make()->title(__('agents.test_failed'))->danger()->body($connection->message)->send();
+            : Notification::make()->title(__('agents.test_failed'))->danger()->body($this->localizedRuntimeError($connection->errorCategory))->send();
     }
 
     public function discoverModels(string $id): void
@@ -249,8 +249,23 @@ class DeveloperAgentSettings extends Page
             $this->discoveredModels = collect($models)->take(200)->map(fn ($m) => $m->toArray())->all();
         } catch (AgentRuntimeException $e) {
             $this->discoveredModels = [];
-            Notification::make()->title(__('agents.models_failed'))->danger()->body($e->getMessage())->send();
+            Notification::make()->title(__('agents.models_failed'))->danger()->body($this->localizedRuntimeError($e->category))->send();
+        } catch (\Throwable) {
+            $this->discoveredModels = [];
+            Notification::make()->title(__('agents.models_failed'))->danger()->body(__('agents.error_generic'))->send();
         }
+    }
+
+    /** Localized product message for a runtime failure category — never raw exception text. */
+    protected function localizedRuntimeError(?string $category): string
+    {
+        $key = $category === null || $category === '' ? null : 'agents.error_'.mb_strtolower($category);
+
+        if ($key !== null && trans($key) !== $key) {
+            return __($key);
+        }
+
+        return __('agents.error_generic');
     }
 
     public function policyRows(): array

@@ -131,34 +131,24 @@
                 </select>
                 <p class="nx-hint">{{ __('agents.mode_helper') }}</p>
             </div>
-            <div class="nx-field">
-                <label for="agent-endpoint">{{ __('agents.field_endpoint') }}</label>
-                <input id="agent-endpoint" type="text" dir="ltr" wire:model="runtimeForm.endpoint"
-                    @if ($this->runtimeForm['mode'] === 'managed') disabled placeholder="{{ config('agent.managed_opencode.endpoint') }}" @endif />
-                <p class="nx-hint">{{ __('agents.endpoint_helper') }}</p>
-            </div>
-            <div class="nx-field">
-                <label for="agent-secret">{{ __('agents.field_auth_secret') }}</label>
-                <input id="agent-secret" type="password" wire:model="runtimeForm.auth_secret" autocomplete="new-password" />
-                <p class="nx-hint">{{ __('agents.auth_secret_helper') }}</p>
-            </div>
+            @if ($this->runtimeForm['mode'] === 'external')
+                {{-- For an external runtime the endpoint and secret are the
+                     operator's primary setup fields — promoted to the grid. --}}
+                <div class="nx-field">
+                    <label for="agent-endpoint">{{ __('agents.field_endpoint') }}</label>
+                    <input id="agent-endpoint" type="text" dir="ltr" wire:model="runtimeForm.endpoint" />
+                    <p class="nx-hint">{{ __('agents.endpoint_helper') }}</p>
+                </div>
+                <div class="nx-field">
+                    <label for="agent-secret">{{ __('agents.field_auth_secret') }}</label>
+                    <input id="agent-secret" type="password" wire:model="runtimeForm.auth_secret" autocomplete="new-password" />
+                    <p class="nx-hint">{{ __('agents.auth_secret_helper') }}</p>
+                </div>
+            @endif
             <div class="nx-field">
                 <label for="agent-default-model">{{ __('agents.field_default_model') }}</label>
                 <input id="agent-default-model" type="text" dir="ltr" wire:model="runtimeForm.default_model" placeholder="provider/model" />
                 <p class="nx-hint">{{ __('agents.default_model_helper') }}</p>
-            </div>
-            <div class="nx-field">
-                <label for="agent-timeout">{{ __('agents.field_timeout') }}</label>
-                <input id="agent-timeout" type="number" min="60" max="21600" wire:model="runtimeForm.timeout_seconds" />
-            </div>
-            <div class="nx-field">
-                <label for="agent-concurrency">{{ __('agents.field_concurrency') }}</label>
-                <input id="agent-concurrency" type="number" min="1" max="8" wire:model="runtimeForm.max_concurrent_tasks" />
-            </div>
-            <div class="nx-field">
-                <label for="agent-retention">{{ __('agents.field_retention') }}</label>
-                <input id="agent-retention" type="number" min="0" max="90" wire:model="runtimeForm.workspace_retention_days" />
-                <p class="nx-hint">{{ __('agents.retention_helper') }}</p>
             </div>
             <div class="nx-field">
                 <label class="nx-check">
@@ -167,6 +157,40 @@
                 </label>
             </div>
         </div>
+
+        {{-- Advanced: connection plumbing and runtime technical metadata. --}}
+        <details class="nx-advanced">
+            <summary class="nx-advanced__summary">{{ __('agents.advanced_section') }}</summary>
+            <p class="nx-hint">{{ __('agents.advanced_section_hint') }}</p>
+            <div class="nx-form-grid">
+                @if ($this->runtimeForm['mode'] !== 'external')
+                    <div class="nx-field">
+                        <label for="agent-endpoint">{{ __('agents.field_endpoint') }}</label>
+                        <input id="agent-endpoint" type="text" dir="ltr" wire:model="runtimeForm.endpoint"
+                            @if ($this->runtimeForm['mode'] === 'managed') disabled placeholder="{{ config('agent.managed_opencode.endpoint') }}" @endif />
+                        <p class="nx-hint">{{ __('agents.endpoint_helper') }}</p>
+                    </div>
+                    <div class="nx-field">
+                        <label for="agent-secret">{{ __('agents.field_auth_secret') }}</label>
+                        <input id="agent-secret" type="password" wire:model="runtimeForm.auth_secret" autocomplete="new-password" />
+                        <p class="nx-hint">{{ __('agents.auth_secret_helper') }}</p>
+                    </div>
+                @endif
+                <div class="nx-field">
+                    <label for="agent-timeout">{{ __('agents.field_timeout') }}</label>
+                    <input id="agent-timeout" type="number" min="60" max="21600" wire:model="runtimeForm.timeout_seconds" />
+                </div>
+                <div class="nx-field">
+                    <label for="agent-concurrency">{{ __('agents.field_concurrency') }}</label>
+                    <input id="agent-concurrency" type="number" min="1" max="8" wire:model="runtimeForm.max_concurrent_tasks" />
+                </div>
+                <div class="nx-field">
+                    <label for="agent-retention">{{ __('agents.field_retention') }}</label>
+                    <input id="agent-retention" type="number" min="0" max="90" wire:model="runtimeForm.workspace_retention_days" />
+                    <p class="nx-hint">{{ __('agents.retention_helper') }}</p>
+                </div>
+            </div>
+        </details>
 
         @php $validationErrors = $errors->getBag('default'); @endphp
         @if ($validationErrors->any())

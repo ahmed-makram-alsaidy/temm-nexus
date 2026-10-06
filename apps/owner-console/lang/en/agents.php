@@ -39,6 +39,11 @@ return [
     'field_display_name' => 'Display name',
     'field_mode' => 'Deployment mode',
     'mode_helper' => 'Managed runs inside this platform’s Docker stack; External points at a server you operate yourself.',
+    // H7: operator-level connection plumbing and runtime limits live behind
+    // Advanced (endpoint and secret are promoted to the grid for an external
+    // runtime, where they are the operator's primary setup fields).
+    'advanced_section' => 'Advanced',
+    'advanced_section_hint' => 'Connection plumbing and runtime limits — most setups never need these.',
     'field_endpoint' => 'Endpoint URL',
     'endpoint_helper' => 'External endpoints must use HTTPS. Managed runtimes use the internal service address.',
     'endpoint_required' => 'An endpoint URL is required for external runtimes.',
