@@ -146,8 +146,13 @@ class PhaseHPolishContractsTest extends TestCase
 
     public function test_public_landing_is_light_first_and_aligned(): void
     {
-        // RefreshDatabase seeded state has users, so the platform is
-        // initialized and / renders the landing instead of redirecting.
+        // Self-sufficient state: RefreshDatabase seeds once per process tied
+        // to the first migrate:fresh, so an earlier unseeded class leaves the
+        // users table empty and / would redirect to setup. SetupState's rule
+        // is "initialized once ANY user exists" — create one and re-resolve.
+        User::factory()->create();
+        Cache::forget('platform.initialized');
+
         $html = $this->get('/')->assertOk()->getContent();
 
         $this->assertStringContainsString(config('platform.brand'), $html);
