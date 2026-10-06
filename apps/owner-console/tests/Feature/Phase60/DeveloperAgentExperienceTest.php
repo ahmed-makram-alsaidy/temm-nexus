@@ -337,9 +337,11 @@ class DeveloperAgentExperienceTest extends TestCase
         $this->assertSame(AgentTask::STATUS_COMPLETED, $task->status);
         $this->assertStringContainsString('Tests passed', $html);
         // The check name is the REAL command — never an invented label (§G9).
-        // (The long php.exe path renders truncated at 120 chars, so assert on
-        // its head plus the short second check.)
-        $this->assertStringContainsString('php.exe', $html);
+        // The command is built from PHP_BINARY (line ~74), which is php.exe on
+        // Windows and php on Linux — assert on the basename, plus the short
+        // second check. (Long Windows paths render truncated at 120 chars, so
+        // this stays on the command head, never the full path.)
+        $this->assertStringContainsString(basename(PHP_BINARY), $html);
         $this->assertStringContainsString('echo ok', $html);
         // The full lifecycle is visible in the timeline (§G13).
         $this->assertStringContainsString('Changes applied', $html);
