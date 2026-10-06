@@ -747,5 +747,26 @@ return [
     'dbh_calls' => 'Calls',
     'th_db' => 'Database',
     'th_table' => 'Table',
+
+    // ── Client repository (Phase H) ───────────────────────────────────
+    'crep_linked_title' => 'Linked repositories',
+    'crep_latest_scan' => 'Latest scan — :scanner dependency manifest',
+    'crep_empty' => 'No client repository linked yet.',
+    'crep_scan_hint' => 'Scan a repository to build the source callsite manifest (patterns provided by registered connectors).',
+    'crep_local_note' => 'Local-path roots are operator-approved; every read is traversal-guarded.',
+    'crep_git_note' => 'Git links are metadata-only in this phase (no credential handling).',
+    'crep_source_local' => 'Local path',
+    'crep_source_git' => 'Git (metadata)',
+    'crep_status_scanned' => 'Scanned',
+    'crep_status_pending' => 'Linked',
+    'crep_never_scanned' => 'Never scanned',
+    'crep_no_secrets' => 'No embedded secrets detected',
+    'crep_secret_storage_note' => 'Secret findings are stored as markers + evidence hashes — raw values never enter the database or AI context.',
+    'crep_finding_exposed' => 'Exposed',
+    'crep_finding_stale' => 'Stale reference',
+    'crep_finding_ok' => 'Reviewed',
+    'repo_scan_done' => 'Scan complete: :callsites callsites across :files files.',
+    'repo_link_failed_title' => 'Could not link the repository',
+    'repo_link_failed_body' => 'The path was refused. Check that the root exists on the host and that an administrator has approved it, then try again. Technical details are in the activity log.',
 ];
 
