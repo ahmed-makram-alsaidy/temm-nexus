@@ -1364,3 +1364,275 @@ html.dark .nx-capability {
         grid-template-columns: 1fr;
     }
 }
+
+/* ==========================================================================
+   Phase G — Developer Agent workbench (0.6.0)
+   --------------------------------------------------------------------------
+   STATUS-FIRST: task identity + human state + next step lead; diff summary,
+   tests, the decision card and a human activity timeline follow. Everything
+   Level-3/4 lives inside Technical details. Logical properties throughout
+   for full RTL mirroring.
+   ========================================================================== */
+
+/* Quiet runtime state (§G4). */
+.nx-agent-head {
+    display: flex;
+    justify-content: flex-end;
+    margin-block-end: 8px;
+}
+
+.nx-agent-runtime {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    color: var(--nx-text-muted, #777);
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.1));
+    border-radius: 999px;
+    padding: 4px 12px;
+    background: var(--nx-surface, #fff);
+}
+
+html.dark .nx-agent-runtime {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.nx-agent-runtime__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--nx-text-muted, #999);
+    flex: 0 0 auto;
+}
+
+.nx-agent-runtime--ok .nx-agent-runtime__dot { background: var(--nx-success, #047857); }
+.nx-agent-runtime--down .nx-agent-runtime__dot { background: var(--nx-danger, #b91c1c); }
+
+.nx-agent-runtime__version {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.92em;
+}
+
+/* Task history (§G20). */
+.nx-agent-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-block-end: 10px;
+}
+
+.nx-agent-filter {
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.12));
+    background: transparent;
+    color: var(--nx-text-muted, #666);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    cursor: pointer;
+}
+
+.nx-agent-filter--on {
+    background: var(--nx-primary-soft, rgba(79, 70, 229, 0.1));
+    border-color: var(--nx-primary, #4f46e5);
+    color: var(--nx-primary, #4f46e5);
+    font-weight: 600;
+}
+
+.nx-agent-tasklist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.nx-agent-task {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    text-align: start;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: var(--nx-text-body, 0.875rem);
+    color: var(--nx-text, #1a1a1a);
+}
+
+.nx-agent-task:hover { background: var(--nx-neutral-soft, rgba(0, 0, 0, 0.04)); }
+.nx-agent-task--on {
+    background: var(--nx-primary-soft, rgba(79, 70, 229, 0.08));
+    border-color: var(--nx-primary, #4f46e5);
+}
+
+.nx-agent-task__title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-agent-task__dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--nx-warning, #b45309);
+    margin-inline-end: 6px;
+    vertical-align: middle;
+}
+
+.nx-agent-task__meta {
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    color: var(--nx-text-muted, #777);
+}
+
+/* Human state chip (§G5) — one dictionary, five tones. */
+.nx-agent-state {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    font-weight: 600;
+    background: var(--nx-neutral-soft, rgba(0, 0, 0, 0.06));
+    color: var(--nx-text-muted, #555);
+    white-space: nowrap;
+}
+
+.nx-agent-state--info { background: var(--nx-info-soft, rgba(2, 132, 199, 0.1)); color: var(--nx-info, #0369a1); }
+.nx-agent-state--success { background: var(--nx-success-soft, rgba(4, 120, 87, 0.1)); color: var(--nx-success, #047857); }
+.nx-agent-state--attention { background: var(--nx-warning-soft, rgba(180, 83, 9, 0.12)); color: var(--nx-warning, #b45309); }
+.nx-agent-state--warning { background: var(--nx-warning-soft, rgba(180, 83, 9, 0.12)); color: var(--nx-warning, #b45309); }
+.nx-agent-state--danger { background: var(--nx-danger-soft, rgba(185, 28, 28, 0.1)); color: var(--nx-danger, #b91c1c); }
+
+.nx-agent-state--lg {
+    font-size: var(--nx-text-body, 0.875rem);
+    padding: 5px 14px;
+    flex: 0 0 auto;
+}
+
+/* Task detail header (§G1). */
+.nx-agent-detail__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.nx-agent-nextstep {
+    margin: 8px 0 0;
+    font-size: var(--nx-text-body, 0.875rem);
+    color: var(--nx-text, #333);
+}
+
+.nx-agent-prompt {
+    white-space: pre-wrap;
+    font-size: var(--nx-text-body, 0.875rem);
+    margin: 0;
+}
+
+/* Failed task error (§G18) — reuses the Phase A nx-error pattern. */
+.nx-agent-error { margin-block-start: 12px; }
+
+/* What changed (§G7): summary → files → diff. */
+.nx-agent-diff-summary {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: var(--nx-text-body, 0.875rem);
+    margin: 0 0 8px;
+}
+
+.nx-agent-diffstat { font-weight: 700; }
+.nx-agent-diffstat--add { color: var(--nx-success, #047857); }
+.nx-agent-diffstat--del { color: var(--nx-danger, #b91c1c); }
+
+.nx-agent-files {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+}
+
+.nx-agent-diffcode {
+    max-height: 420px;
+    overflow: auto;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+/* Tests (§G9): verdict first, real checks below. */
+.nx-agent-checks {
+    list-style: none;
+    margin: 8px 0;
+    padding: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.nx-agent-check {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: var(--nx-text-secondary, 0.8125rem);
+    border: 1px solid var(--nx-border, rgba(0, 0, 0, 0.08));
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+
+.nx-agent-check--fail {
+    border-color: var(--nx-danger, #b91c1c);
+    background: var(--nx-danger-soft, rgba(185, 28, 28, 0.05));
+}
+
+.nx-agent-check__verdict { font-weight: 700; flex: 0 0 auto; }
+.nx-agent-check__name {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    overflow-wrap: anywhere;
+}
+.nx-agent-check__meta {
+    margin-inline-start: auto;
+    color: var(--nx-text-muted, #888);
+    flex: 0 0 auto;
+}
+
+/* Decision card (§G10) — the dominant state when review is needed. */
+.nx-agent-decision {
+    border-inline-start: 3px solid var(--nx-warning, #b45309);
+}
+
+.nx-agent-decision__impact {
+    font-size: var(--nx-text-body, 0.875rem);
+    margin: 4px 0;
+}
+
+.nx-agent-reject-note { margin-block-start: 10px; }
+
+/* Cancel (§G17). */
+.nx-agent-cancel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Activity timeline (§G6). */
+.nx-agent-timeline__time {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8em;
+    color: var(--nx-text-muted, #999);
+    margin-inline-end: 8px;
+}
+
+/* 1366×768 (§G29): identity, state, summary, tests and decision visible
+   without scrolling through logs — the grid keeps cards compact. */
+@media (max-width: 1440px) {
+    .nx-agent-detail__head { align-items: center; }
+}

@@ -267,6 +267,84 @@ final class ComponentRegistry
             'adjustments' => ['density'],
         ],
 
+        // ── Developer Agent (0.6.0 Phase G) ─────────────────────────────
+        // The workbench surfaces are inspectable: the registry describes what
+        // each one IS and WHERE its data comes from — never runtime secrets,
+        // session ids, or workspace paths. The page rejects a client-supplied
+        // description the same way every other page does.
+        'agent.new_task' => [
+            'label' => 'Start a task',
+            'page' => 'Developer Agent',
+            'scope' => 'platform',
+            'data_source' => 'Runnable projects + AgentRuntimeManager model discovery',
+            'capability' => 'agents.run',
+            'description' => 'The form that hands a coding task to the agent runtime.',
+            'adjustments' => ['visibility'],
+        ],
+        'agent.tasks' => [
+            'label' => 'Task history',
+            'page' => 'Developer Agent',
+            'scope' => 'platform',
+            'data_source' => 'AgentTask rows within the caller\'s project reach',
+            'capability' => 'agents.view',
+            'description' => 'Recent agent tasks with their human state and last activity.',
+            'adjustments' => ['visibility', 'density'],
+        ],
+        'agent.detail' => [
+            'label' => 'Task detail',
+            'page' => 'Developer Agent',
+            'scope' => 'platform',
+            'data_source' => 'AgentTask + AgentStatusPresenter (status-first facts)',
+            'capability' => 'agents.view',
+            'description' => 'The selected task: what it is, its human state, and what happens next.',
+            'adjustments' => ['density'],
+        ],
+        'agent.diff' => [
+            'label' => 'What changed',
+            'page' => 'Developer Agent',
+            'scope' => 'platform',
+            'data_source' => 'AgentChangeset — the exact diff bound to approval',
+            'capability' => 'agents.view',
+            'description' => 'The changeset summary, its file list, and the real diff.',
+            'adjustments' => ['visibility'],
+        ],
+        'agent.verification' => [
+            'label' => 'Tests',
+            'page' => 'Developer Agent',
+            'scope' => 'platform',
+            'data_source' => 'AgentVerification results',
+            'capability' => 'agents.view',
+            'description' => 'Verification checks and their outcomes after an apply.',
+            'adjustments' => ['visibility'],
+        ],
+        'agent.decision' => [
+            'label' => 'Your decision',
+            'page' => 'Developer Agent',
+            'scope' => 'platform',
+            'data_source' => 'AgentTask approval state + the capability rules',
+            'capability' => 'agents.approve',
+            'description' => 'The review card: what approval means, and the approve/reject decision.',
+            'adjustments' => ['visibility'],
+        ],
+        'agent.activity' => [
+            'label' => 'Activity',
+            'page' => 'Developer Agent',
+            'scope' => 'platform',
+            'data_source' => 'AgentTaskEvent stream, humanized by AgentStatusPresenter',
+            'capability' => 'agents.view',
+            'description' => 'What the agent has been doing, in human sentences.',
+            'adjustments' => ['visibility', 'density'],
+        ],
+        'agent.technical' => [
+            'label' => 'Technical details',
+            'page' => 'Developer Agent',
+            'scope' => 'platform',
+            'data_source' => 'Session, workspace, fingerprint, commands, raw events (disclosure)',
+            'capability' => 'agents.view',
+            'description' => 'Level-3/4 internals: session ids, command ledger, raw events.',
+            'adjustments' => ['visibility'],
+        ],
+
         // ── Workspace ──────────────────────────────────────────────────
         'workspace.projects' => [
             'label' => 'Workspace projects',

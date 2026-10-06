@@ -127,6 +127,19 @@ class AgentApplyService
             AdminAudit::record('AGENT_FILE_APPLIED', $task->project, 'agent_task', $task->id, ['path' => $path]);
         }
 
+        // Phase G (§G6): the visible lifecycle step "Changes applied".
+        try {
+            \App\Models\AgentTaskEvent::create([
+                'agent_task_id' => $task->id,
+                'seq' => (int) (\App\Models\AgentTaskEvent::where('agent_task_id', $task->id)->max('seq') ?? 0) + 1,
+                'type' => \App\Models\AgentTaskEvent::TYPE_STATUS,
+                'summary' => 'Changes applied to the repository',
+                'payload' => ['kind' => 'applied', 'files' => count($appliedFiles)],
+            ]);
+        } catch (\Throwable) {
+            // The timeline row must never break the apply.
+        }
+
         return $changeset;
     }
 }

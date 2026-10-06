@@ -163,9 +163,140 @@ return [
     'diff_truncated' => 'تتجاوز هذه الحزمة حد الحجم ولا يمكن تطبيقها تلقائيًا.',
 
     // التحقق
-    'verification_title' => 'التحقق',
-    'verification_passed' => 'ناجح',
+    'verification_title' => 'الاختبارات',
+    'verification_passed' => 'نجحت الاختبارات',
     'verification_failed' => 'فاشل',
+    'verification_failed_title' => 'فشل :count فحص/فحوصات',
     'verification_error' => 'خطأ',
-    'verification_skipped' => 'تَمَّ تجاوزه (لا توجد أوامر مُصَدَّقة)',
+    'verification_skipped' => 'تَمَّ تجاوزه (لا فحوصات مُعدَّة)',
+    'verification_passed_body' => 'نجحت جميع فحوصات التحقق بعد تطبيق التغييرات.',
+    'verification_failed_body' => 'طُبِّقت التغييرات، لكن التحقق يحتاج انتباهك. لم يُسترجع شيء تلقائيًا.',
+    'verification_output_note' => 'لا يُخزَّن محتوى مخرجات الأوامر إطلاقًا — نتيجة كل فحص وحجمه ومدته فقط.',
+
+    // ── المرحلة G — منضدة العمل بحالة الوظيفة أولًا ─────────────────
+
+    // حالات الوظيفة البشرية (G5) — لا يُعاد كتابة القيم المخزنة أبدًا.
+    'human_status_queued' => 'بانتظار البدء',
+    'human_status_starting' => 'جارٍ البدء',
+    'human_status_planning' => 'التخطيط',
+    'human_status_editing' => 'تعديل الملفات',
+    'human_status_testing' => 'تشغيل الاختبارات',
+    'human_status_working' => 'يعمل الآن',
+    'human_status_awaiting_approval' => 'جاهز للمراجعة',
+    'human_status_applying' => 'تطبيق التغييرات الموافق عليها',
+    'human_status_verifying' => 'جارٍ التحقق',
+    'human_status_completed' => 'مكتملة',
+    'human_status_failed' => 'يحتاج انتباهك',
+    'human_status_cancelled' => 'ملغاة',
+    'human_status_stale' => 'يحتاج مراجعة جديدة',
+
+    // ماذا يحدث بعد ذلك، لكل حالة (G1).
+    'next_queued' => 'بانتظار خالية في وقت التشغيل.',
+    'next_starting' => 'تحضير مساحة العمل المعزولة وبدء الوكيل.',
+    'next_running' => 'يعمل الوكيل في النسخة المعزولة من مشروعك.',
+    'next_awaiting_approval' => 'راجع التغييرات أدناه وقرر — لا يُطبَّق شيء حتى توافق.',
+    'next_applying' => 'تطبيق التغييرات التي وافقت عليها في المستودع.',
+    'next_verifying' => 'تشغيل فحوصات التحقق على التغييرات المطبقة.',
+    'next_completed' => 'انتهت. التغييرات في مستودعك الآن.',
+    'next_failed' => 'انظر ماذا فشل أدناه — لم يُطبَّق أي ضرر.',
+    'next_cancelled' => 'أُلغيت. لم يُطبَّق أي شيء.',
+    'next_stale' => 'تغيّرت التغييرات المراجَعة بعد المراجعة — راجعها من جديد قبل الموافقة.',
+
+    // الجدول الزمني للنشاط (G6) — جمل بشرية؛ الأحداث الخام في التفاصيل التقنية.
+    'timeline_status' => 'حُدِّثت الوظيفة',
+    'timeline_approved' => 'وافق :name',
+    'timeline_declined' => 'رُفضت التغييرات — لم يُطبَّق أي شيء',
+    'timeline_applied' => 'طُبِّقت التغييرات',
+    'timeline_task_started' => 'بدأت الوظيفة',
+    'timeline_session_started' => 'بدأت جلسة الوكيل',
+    'timeline_changeset_ready' => 'التغييرات جاهزة للمراجعة',
+    'timeline_planning' => 'التخطيط للتغيير',
+    'timeline_reading' => 'قراءة المشروع',
+    'timeline_reading_path' => 'قراءة :path',
+    'timeline_editing' => 'تعديل الملفات',
+    'timeline_updated' => 'حُدِّثت ملفات',
+    'timeline_updated_path' => 'حُدِّث :path',
+    'timeline_ran_command' => 'شغّل :command',
+    'timeline_ran_command_short' => 'شغّل أمرًا',
+    'timeline_testing' => 'تشغيل الاختبارات',
+    'timeline_plan' => 'شارك خطة',
+    'timeline_permission_allowed' => 'سمحت المنصة بإجراء لوقت التشغيل',
+    'timeline_permission_refused' => 'رفضت المنصة إجراءً من وقت التشغيل',
+    'timeline_message' => 'رسالة من الوكيل',
+    'timeline_error' => 'فشلت الوظيفة — :reason',
+    'timeline_completed' => 'انتهت الوظيفة',
+    'timeline_bounded' => 'تُعرض أحدث :shown من إجمالي :total حدثًا. الأحداث الخام في التفاصيل التقنية.',
+
+    // فشل الوظيفة (G18) — فئات مُصنَّفة، لا تفاصيل خام أبدًا.
+    'error_runtime_unavailable' => 'وقت تشغيل الوكيل غير متاح.',
+    'error_runtime_auth_failed' => 'رفض وقت تشغيل الوكيل الاتصال.',
+    'error_model_unavailable' => 'الموديل المختار غير متاح لدى وقت التشغيل.',
+    'error_session_failed' => 'تعذّر إتمام جلسة الوكيل.',
+    'error_workspace_failed' => 'تعذّر تحضير مساحة العمل المعزولة.',
+    'error_command_failed' => 'فشلت خطوة تحقق أو تطبيق.',
+    'error_task_cancelled' => 'أُلغيت الوظيفة.',
+    'error_invalid_runtime_response' => 'أعاد وقت تشغيل الوكيل ردًا غير قابل للقراءة.',
+    'error_timeout' => 'تجاوزت الوظيفة ميزانيتها الزمنية.',
+    'error_generic' => 'تعذّر إتمام الوظيفة.',
+    'error_stage_line' => 'حدث هذا في: :stage.',
+    'stage_runtime_connection' => 'الاتصال بوقت التشغيل',
+    'stage_workspace' => 'تحضير مساحة العمل المعزولة',
+    'stage_model' => 'اختيار الموديل',
+    'stage_verification' => 'التحقق',
+    'stage_session' => 'جلسة الوكيل',
+    'stage_cancelled' => 'الإلغاء',
+
+    // حالة وقت التشغيل (G4) + الاستعادة (G3).
+    'runtime_connected' => 'وقت التشغيل متصل',
+    'runtime_unavailable' => 'وقت التشغيل غير متاح',
+    'runtime_needs_configuration' => 'وقت التشغيل يحتاج إعدادًا',
+    'recovery_title' => 'لم يُهيَّأ وكيل المطوّر بعد.',
+    'recovery_body_admin' => 'هيّئ وقت تشغيل لبدء مهام البرمجة.',
+    'recovery_body_user' => 'وكيل المطوّر غير متاح بعد. اطلب من مسؤول تهيئة وقت التشغيل.',
+    'recovery_no_project' => 'تحتاج مشروعًا يمكنك تشغيل الوكلاء عليه. أنشئ مشروعًا أو اطلب إضافتك إلى واحد أولًا.',
+    'recovery_cta' => 'إعداد وقت التشغيل',
+
+    // بطاقة القرار (G10–G12).
+    'decision_title' => 'جاهز للمراجعة',
+    'decision_impact' => 'الموافقة تطبّق حزمة التغييرات المراجَعة هذه كما هي في المستودع الرئيسي:',
+    'decision_explainer' => 'الموافقة تطبّق حزمة التغييرات المراجَعة هذه كما هي في المستودع الرئيسي ثم تشغّل التحقق.',
+    'decision_no_deploy' => 'لن يحدث أي نشر تلقائيًا.',
+    'approve_and_apply' => 'موافقة وتطبيق',
+    'apply_approved' => 'تطبيق التغييرات الموافق عليها',
+    'approve_without_apply_note' => 'دورك يسمح بالموافقة، لكن تطبيق التغييرات الموافق عليها يحتاج مشغلًا يملك صلاحية التطبيق.',
+    'apply_pending' => 'حُسمت الموافقة — التطبيق يحتاج مشغلًا يملك صلاحية التطبيق.',
+    'reject_note_label' => 'السبب (اختياري)',
+    'stale_title' => 'تغيّرت التغييرات المقترحة بعد المراجعة.',
+    'stale_body' => 'راجع الفرق الجديد قبل الموافقة مرة أخرى.',
+
+    // الإلغاء (G17).
+    'cancel_title' => 'إيقاف هذه الوظيفة؟',
+    'cancel_copy' => 'يوقف مهمة الوكيل. التغييرات المطبقة بالفعل لا تُسترجع تلقائيًا.',
+
+    // إعادة المحاولة (G19).
+    'retry_new_task' => 'بدء مهمة جديدة من هذا الطلب',
+
+    // السجل (G20) + الحالة الفارغة (G21).
+    'filter_label' => 'تصفية الوظائف',
+    'filter_all' => 'الكل',
+    'filter_active' => 'النشطة',
+    'filter_ready' => 'جاهزة للمراجعة',
+    'filter_completed' => 'المكتملة',
+    'filter_failed' => 'الفاشلة',
+    'filter_cancelled' => 'الملغاة',
+    'tasks_empty_body' => 'اطلب من وكيل المطوّر إجراء تغيير في مساحة عمل معزولة. تراجع الفرق قبل تطبيق أي شيء.',
+    'prompt_disclosure' => 'عرض نص المهمة',
+
+    // الفروقات (G7).
+    'diff_files_changed' => 'ملفًا تغيّرت',
+    'diff_view' => 'عرض الفرق',
+
+    // التفاصيل التقنية (G15/G16).
+    'tech_task_id' => 'معرّف الوظيفة',
+    'tech_session_id' => 'معرّف جلسة الوكيل',
+    'tech_runtime' => 'وقت التشغيل',
+    'tech_workspace_path' => 'مسار مساحة العمل المعزولة',
+    'tech_raw_events' => 'الأحداث الخام',
+    'tech_approval' => 'الموافقة',
+    'tech_approval_consumed' => 'مُستخدمة',
 ];

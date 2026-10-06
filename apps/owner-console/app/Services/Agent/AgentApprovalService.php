@@ -80,6 +80,10 @@ class AgentApprovalService
             'approver_id' => $approver->id,
         ]);
 
+        // Phase G (§G6): the decision appears in the task's human timeline.
+        // The audit ledger keeps its own entry — this row is presentation.
+        $this->decisionEvent($task, 'approval', 'Approved by '.($approver->name ?? 'an operator'), ['actor' => $approver->name]);
+
         return AgentApproval::where('agent_task_id', $task->id)
             ->where('status', AgentApproval::STATUS_APPROVED)
             ->where('changeset_fingerprint', $changeset->fingerprint)
@@ -102,6 +106,13 @@ class AgentApprovalService
 
         AdminAudit::record('AGENT_APPROVAL_REJECTED', $task->project, 'agent_task', $task->id, [
             'approver_id' => $rejector->id,
+        ]);
+
+        // Phase G (§G6/§G12): declining is visible, nothing was applied, and
+        // the task's history stays intact for audit.
+        $this->decisionEvent($task, 'rejection', 'Changes declined — nothing was applied', [
+            'actor' => $rejector->name,
+            'note' => $note !== null ? mb_substr($note, 0, 200) : null,
         ]);
     }
 
@@ -144,5 +155,22 @@ class AgentApprovalService
         }
 
         $approval->update(['consumed_at' => now()]);
+    }
+
+    /** Append one bounded, structured decision event to the task's timeline. */
+    protected function decisionEvent(AgentTask $task, string $kind, string $summary, array $payload): void
+    {
+        try {
+            \App\Models\AgentTaskEvent::create([
+                'agent_task_id' => $task->id,
+                'seq' => (int) (\App\Models\AgentTaskEvent::where('agent_task_id', $task->id)->max('seq') ?? 0) + 1,
+                'type' => \App\Models\AgentTaskEvent::TYPE_STATUS,
+                'summary' => \Illuminate\Support\Str::limit($summary, 500),
+                'payload' => array_merge(['kind' => $kind], $payload),
+            ]);
+        } catch (\Throwable) {
+            // The timeline row must never break the decision itself; the
+            // audit ledger already recorded the authoritative entry.
+        }
     }
 }
