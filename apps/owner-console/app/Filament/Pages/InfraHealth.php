@@ -27,6 +27,11 @@ class InfraHealth extends Page
 
     protected static ?string $navigationLabel = 'Health';
 
+    public static function getNavigationLabel(): string
+    {
+        return __('nav.health');
+    }
+
     protected static string|\UnitEnum|null $navigationGroup = 'Infrastructure';
 
     protected static ?int $navigationSort = 72;

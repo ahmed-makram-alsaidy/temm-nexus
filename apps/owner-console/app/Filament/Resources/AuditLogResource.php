@@ -25,8 +25,6 @@ class AuditLogResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
-    protected static ?string $navigationLabel = 'Activity';
-
     protected static string|\UnitEnum|null $navigationGroup = 'Governance';
 
     /** 0.6.0 Phase B: the destination is "Activity" (audit §B1); the audit
@@ -34,6 +32,16 @@ class AuditLogResource extends Resource
     protected static ?string $pluralModelLabel = 'Activity';
 
     protected static ?int $navigationSort = 90;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('nav.activity');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('nav.activity');
+    }
 
     public static function form(Schema $schema): Schema
     {

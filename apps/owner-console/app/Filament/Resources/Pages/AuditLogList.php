@@ -11,11 +11,11 @@ class AuditLogList extends ListRecords
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return __('labels.audit_log');
+        return __('nav.activity');
     }
 
     public function getBreadcrumbs(): array
     {
-        return ['Audit Log'];
+        return [__('nav.activity')];
     }
 }

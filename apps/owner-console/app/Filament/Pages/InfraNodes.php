@@ -34,6 +34,11 @@ class InfraNodes extends Page implements HasTable
 
     protected static ?string $navigationLabel = 'Nodes';
 
+    public static function getNavigationLabel(): string
+    {
+        return __('nav.nodes');
+    }
+
     protected static string|\UnitEnum|null $navigationGroup = 'Infrastructure';
 
     protected static ?int $navigationSort = 70;

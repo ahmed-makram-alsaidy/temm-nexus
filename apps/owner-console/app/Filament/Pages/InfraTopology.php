@@ -27,6 +27,11 @@ class InfraTopology extends Page
 
     protected static ?string $navigationLabel = 'Topology';
 
+    public static function getNavigationLabel(): string
+    {
+        return __('nav.topology');
+    }
+
     protected static string|\UnitEnum|null $navigationGroup = 'Infrastructure';
 
     protected static ?int $navigationSort = 73;
