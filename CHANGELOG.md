@@ -1,3 +1,57 @@
+## [0.6.1] — 2026-10-07
+
+**PATCH.** Sync-state honesty fix: the journey never fabricates a running
+Live Sync, and the TEMM-managed destination finally exposes the real-transfer
+path the domain always supported. Found on the operator VPS: after a
+completed 350/350 dry run on a Supabase source whose Review said
+"Live Sync — Not supported by this connector", the Migration → Sync page
+showed "Sync — In progress" with a LIVE SYNC panel reading
+"Starting / Live Sync has not started." — a fake running operation this
+connector can never perform.
+
+### Fixed
+
+- **Canonical Sync state** (`ProjectPulse::syncState()`) — with no CDC
+  checkpoint, IN_PROGRESS ("Starting") now requires BOTH: the source
+  connector declares change capture at all (the same fact the wizard Review's
+  `selectedConnectorSupportsLiveSync()` resolves, so the Review verdict and
+  the journey can never disagree), AND the latest run was a writing run
+  (rehearsal/real — a dry run writes nothing and cannot hand off to Live
+  Sync). A connector that cannot stream now sits honestly at NOT_STARTED —
+  never a permanent fake "Starting"; a completed dry run no longer flips the
+  Sync stage to "In progress".
+- **Honest unsupported wording** (`ProjectPulse::liveSync()`) — a connector
+  that definitively cannot stream says "Not supported by this connector" in
+  the Review's own words, with a one-line teaching detail; an unresolvable
+  source stays neutral ("Not running"). Propagates verbatim to the journey
+  Sync tab, Project Overview, Home facts and the cutover gate (one
+  interpretation layer).
+- **Real-transfer path presented** (Phase E Sync tab) — `mode='real'`
+  ("Live transfer (real target)") existed in the run manager's vocabulary
+  (`MigrationRunManager::MODES`) and in the EN+AR dictionaries since Phase H,
+  but no surface ever presented it and `startRun()` silently demoted every
+  choice to dry_run/rehearsal. The managed destination's run form now offers
+  Live transfer: the chosen mode is the mode that runs, targeting the
+  TEMM-managed database, `target_disposable=false` (the managed destination
+  is the real destination, never flagged disposable), reset stays
+  rehearsal-only. The option is hidden where GUARD 1 would refuse the run
+  anyway (active production environment); the enforcing guards themselves
+  (production refusal, disposable-reset, source≠target) are unchanged and
+  re-pinned by tests.
+
+### Tests
+
+- `tests/Feature/Phase61/SyncStateCanonicalTest.php` — five regressions:
+  unsupported Live Sync renders "Not supported", never "Starting"; a
+  completed dry run never fabricates a running Live Sync; the merged
+  MIGRATE+SYNC tab state is canonical and deterministic (rehearsal→
+  "Starting", failed stream→BLOCKED, streaming→COMPLETE); the TEMM-managed
+  destination exposes and starts the real transfer against the managed,
+  non-disposable target (failing closed against an unreachable target, no
+  fake success); no unsafe transfer mode becomes available by mistake
+  (option hidden under an active production environment; the run manager
+  still 422s production for every mode).
+
 ## [0.6.0] — 2026-10-07
 
 **STABLE.** The product experience release. Identical application code to
