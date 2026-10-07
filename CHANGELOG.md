@@ -1,3 +1,10 @@
+## [0.6.0] — 2026-10-07
+
+**STABLE.** The product experience release. Identical application code to
+the accepted v0.6.0-rc.1 (release-closure metadata only); the rc.1 release
+notes below describe the feature set in full and remain frozen as
+historical evidence.
+
 ## [0.6.0-rc.1] — 2026-10-07
 
 **PRE-RELEASE — release candidate.** The product experience release: a
