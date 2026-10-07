@@ -119,6 +119,7 @@ return [
     'sync_empty_body' => 'Start your migration when the plan is ready. A dry run writes nothing.',
     'sync_start_run' => 'Start migration',
     'sync_start_dry_run' => 'Dry run — no writes, full validation of the transfer path.',
+    'sync_start_real_hint' => 'Live transfer — writes into the destination shown above. A dry run first is recommended.',
     'sync_mode' => 'Mode',
     'sync_mode_dry_run' => 'Dry run (no writes)',
     'sync_mode_rehearsal' => 'Rehearsal (disposable target)',

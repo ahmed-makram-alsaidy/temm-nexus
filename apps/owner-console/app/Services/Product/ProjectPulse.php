@@ -11,6 +11,8 @@ use App\Models\MigrationRun;
 use App\Models\MigrationSource;
 use App\Models\Project;
 use App\Models\ReadinessCheck;
+use App\Services\ControlPlane\Connectors\ConnectorCapability;
+use App\Services\ControlPlane\Connectors\ConnectorRegistry;
 use App\Support\ProductStatus;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -345,8 +347,23 @@ final class ProjectPulse
     {
         $checkpoint = $this->checkpoint();
         if (! $checkpoint) {
-            // Live Sync only becomes meaningful once a transfer has happened.
-            return $this->migrateState() === JourneyState::COMPLETE
+            // 0.6.1 — with no checkpoint, IN_PROGRESS ("Starting") is only
+            // honest when Live Sync could actually run. Two gates:
+            //
+            //  1. The source connector must declare change capture at all.
+            //     The wizard Review already says "Live Sync — Not supported
+            //     by this connector" for such sources; the journey must agree
+            //     with the Review, never contradict it with a permanent fake
+            //     "Starting" (a state this connector can never leave).
+            //  2. A transfer must actually have happened. A dry run writes
+            //     nothing — the run executor never even connects the target —
+            //     so it cannot hand off to Live Sync; only a rehearsal/real
+            //     run can.
+            if (! $this->liveSyncSupported()) {
+                return JourneyState::NOT_STARTED;
+            }
+
+            return $this->latestRunTransferred() && $this->migrateState() === JourneyState::COMPLETE
                 ? JourneyState::IN_PROGRESS
                 : JourneyState::NOT_STARTED;
         }
@@ -575,13 +592,19 @@ final class ProjectPulse
 
         return [
             'state' => $state,
-            'label' => match ($state) {
-                JourneyState::COMPLETE => __('projects.sync_up_to_date'),
-                JourneyState::IN_PROGRESS => __('projects.sync_starting'),
-                JourneyState::NEEDS_ATTENTION => __('projects.sync_behind'),
-                JourneyState::BLOCKED => __('projects.sync_stopped'),
-                default => __('projects.sync_not_running'),
-            },
+            // 0.6.1 — a connector that DEFINITIVELY cannot stream says so in
+            // the Review's own words; "Starting" is reserved for operations
+            // that exist. An unresolvable source stays neutral ("Not
+            // running") — there is no connector to accuse.
+            'label' => $this->declaresChangeCapture() === false && $this->checkpoint() === null
+                ? __('projects.sync_unsupported')
+                : match ($state) {
+                    JourneyState::COMPLETE => __('projects.sync_up_to_date'),
+                    JourneyState::IN_PROGRESS => __('projects.sync_starting'),
+                    JourneyState::NEEDS_ATTENTION => __('projects.sync_behind'),
+                    JourneyState::BLOCKED => __('projects.sync_stopped'),
+                    default => __('projects.sync_not_running'),
+                },
             'detail' => $this->syncDetail(),
             'lagSeconds' => $this->syncLagSeconds(),
         ];
@@ -589,6 +612,10 @@ final class ProjectPulse
 
     private function syncDetail(): string
     {
+        if ($this->declaresChangeCapture() === false && $this->checkpoint() === null) {
+            return __('projects.stage_sync_unsupported');
+        }
+
         $checkpoint = $this->checkpoint();
         if (! $checkpoint) {
             return __('projects.stage_sync_none');
@@ -637,9 +664,67 @@ final class ProjectPulse
         return __('projects.stage_cutover_status', ['state' => JourneyState::fromRaw($plan->status)->label()]);
     }
 
-    public function syncLagSeconds(): ?int
+    /**
+     * 0.6.1 — can this project's migration source capture changes at all?
+     *
+     * Resolves the SAME fact the wizard Review's `selectedConnectorSupportsLiveSync()`
+     * resolves — the connector's declared capabilities include `change_capture`
+     * — so the Review verdict and every pulse surface (journey tab, overview
+     * fact, cutover gate) can never disagree about the same connector. The
+     * run's own plan source decides (the source actually migrated from), with
+     * the project's first source as fallback.
+     */
+    private function liveSyncSupported(): bool
     {
-        $checkpoint = $this->checkpoint();
+        return $this->declaresChangeCapture() ?? false;
+    }
+
+    /**
+     * Tri-state support fact: TRUE when the connector declares change
+     * capture, FALSE when it definitively does not (the "Not supported by
+     * this connector" wording case), NULL when it cannot be resolved at all
+     * (no source yet, unknown/legacy adapter, disabled connector). NULL must
+     * degrade to "not supported" for STATE purposes — an unresolvable
+     * connector can never stream — but stays silent about WHY.
+     */
+    private function declaresChangeCapture(): ?bool
+    {
+        try {
+            $source = $this->latestPlan()?->analysis?->source
+                ?? $this->sources()->first();
+            if ($source === null) {
+                return null;
+            }
+
+            $connector = ConnectorRegistry::instance()->connectorForSource($source);
+
+            return in_array(
+                ConnectorCapability::CHANGE_CAPTURE,
+                $connector->definition()->capabilities ?? [],
+                true,
+            );
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * 0.6.1 — whether the latest run could have written anything. The `mode`
+     * column is authoritative (`start()` keeps it and the `dry_run` flag in
+     * step, but only `mode` is part of the guaranteed vocabulary), and a run
+     * counts only when it is a WRITING mode — a dry run transfers nothing.
+     */
+    private function latestRunTransferred(): bool
+    {
+        $run = $this->latestRun();
+
+        return $run !== null
+            && ! $run->dry_run
+            && in_array((string) $run->mode, ['rehearsal', 'real'], true);
+    }
+
+    public function syncLagSeconds(): ?int
+    {        $checkpoint = $this->checkpoint();
         if (! $checkpoint || ! $checkpoint->last_event_at) {
             return null;
         }

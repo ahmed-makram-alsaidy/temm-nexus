@@ -480,12 +480,26 @@
                 <div class="nx-card nx-card--nested" data-migration-run-form>
                     <label class="nx-field">
                         <span class="nx-field__label">{{ __('migration.sync_mode') }}</span>
-                        <select wire:model="runMode" class="nx-field__input">
+                        <select wire:model="runMode" class="nx-field__input" data-migration-run-mode>
                             <option value="dry_run">{{ __('migration.sync_mode_dry_run') }}</option>
                             <option value="rehearsal">{{ __('migration.sync_mode_rehearsal') }}</option>
+                            {{-- 0.6.1 — the managed destination's real-transfer
+                                 path. Hidden — not merely refused — where the
+                                 platform's production guard would reject the
+                                 run anyway; the enforcing guard stays in
+                                 MigrationRunManager (GUARD 1). --}}
+                            @unless ($productionTarget)
+                                <option value="real">{{ __('migration.sync_mode_real') }}</option>
+                            @endunless
                             <option value="external_target">{{ __('wizard.destination_external') }}</option>
                         </select>
-                        <span class="nx-field__hint">{{ __('migration.sync_start_dry_run') }}</span>
+                        <span class="nx-field__hint">
+                            @if ($runMode === 'real')
+                                {{ __('migration.sync_start_real_hint') }}
+                            @else
+                                {{ __('migration.sync_start_dry_run') }}
+                            @endif
+                        </span>
                     </label>
 
                     @if ($runMode === 'external_target')

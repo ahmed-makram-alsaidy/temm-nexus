@@ -441,9 +441,16 @@ class ProjectMigration extends Page
             ])->all(),
             'hasPlan' => $hasPlan,
             'sourceName' => $source?->display_name,
-            'syncDetail' => $pulse->stageState(\App\Services\Product\JourneyStage::SYNC) !== \App\Services\Product\JourneyState::NOT_STARTED
-                ? $pulse->liveSync()
-                : null,
+            // 0.6.1 — the Live Sync panel speaks whenever a run exists. For a
+            // connector that cannot stream it now says "Not supported by this
+            // connector" (the Review's own words); the fabricated "Starting"
+            // after a dry run is gone because syncState() no longer reports
+            // IN_PROGRESS for it. ProjectPulse owns the state — no re-derivation.
+            'syncDetail' => $latest !== null ? $pulse->liveSync() : null,
+            // 0.6.1 — mirror of MigrationRunManager's GUARD 1: where the
+            // platform would refuse every run, the real-transfer option is
+            // not offered at all. The guard itself stays in the run manager.
+            'productionTarget' => EnvironmentContext::active($project)->type === 'production',
             'startingRun' => $this->startingRun,
             'runMode' => $this->runMode,
             'targetForm' => $this->targetForm,
@@ -737,10 +744,26 @@ class ProjectMigration extends Page
         try {
             $target = $this->runTarget($this->project());
 
+            // 0.6.1 — the mode the operator chose is the mode that runs.
+            // `real` is the managed destination's real-transfer path: the
+            // domain has always allowed it (MigrationRunManager::MODES) —
+            // only the journey page never presented it, silently demoting
+            // every choice to dry_run/rehearsal. `external_target` stays a
+            // DESTINATION selector whose run remains a dry run of the
+            // external path, exactly as in 0.6.0.
+            $mode = match ($this->runMode) {
+                'rehearsal' => 'rehearsal',
+                'real' => 'real',
+                default => 'dry_run',
+            };
+
             $run = (new MigrationRunManager)->start($plan, [
-                'mode' => $this->runMode === 'rehearsal' ? 'rehearsal' : 'dry_run',
+                'mode' => $mode,
                 'target' => $target,
-                'target_disposable' => $this->targetDisposable,
+                // The TEMM-managed destination is the real destination — it
+                // is never flagged disposable. Reset stays rehearsal-only,
+                // so the destructive-reset guard never fires for `real`.
+                'target_disposable' => $mode === 'real' ? false : $this->targetDisposable,
                 'reset' => $this->runMode === 'rehearsal',
                 'target_environment_type' => EnvironmentContext::active($this->project())->type,
             ]);
