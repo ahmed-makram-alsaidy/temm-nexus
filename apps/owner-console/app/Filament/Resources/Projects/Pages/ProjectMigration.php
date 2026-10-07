@@ -22,6 +22,8 @@ use App\Services\ControlPlane\Cutover\CutoverCenterService;
 use App\Services\ControlPlane\Migration\AnalysisOutcomeClassifier;
 use App\Services\ControlPlane\Migration\MigrationCenterService;
 use App\Services\ControlPlane\Migration\MigrationRunManager;
+use App\Services\ControlPlane\ProjectConnectionManager;
+use App\Services\ControlPlane\SecretService;
 use App\Support\ProductStatus;
 use App\Services\ControlPlane\ReadinessService;
 use App\Services\Product\JourneyState;
@@ -742,6 +744,9 @@ class ProjectMigration extends Page
         }
 
         try {
+            $targetEnvironmentType = EnvironmentContext::active($this->project())->type;
+            // Reject production before resolving or vaulting target credentials.
+            abort_if($targetEnvironmentType === 'production', 422, 'Migration runs against production are not supported.');
             $target = $this->runTarget($this->project());
 
             // 0.6.1 — the mode the operator chose is the mode that runs.
@@ -765,7 +770,7 @@ class ProjectMigration extends Page
                 // so the destructive-reset guard never fires for `real`.
                 'target_disposable' => $mode === 'real' ? false : $this->targetDisposable,
                 'reset' => $this->runMode === 'rehearsal',
-                'target_environment_type' => EnvironmentContext::active($this->project())->type,
+                'target_environment_type' => $targetEnvironmentType,
             ]);
             (new MigrationRunManager)->execute($run);
 
@@ -789,11 +794,36 @@ class ProjectMigration extends Page
     protected function runTarget($project): array
     {
         if ($this->runMode !== 'external_target') {
-            return array_filter([
-                'host' => $project->db_host ?: null,
-                'port' => $project->db_port ?: null,
+            // 0.6.1 — the managed destination resolves exactly like the rest
+            // of the platform (ProjectConnectionManager): the per-project
+            // endpoint override, then PROJECT_DB_HOST/PORT, then the compose
+            // service default. No second endpoint interpretation.
+            $target = array_filter([
+                'host' => $project->db_host ?: env('PROJECT_DB_HOST', 'postgres'),
+                'port' => $project->db_port ?: env('PROJECT_DB_PORT', '5432'),
                 'database' => $project->db_name ?: null,
             ]);
+
+            // A real transfer must AUTHENTICATE. The managed project DB's
+            // least-privilege role lives in the per-project env vars written
+            // by scripts/postgres/create-project-db.sh — the same source
+            // ProjectConnectionManager reads. The password is vaulted for the
+            // run and travels as a secret REF: the value itself is never
+            // persisted (target_connection is stored redacted). Without
+            // these vars the run fails closed before adapter defaults can apply.
+            if ($this->runMode === 'real') {
+                $prefix = ProjectConnectionManager::envPrefix($project);
+                $username = env($prefix.'USERNAME');
+                $password = env($prefix.'PASSWORD');
+                if (! $project->db_name || ! $username || $password === null || $password === false || $password === '') {
+                    throw new \RuntimeException("Database credentials for project [{$project->slug}] are not configured.");
+                }
+                SecretService::create($project, 'MANAGED_TARGET_PASSWORD', (string) $password, 'managed real-transfer target credential');
+                $target['username'] = $username;
+                $target['secret_refs'] = ['password' => 'MANAGED_TARGET_PASSWORD'];
+            }
+
+            return $target;
         }
 
         return array_filter([

@@ -489,7 +489,9 @@ class MigrationRunManager
         // Includes path so sqlite fixture sources/targets are compared too.
         return strtolower(json_encode([
             'host' => $conn['host'] ?? '',
-            'port' => $conn['port'] ?? '',
+            // Environment values are strings; database/model values may be integers.
+            // The same endpoint must not bypass GUARD 3 because of its PHP type.
+            'port' => (string) ($conn['port'] ?? ''),
             'database' => $conn['database'] ?? '',
             'path' => $conn['path'] ?? '',
         ]));

@@ -1,4 +1,4 @@
-## [0.6.1] — 2026-10-07
+## [0.6.1] — 2026-10-08
 
 **PATCH.** Sync-state honesty fix: the journey never fabricates a running
 Live Sync, and the TEMM-managed destination finally exposes the real-transfer
@@ -38,10 +38,18 @@ connector can never perform.
   anyway (active production environment); the enforcing guards themselves
   (production refusal, disposable-reset, source≠target) are unchanged and
   re-pinned by tests.
+- **Managed target authentication** — resolve the platform's managed host
+  and port defaults and project-scoped database credentials. The password
+  is encrypted in the existing vault and stored on runs only as a reference;
+  missing credentials fail before adapter defaults can apply. Direct
+  production requests are refused before vaulting credentials.
+- **Same-database guard** — normalize integer/string port representations
+  so resolving the managed endpoint from environment variables cannot make
+  the source appear to be a different target.
 
 ### Tests
 
-- `tests/Feature/Phase61/SyncStateCanonicalTest.php` — five regressions:
+- `tests/Feature/Phase61/SyncStateCanonicalTest.php` — regressions:
   unsupported Live Sync renders "Not supported", never "Starting"; a
   completed dry run never fabricates a running Live Sync; the merged
   MIGRATE+SYNC tab state is canonical and deterministic (rehearsal→
@@ -50,7 +58,11 @@ connector can never perform.
   non-disposable target (failing closed against an unreachable target, no
   fake success); no unsafe transfer mode becomes available by mistake
   (option hidden under an active production environment; the run manager
-  still 422s production for every mode).
+  still 422s production for every mode). Also covers encrypted managed
+  credentials and endpoint defaults, missing-credential refusal, direct
+  production action refusal, source=target refusal with mixed port types,
+  reset refusal for non-disposable real targets, and dry-run source/target
+  immutability.
 
 ## [0.6.0] — 2026-10-07
 
