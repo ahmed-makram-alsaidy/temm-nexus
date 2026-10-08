@@ -15,6 +15,7 @@ use App\Services\Product\ProjectPulse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Feature\Phase24\Concerns\BuildsEngineFixture;
@@ -237,6 +238,59 @@ class SyncStateCanonicalTest extends TestCase
     }
 
     // ── 3. The Sync tab state is canonical and deterministic ─────────────
+
+    public static function subtitleScenarios(): array
+    {
+        $cases = [];
+        foreach (['en', 'ar'] as $locale) {
+            foreach (['completed_dry_run', 'verify_unfinished', 'cutover_unfinished', 'blocked_sync'] as $scenario) {
+                $cases[$locale.' '.$scenario] = [$locale, $scenario];
+            }
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('subtitleScenarios')]
+    public function test_sync_subtitle_matches_its_tab_independently_of_later_stages(string $locale, string $scenario): void
+    {
+        $project = $this->project();
+        $runId = $this->seedJourney($project, 'postgres', in_array($scenario, ['verify_unfinished', 'blocked_sync'], true) ? 'rehearsal' : 'dry_run');
+        if ($scenario === 'verify_unfinished') {
+            $this->seedCheckpoint($runId, 'streaming');
+        } elseif ($scenario === 'blocked_sync') {
+            $this->seedCheckpoint($runId, 'failed');
+        } elseif ($scenario === 'cutover_unfinished') {
+            \App\Models\ReadinessCheck::create([
+                'project_id' => $project->id, 'category' => 'Database',
+                'check_key' => 'fixture-ready', 'title' => 'Disposable readiness fixture', 'status' => 'green',
+            ]);
+        }
+
+        $owner = $this->owner();
+        $owner->update(['locale' => $locale]);
+        $this->actingAs($owner);
+        app()->setLocale($locale);
+
+        $pulse = ProjectPulse::for($project->fresh());
+        if ($scenario === 'verify_unfinished') {
+            $this->assertSame(JourneyState::IN_PROGRESS, $pulse->stageState(\App\Services\Product\JourneyStage::VALIDATE));
+        } elseif ($scenario === 'cutover_unfinished') {
+            $this->assertSame(JourneyState::IN_PROGRESS, $pulse->stageState(\App\Services\Product\JourneyStage::CUTOVER));
+        }
+        $expectedState = $scenario === 'blocked_sync' ? JourneyState::BLOCKED : JourneyState::COMPLETE;
+        $expectedSubtitle = $locale === 'en'
+            ? 'Stage: Sync — '.($scenario === 'blocked_sync' ? 'Blocked' : 'Complete')
+            : 'المرحلة: المزامنة — '.($scenario === 'blocked_sync' ? 'محجوب' : 'مكتمل');
+
+        $page = \Livewire::test(ProjectMigration::class, ['record' => $project->getKey()])
+            ->set('stage', 'sync')->instance();
+        $syncTab = collect($page->stageTabs())->firstWhere('key', 'sync');
+        $this->assertSame($expectedState, $syncTab['state']);
+        $this->assertSame($expectedSubtitle, $page->getSubheading());
+        $this->get(ProjectResource::getUrl('migration', ['record' => $project]).'?stage=sync')
+            ->assertOk()->assertSee($expectedSubtitle);
+    }
 
     public function test_sync_tab_state_is_canonical_and_deterministic(): void
     {

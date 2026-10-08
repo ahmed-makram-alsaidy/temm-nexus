@@ -126,9 +126,11 @@ class ProjectMigration extends Page
 
     public function getSubheading(): ?string
     {
+        $activeTab = collect($this->stageTabs())->firstWhere('key', $this->activeStage());
+
         return __('migration.stage_of', [
-            'current' => __('migration.stage_'.$this->activeStage()),
-            'state' => $this->pulse()->overallState()->label(),
+            'current' => $activeTab['label'],
+            'state' => $activeTab['state']->label(),
         ]);
     }
 

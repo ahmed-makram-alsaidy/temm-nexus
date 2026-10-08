@@ -1,3 +1,12 @@
+## [0.6.2] — 2026-10-08
+
+**PATCH.** The Migration page subtitle now uses the active product tab's
+presentation state, including the existing MIGRATE+SYNC aggregation. An
+unfinished Verify or Cutover stage no longer makes a completed Sync subtitle
+say "In progress". Blocked Sync stays Blocked in both the tab and subtitle.
+The same correction applies in English and Arabic. Domain states, database
+schema, and migration safety guards are unchanged.
+
 ## [0.6.1] — 2026-10-08
 
 **PATCH.** Sync-state honesty fix: the journey never fabricates a running
