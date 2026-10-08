@@ -357,6 +357,12 @@
     @if ($this->step === 3)
         <section class="nx-card">
             <h2 class="nx-card__title">{{ __('wizard.destination_title') }}</h2>
+            @if ($destinationProject = $this->project())
+                @php($destinationEnvironment = \App\Services\ControlPlane\EnvironmentService::defaultFor($destinationProject))
+                <p class="nx-hint">{{ __('connections.project_classification') }}: {{ __('projects.env_'.$destinationProject->environment) }}</p>
+                <p class="nx-hint">{{ __('connections.active_environment') }}: <strong>{{ __('projects.env_'.$destinationEnvironment->type) }}</strong></p>
+                <p class="nx-hint">{{ __('connections.environment_scope_help') }}</p>
+            @endif
 
             <div class="nxw-cards nxw-cards--choices">
                 <button type="button" wire:click="$set('state.destination', 'temm')"

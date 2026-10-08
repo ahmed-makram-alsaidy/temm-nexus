@@ -75,7 +75,7 @@ return [
     'destination_title' => 'Where should the data go?',
     'destination_recommended' => 'Recommended',
     'destination_temm' => 'TEMM-managed infrastructure',
-    'destination_temm_helper' => 'TEMM Nexus provisions and manages the target — nothing for you to configure.',
+    'destination_temm_helper' => 'Continue to provision and verify a managed database for the selected environment. This creates an empty destination; data transfer is a separate action.',
     'destination_external' => 'External PostgreSQL server',
     'destination_external_helper' => 'You provide the target database. Used for migrations into infrastructure you manage yourself.',
     'target_host' => 'Target host',

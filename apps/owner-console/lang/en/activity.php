@@ -13,6 +13,11 @@ return [
 
     // Projects, environments, health
     'project_health_checked' => 'Ran a health check',
+    'project_database_provisioning_started' => 'Started project database provisioning',
+    'project_database_provisioned' => 'Provisioned the project database',
+    'project_database_provisioning_failed' => 'Project database provisioning did not finish',
+    'project_database_reconciled' => 'Verified the existing project database',
+    'project_database_configured' => 'Configured the project database connection',
     'environment_created' => 'Created an environment',
     'environment_updated' => 'Updated an environment',
     'environment_switched' => 'Switched environment',

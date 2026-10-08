@@ -73,7 +73,7 @@ return [
     'destination_title' => 'إلى أين تذهب البيانات؟',
     'destination_recommended' => 'موصى به',
     'destination_temm' => 'بنية تحتية يديرها TEMM',
-    'destination_temm_helper' => 'تُهيئ TEMM Nexus الوجهة وتديرها — لا شيء تحتاج إلى إعداده.',
+    'destination_temm_helper' => 'تابع لتجهيز قاعدة بيانات مُدارة للبيئة المختارة والتحقق منها. تُنشأ وجهة فارغة؛ نقل البيانات إجراء منفصل.',
     'destination_external' => 'خادم PostgreSQL خارجي',
     'destination_external_helper' => 'أنت توفّر قاعدة البيانات الوجهة. يُستخدم للترحيل إلى بنية تحتية تديرها بنفسك.',
     'target_host' => 'مستضيف الوجهة',

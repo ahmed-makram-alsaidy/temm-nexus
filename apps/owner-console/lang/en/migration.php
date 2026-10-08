@@ -130,7 +130,7 @@ return [
     'sync_last_activity' => 'Last activity',
     'sync_no_runs_hint' => 'Generate a plan first — the transfer follows the plan.',
     'sync_runs_history' => 'Run history',
-    'sync_guard_plain' => 'Production targets are protected: transfers to a project marked production are refused, destructive resets require a target marked disposable, and the source and target can never be the same database.',
+    'sync_guard_plain' => 'Transfers to the active Production environment are refused. Destructive resets require a disposable target, and the source and target must be different databases.',
     'sync_started_frag' => 'Run started: :status.',
     'sync_current_phase' => 'Current phase',
     'sync_technical_details' => 'Technical details',

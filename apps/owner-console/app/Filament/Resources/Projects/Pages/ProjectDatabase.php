@@ -6,7 +6,6 @@ use App\Filament\Resources\Projects\Pages\Concerns\HasProjectContext;
 use App\Filament\Resources\Projects\ProjectResource;
 use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\DdlService;
-use App\Services\ControlPlane\ProjectDatabaseExplorer;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -51,7 +50,7 @@ class ProjectDatabase extends Page
 
     public function getBreadcrumbs(): array
     {
-        return ['Tables'];
+        return [__('labels.tables')];
     }
 
     public function content(Schema $schema): Schema
@@ -92,21 +91,21 @@ class ProjectDatabase extends Page
             foreach ($tables as $t) {
                 $browse = ProjectTableRecords::getUrl(['record' => $this->project(), 'table' => $t['name']]);
                 $schemaUrl = ProjectTableSchema::getUrl(['record' => $this->project(), 'table' => $t['name']]);
-                $rows .= '<tr><td><code>'.e($t['name']).'</code></td>'
+                $rows .= '<tr><td><code><bdi dir="ltr">'.e($t['name']).'</bdi></code></td>'
                     .'<td>'.e($t['type']).'</td>'
                     .'<td class="cp-num">'.($t['rows'] === null ? '—' : number_format($t['rows'])).'</td>'
-                    .'<td><a href="'.e($browse).'">Browse →</a></td>'
-                    .'<td><a href="'.e($schemaUrl).'">Schema →</a></td></tr>';
+                    .'<td><a href="'.e($browse).'">'.e(__('labels.browse_records')).' →</a></td>'
+                    .'<td><a href="'.e($schemaUrl).'">'.e(__('labels.th_schema')).' →</a></td></tr>';
             }
             if ($rows === '') {
-                $rows = '<tr><td colspan="5">No tables match.</td></tr>';
+                $rows = '<tr><td colspan="5">'.e(__('labels.dat_no_tables_match')).'</td></tr>';
             }
             $grid = '<form method="GET" class="cp-toolbar">'
-                .'<input type="search" name="q" class="cp-toolbar__search" placeholder="Filter tables…" value="'.e($q).'">'
-                .'<button class="cp-btn" type="submit">Filter</button>'
-                .'<span class="cp-toolbar__count">'.count($tables).' tables &amp; views</span></form>'
+                .'<input type="search" name="q" class="cp-toolbar__search" placeholder="'.e(__('labels.dat_filter_tables')).'" value="'.e($q).'">'
+                .'<button class="cp-btn" type="submit">'.e(__('labels.filter')).'</button>'
+                .'<span class="cp-toolbar__count">'.e(__('labels.dat_tables_views_count', ['count' => count($tables)])).'</span></form>'
                 .'<div class="cp-tablewrap"><table class="cp-grid"><thead><tr>'
-                .'<th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.erd_type')).'</th><th class="cp-num">Rows</th><th>'.e(__('labels.th_records')).'</th><th>'.e(__('labels.th_schema')).'</th>'
+                .'<th>'.e(__('labels.erd_name')).'</th><th>'.e(__('labels.erd_type')).'</th><th class="cp-num">'.e(__('labels.ts_rows')).'</th><th>'.e(__('labels.th_records')).'</th><th>'.e(__('labels.th_schema')).'</th>'
                 .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
 
             $components = [

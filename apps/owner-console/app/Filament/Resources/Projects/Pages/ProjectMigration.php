@@ -4,31 +4,33 @@ namespace App\Filament\Resources\Projects\Pages;
 
 use App\Filament\Resources\Projects\Pages\Concerns\HasProjectContext;
 use App\Filament\Resources\Projects\ProjectResource;
+use App\Filament\Support\PlatformAccess;
+use App\Models\AiProviderConfig;
 use App\Models\ClientRepository;
 use App\Models\MigrationAnalysis;
 use App\Models\MigrationPlan;
 use App\Models\MigrationRun;
 use App\Models\MigrationSource;
-use App\Models\User;
 use App\Services\Access\Capability;
 use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\Ai\AiGateway;
 use App\Services\ControlPlane\Ai\MigrationCopilot;
-use App\Services\ControlPlane\Connectors\ConnectorCapabilityProbe;
 use App\Services\ControlPlane\Connectors\ConnectorRegistry;
 use App\Services\ControlPlane\CpAccess;
-use App\Services\ControlPlane\EnvironmentContext;
 use App\Services\ControlPlane\Cutover\CutoverCenterService;
+use App\Services\ControlPlane\EnvironmentContext;
 use App\Services\ControlPlane\Migration\AnalysisOutcomeClassifier;
+use App\Services\ControlPlane\Migration\CompatibilityClassifier;
 use App\Services\ControlPlane\Migration\MigrationCenterService;
 use App\Services\ControlPlane\Migration\MigrationRunManager;
 use App\Services\ControlPlane\ProjectConnectionManager;
-use App\Services\ControlPlane\SecretService;
-use App\Support\ProductStatus;
 use App\Services\ControlPlane\ReadinessService;
+use App\Services\Product\CutoverReadiness;
+use App\Services\Product\JourneyStage;
 use App\Services\Product\JourneyState;
 use App\Services\Product\ProjectPulse;
 use App\Services\Product\UiPreferenceService;
+use App\Support\ProductStatus;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
@@ -145,7 +147,6 @@ class ProjectMigration extends Page
     }
 
     /** ── Stage resolution (canonical journey → six product stages) ──── */
-
     public function pulse(): ProjectPulse
     {
         return ProjectPulse::for($this->project());
@@ -160,13 +161,13 @@ class ProjectMigration extends Page
         $stage = $this->pulse()->currentStage();
 
         return match ($stage) {
-            \App\Services\Product\JourneyStage::CONNECT => 'connect',
-            \App\Services\Product\JourneyStage::ANALYZE => 'analyze',
-            \App\Services\Product\JourneyStage::PLAN => 'plan',
+            JourneyStage::CONNECT => 'connect',
+            JourneyStage::ANALYZE => 'analyze',
+            JourneyStage::PLAN => 'plan',
             // The canonical MIGRATE and SYNC stages are one product tab.
-            \App\Services\Product\JourneyStage::MIGRATE, \App\Services\Product\JourneyStage::SYNC => 'sync',
-            \App\Services\Product\JourneyStage::VALIDATE => 'verify',
-            \App\Services\Product\JourneyStage::CUTOVER => 'cutover',
+            JourneyStage::MIGRATE, JourneyStage::SYNC => 'sync',
+            JourneyStage::VALIDATE => 'verify',
+            JourneyStage::CUTOVER => 'cutover',
         };
     }
 
@@ -304,7 +305,7 @@ class ProjectMigration extends Page
         $blockers = [];
         if ($analysis !== null && $analysis->status === 'completed') {
             foreach ($analysis->items()->get(['kind', 'compatibility']) as $item) {
-                if ($item->compatibility === \App\Services\ControlPlane\Migration\CompatibilityClassifier::BLOCKED) {
+                if ($item->compatibility === CompatibilityClassifier::BLOCKED) {
                     $blockers[$item->kind] = ($blockers[$item->kind] ?? 0) + 1;
                 }
             }
@@ -351,7 +352,7 @@ class ProjectMigration extends Page
     protected function copilotPanelData(): array
     {
         $project = $this->project();
-        $hasProvider = \App\Models\AiProviderConfig::where('enabled', true)
+        $hasProvider = AiProviderConfig::where('enabled', true)
             ->where(fn ($q) => $q->whereNull('project_id')->orWhere('project_id', $project->id))->exists();
 
         return [
@@ -388,8 +389,8 @@ class ProjectMigration extends Page
         if ($analysis !== null) {
             foreach ($analysis->items()->get(['kind', 'compatibility']) as $item) {
                 if (in_array($item->compatibility, [
-                    \App\Services\ControlPlane\Migration\CompatibilityClassifier::BLOCKED,
-                    \App\Services\ControlPlane\Migration\CompatibilityClassifier::APPLICATION_CONVERSION_REQUIRED,
+                    CompatibilityClassifier::BLOCKED,
+                    CompatibilityClassifier::APPLICATION_CONVERSION_REQUIRED,
                 ], true)) {
                     $notMoving[$item->kind] = ($notMoving[$item->kind] ?? 0) + 1;
                 }
@@ -493,7 +494,7 @@ class ProjectMigration extends Page
     protected function cutoverStageData(): array
     {
         $project = $this->project();
-        $readiness = \App\Services\Product\CutoverReadiness::for($project);
+        $readiness = CutoverReadiness::for($project);
 
         return [
             'cutover' => view('filament.projects.cutover', [
@@ -530,13 +531,13 @@ class ProjectMigration extends Page
 
     public function canApprove(): bool
     {
-        return \App\Filament\Support\PlatformAccess::current()
+        return PlatformAccess::current()
             ->allowsProject(Capability::CUTOVER_APPROVE, $this->project());
     }
 
     public function canPreflight(): bool
     {
-        return \App\Filament\Support\PlatformAccess::current()
+        return PlatformAccess::current()
             ->allowsProject(Capability::CUTOVER_PREFLIGHT, $this->project());
     }
 
@@ -796,36 +797,7 @@ class ProjectMigration extends Page
     protected function runTarget($project): array
     {
         if ($this->runMode !== 'external_target') {
-            // 0.6.1 — the managed destination resolves exactly like the rest
-            // of the platform (ProjectConnectionManager): the per-project
-            // endpoint override, then PROJECT_DB_HOST/PORT, then the compose
-            // service default. No second endpoint interpretation.
-            $target = array_filter([
-                'host' => $project->db_host ?: env('PROJECT_DB_HOST', 'postgres'),
-                'port' => $project->db_port ?: env('PROJECT_DB_PORT', '5432'),
-                'database' => $project->db_name ?: null,
-            ]);
-
-            // A real transfer must AUTHENTICATE. The managed project DB's
-            // least-privilege role lives in the per-project env vars written
-            // by scripts/postgres/create-project-db.sh — the same source
-            // ProjectConnectionManager reads. The password is vaulted for the
-            // run and travels as a secret REF: the value itself is never
-            // persisted (target_connection is stored redacted). Without
-            // these vars the run fails closed before adapter defaults can apply.
-            if ($this->runMode === 'real') {
-                $prefix = ProjectConnectionManager::envPrefix($project);
-                $username = env($prefix.'USERNAME');
-                $password = env($prefix.'PASSWORD');
-                if (! $project->db_name || ! $username || $password === null || $password === false || $password === '') {
-                    throw new \RuntimeException("Database credentials for project [{$project->slug}] are not configured.");
-                }
-                SecretService::create($project, 'MANAGED_TARGET_PASSWORD', (string) $password, 'managed real-transfer target credential');
-                $target['username'] = $username;
-                $target['secret_refs'] = ['password' => 'MANAGED_TARGET_PASSWORD'];
-            }
-
-            return $target;
+            return ProjectConnectionManager::migrationTarget($project, $this->runMode === 'real');
         }
 
         return array_filter([

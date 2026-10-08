@@ -2,7 +2,11 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Resources\Projects\ProjectResource;
+use App\Filament\Support\NexusAi;
 use App\Filament\Support\PlatformAccess;
+use App\Models\MigrationAnalysis;
+use App\Models\MigrationPlan;
 use App\Models\MigrationSource;
 use App\Models\Project;
 use App\Models\ProjectWizardDraft;
@@ -13,15 +17,22 @@ use App\Services\ControlPlane\AdminAudit;
 use App\Services\ControlPlane\Connectors\ConnectorCredentials;
 use App\Services\ControlPlane\Connectors\ConnectorRegistry;
 use App\Services\ControlPlane\Connectors\ConnectorTestResult;
+use App\Services\ControlPlane\Connectors\Contracts\Connector;
 use App\Services\ControlPlane\CpAccess;
+use App\Services\ControlPlane\EnvironmentContext;
 use App\Services\ControlPlane\EnvironmentService;
+use App\Services\ControlPlane\Migration\AnalysisOutcomeClassifier;
+use App\Services\ControlPlane\Migration\CompatibilityClassifier;
 use App\Services\ControlPlane\Migration\MigrationCenterService;
 use App\Services\ControlPlane\Migration\MigrationRunManager;
+use App\Services\ControlPlane\ProjectConnectionManager;
+use App\Services\ControlPlane\ProjectDatabaseProvisioner;
 use App\Services\ControlPlane\SecretVaultService;
-use App\Services\ControlPlane\Connectors\Contracts\Connector;
-use Filament\Pages\Page;
 use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
@@ -256,7 +267,6 @@ class NewProjectWizard extends Page
     }
 
     /** ── Inline workspace creation (§E2) ───────────────────────────── */
-
     public function canCreateWorkspace(): bool
     {
         return PlatformAccess::current()->allowsPlatform(Capability::WORKSPACES_CREATE);
@@ -329,7 +339,7 @@ class NewProjectWizard extends Page
     /** ── Data helpers ───────────────────────────────────────────────── */
 
     /** Only workspaces this user may actually reach (tenant isolation). */
-    public function accessibleWorkspaces(): \Illuminate\Support\Collection
+    public function accessibleWorkspaces(): Collection
     {
         return Access::for(auth()->user())
             ->accessibleWorkspaces()
@@ -460,11 +470,10 @@ class NewProjectWizard extends Page
 
         $topic = $topics[$this->step] ?? 'I need help with a new project.';
 
-        return \App\Filament\Support\NexusAi::pageUrl().'?topic='.urlencode($topic);
+        return NexusAi::pageUrl().'?topic='.urlencode($topic);
     }
 
     /** ── Navigation ─────────────────────────────────────────────────── */
-
     public function goToStep(int $step): void
     {
         $this->step = max(1, min(count(self::STEPS), $step));
@@ -492,7 +501,7 @@ class NewProjectWizard extends Page
                 4 => $this->goToStep(5),
                 default => null,
             };
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             // Field errors are already in the Livewire bag — let them through.
             $this->error = __('wizard.continue_disabled_hint');
             throw $e;
@@ -507,7 +516,6 @@ class NewProjectWizard extends Page
     }
 
     /** ── Step logic ─────────────────────────────────────────────────── */
-
     protected function validateProjectStep(): void
     {
         $this->validate([
@@ -577,19 +585,34 @@ class NewProjectWizard extends Page
 
     protected function validateDestinationStep(): void
     {
-        if (($this->state['destination'] ?? 'temm') === 'external') {
-            $this->validate([
-                'state.target.host' => ['required', 'string', 'max:255'],
-                'state.target.port' => ['nullable', 'integer', 'min:1', 'max:65535'],
-                'state.target.database' => ['required', 'string', 'max:128'],
-                'state.target.username' => ['nullable', 'string', 'max:128'],
-            ], [], [
-                'state.target.host' => __('wizard.target_host'),
-                'state.target.database' => __('wizard.target_database'),
-            ]);
-        }
+        try {
+            if (($this->state['destination'] ?? 'temm') === 'external') {
+                $this->validate([
+                    'state.target.host' => ['required', 'string', 'max:255'],
+                    'state.target.port' => ['required', 'integer', 'min:1', 'max:65535'],
+                    'state.target.database' => ['required', 'string', 'max:128'],
+                    'state.target.username' => ['required', 'string', 'max:128'],
+                    'state.target.password' => ['required', 'string', 'max:8000'],
+                ], [], [
+                    'state.target.host' => __('wizard.target_host'),
+                    'state.target.database' => __('wizard.target_database'),
+                ]);
+            }
 
-        $this->goToStep(4);
+            $project = $this->project();
+            abort_unless($project, 422, __('wizard.start_blocked_no_project'));
+            $environment = EnvironmentService::defaultFor($project);
+            $provisioner = app(ProjectDatabaseProvisioner::class);
+            if (($this->state['destination'] ?? 'temm') === 'external') {
+                $provisioner->configure($project, $environment, $this->state['target'] + ['sslmode' => 'prefer'], 'external');
+            } else {
+                $provisioner->provision($project, $environment);
+            }
+
+            $this->goToStep(4);
+        } finally {
+            $this->state['target']['password'] = '';
+        }
     }
 
     /**
@@ -699,14 +722,13 @@ class NewProjectWizard extends Page
     /** §E5 — "Open system settings" renders only for users who have it. */
     public function canOpenSystemSettings(): bool
     {
-        return \App\Filament\Pages\SettingsHub::canAccess();
+        return SettingsHub::canAccess();
     }
 
     /** ── Analyze (§E7): real staged progress, tick by tick ──────────── */
-
-    public function analysis(): ?\App\Models\MigrationAnalysis
+    public function analysis(): ?MigrationAnalysis
     {
-        return $this->analysisId !== null ? \App\Models\MigrationAnalysis::find($this->analysisId) : null;
+        return $this->analysisId !== null ? MigrationAnalysis::find($this->analysisId) : null;
     }
 
     /** Start (or re-start) the read-only source analysis. */
@@ -847,17 +869,17 @@ class NewProjectWizard extends Page
      *
      * @return list<array{check: string, title: string, detail: string}>
      */
-    public function analysisWarnings(?\App\Models\MigrationAnalysis $analysis = null): array
+    public function analysisWarnings(?MigrationAnalysis $analysis = null): array
     {
         $analysis ??= $this->analysis();
 
         return $analysis === null
             ? []
-            : \App\Services\ControlPlane\Migration\AnalysisOutcomeClassifier::present((array) ($analysis->warnings ?? []));
+            : AnalysisOutcomeClassifier::present((array) ($analysis->warnings ?? []));
     }
 
     /** Raw diagnostics for the Technical details disclosure. */
-    public function analysisTechnicalDetail(?\App\Models\MigrationAnalysis $analysis = null): string
+    public function analysisTechnicalDetail(?MigrationAnalysis $analysis = null): string
     {
         $analysis ??= $this->analysis();
         if ($analysis === null) {
@@ -874,7 +896,7 @@ class NewProjectWizard extends Page
             ])));
         }
 
-        return \App\Services\ControlPlane\Migration\AnalysisOutcomeClassifier::technicalFor($analysis);
+        return AnalysisOutcomeClassifier::technicalFor($analysis);
     }
 
     /** ── Review (§E10): deterministic readiness ─────────────────────── */
@@ -892,7 +914,7 @@ class NewProjectWizard extends Page
         $analysis = $this->analysis();
         $analysisDone = $analysis !== null && $analysis->status === 'completed';
         $tables = $analysisDone ? (int) (($analysis->counts['tables'] ?? 0)) : 0;
-        $planItems = $this->planId !== null ? (\App\Models\MigrationPlan::find($this->planId)?->items()->count()) : null;
+        $planItems = $this->planId !== null ? (MigrationPlan::find($this->planId)?->items()->count()) : null;
 
         $reason = match (true) {
             ! $analysisDone => __('wizard.review_reason_no_analysis'),
@@ -920,7 +942,7 @@ class NewProjectWizard extends Page
 
         $counts = [];
         foreach ($analysis->items()->get(['kind', 'compatibility']) as $item) {
-            if ($item->compatibility === \App\Services\ControlPlane\Migration\CompatibilityClassifier::BLOCKED) {
+            if ($item->compatibility === CompatibilityClassifier::BLOCKED) {
                 $counts[$item->kind] = ($counts[$item->kind] ?? 0) + 1;
             }
         }
@@ -936,7 +958,6 @@ class NewProjectWizard extends Page
     }
 
     /** ── Start Migration (§E11): fail with a reason, never a bare Error ── */
-
     public function startMigration(): void
     {
         $project = $this->project();
@@ -965,7 +986,7 @@ class NewProjectWizard extends Page
         CpAccess::require(auth()->user(), 'migrations.manage');
 
         try {
-            $plan = \App\Models\MigrationPlan::findOrFail($this->planId);
+            $plan = MigrationPlan::findOrFail($this->planId);
 
             $target = $this->destinationTarget($project);
 
@@ -974,7 +995,7 @@ class NewProjectWizard extends Page
                 'mode' => 'dry_run',
                 'target' => $target,
                 'target_disposable' => (bool) $this->state['target_disposable'],
-                'target_environment_type' => 'development',
+                'target_environment_type' => EnvironmentContext::active($project)->type,
             ]);
             $manager->execute($run);
 
@@ -988,7 +1009,7 @@ class NewProjectWizard extends Page
                 ->send();
 
             // The journey continues on the project's Migration tab, Sync stage.
-            $this->redirect(\App\Filament\Resources\Projects\ProjectResource::getUrl('migration', [
+            $this->redirect(ProjectResource::getUrl('migration', [
                 'record' => $project, 'stage' => 'sync',
             ]));
         } catch (\Throwable $e) {
@@ -1099,6 +1120,10 @@ class NewProjectWizard extends Page
         ]);
 
         EnvironmentService::ensureDefaults($project);
+        $selected = $project->environments()->where('type', $this->state['environment'])->first();
+        $project->environments()->update(['is_default' => false]);
+        // The bulk update bypasses this model's original attributes: refresh before setting true.
+        $selected->refresh()->update(['is_default' => true, 'status' => 'active']);
 
         return $project;
     }
@@ -1107,12 +1132,12 @@ class NewProjectWizard extends Page
     protected function destinationTarget(Project $project): array
     {
         if (($this->state['destination'] ?? 'temm') !== 'external') {
-            // TEMM-managed: the platform provisions the target; nothing to ask.
-            return array_filter([
-                'host' => $project->db_host ?: null,
-                'port' => $project->db_port ?: null,
-                'database' => $project->db_name ?: null,
-            ]);
+            return ProjectConnectionManager::migrationTarget($project, false);
+        }
+
+        $environment = EnvironmentContext::active($project);
+        if ($environment->database_connection) {
+            return ProjectConnectionManager::migrationTarget($project, true);
         }
 
         $target = [

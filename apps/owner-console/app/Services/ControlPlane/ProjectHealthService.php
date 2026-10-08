@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Redis;
 
 /**
  * Aggregates per-project health from sources the console can genuinely measure:
- * project DB (via project connection), monitor connection (sizes/activity),
+ * project DB (reachability, sizes/activity via its canonical connection),
  * Redis (namespaced queue depths), and the project checkout on disk
  * (composer.lock versions, maintenance file, config presence).
  */
@@ -47,18 +47,19 @@ class ProjectHealthService
             $size = 0;
             $conns = 0;
             try {
-                $row = DB::connection('pgsql-monitor')->selectOne(
-                    'SELECT pg_database_size(?) AS b, (SELECT count(*) FROM pg_stat_activity WHERE datname = ?) AS c',
-                    [$this->project->db_name, $this->project->db_name]
+                $row = DB::connection($conn)->selectOne(
+                    'SELECT pg_database_size(current_database()) AS b, (SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()) AS c'
                 );
                 $size = (int) ($row->b ?? 0);
                 $conns = (int) ($row->c ?? 0);
             } catch (\Throwable) {
             }
 
-            return ['reachable' => true, 'version' => $version, 'size_bytes' => $size, 'connections' => $conns];
+            return ['scope' => 'project_database', 'environment_id' => EnvironmentContext::active($this->project)->id,
+                'reachable' => true, 'version' => $version, 'size_bytes' => $size, 'connections' => $conns];
         } catch (\Throwable $e) {
-            return ['reachable' => false, 'error' => 'unavailable'];
+            return ['scope' => 'project_database', 'environment_id' => EnvironmentContext::active($this->project)->id,
+                'reachable' => false, 'error' => 'unavailable'];
         }
     }
 

@@ -11,6 +11,11 @@ return [
 
     // المشاريع والبيئات والصحة
     'project_health_checked' => 'فحص الحالة الصحية',
+    'project_database_provisioning_started' => 'بدأ تجهيز قاعدة بيانات المشروع',
+    'project_database_provisioned' => 'جهّز قاعدة بيانات المشروع',
+    'project_database_provisioning_failed' => 'لم يكتمل تجهيز قاعدة بيانات المشروع',
+    'project_database_reconciled' => 'تحقّق من قاعدة بيانات المشروع الحالية',
+    'project_database_configured' => 'ضبط اتصال قاعدة بيانات المشروع',
     'environment_created' => 'أنشأ بيئة',
     'environment_updated' => 'حدّث بيئة',
     'environment_switched' => 'بدّل البيئة',

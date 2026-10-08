@@ -6,7 +6,6 @@ use App\Models\Project;
 use App\Models\ProjectEnvironment;
 use App\Models\ProjectSecret;
 use App\Models\SchemaSnapshot;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -22,12 +21,17 @@ class EnvironmentService
     /** Ensure the three canonical environments exist for a project. */
     public static function ensureDefaults(Project $project): void
     {
+        $existing = $project->environments()->pluck('slug')->all();
         foreach ([
             ['name' => 'Development', 'slug' => 'development', 'type' => 'development', 'disposable' => true],
             ['name' => 'Staging', 'slug' => 'staging', 'type' => 'staging', 'disposable' => false],
             ['name' => 'Production', 'slug' => 'production', 'type' => 'production', 'disposable' => false],
         ] as $i => $spec) {
-            ProjectEnvironment::firstOrCreate(
+            if (in_array($spec['slug'], $existing, true)) {
+                continue;
+            }
+            // The unique project/slug constraint reconciles concurrent creation.
+            ProjectEnvironment::createOrFirst(
                 ['project_id' => $project->id, 'slug' => $spec['slug']],
                 [
                     'name' => $spec['name'],

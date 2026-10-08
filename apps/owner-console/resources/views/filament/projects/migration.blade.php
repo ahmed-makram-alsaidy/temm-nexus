@@ -440,7 +440,7 @@
                     </div>
                     <div class="nx-status-list__row">
                         <dt>{{ __('migration.sync_target') }}</dt>
-                        <dd>{{ __('migration.sync_source_to_target', ['source' => $sourceName ?? '—', 'target' => $latestRunTarget ?? '—']) }}</dd>
+                        <dd><bdi dir="ltr">{{ __('migration.sync_source_to_target', ['source' => $sourceName ?? '—', 'target' => $latestRunTarget ?? '—']) }}</bdi></dd>
                     </div>
                     <div class="nx-status-list__row">
                         <dt>{{ __('migration.sync_mode') }}</dt>
@@ -480,7 +480,7 @@
                 <div class="nx-card nx-card--nested" data-migration-run-form>
                     <label class="nx-field">
                         <span class="nx-field__label">{{ __('migration.sync_mode') }}</span>
-                        <select wire:model="runMode" class="nx-field__input" data-migration-run-mode>
+                        <select wire:model.live="runMode" class="nx-field__input" data-migration-run-mode>
                             <option value="dry_run">{{ __('migration.sync_mode_dry_run') }}</option>
                             <option value="rehearsal">{{ __('migration.sync_mode_rehearsal') }}</option>
                             {{-- 0.6.1 — the managed destination's real-transfer

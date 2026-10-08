@@ -29,7 +29,7 @@
             <details class="nx-tabs__env">
                 <summary class="nx-tabs__env-btn" title="{{ __('nav.active_environment') }}">
                     <span class="cp-dot {{ $activeEnv->type === 'production' ? 'is-danger' : ($activeEnv->type === 'staging' ? 'is-warn' : 'is-healthy') }}"></span>
-                    <span>{{ $activeEnv->name }}</span>
+                    <span>{{ in_array($activeEnv->slug, ['development', 'staging', 'production'], true) ? __('projects.env_'.$activeEnv->type) : $activeEnv->name }}</span>
                     <x-filament::icon icon="heroicon-o-chevron-up-down" class="h-3 w-3" />
                 </summary>
                 <div class="nx-tabs__env-menu" role="menu">
@@ -40,8 +40,8 @@
                             @if ($envOption->is($activeEnv)) aria-current="true" @endif
                             @if ($envOption->status !== 'active') style="opacity:.55" @endif
                         >
-                            <span>{{ $envOption->name }}{{ $envOption->status !== 'active' ? ' ('.__('nav.inactive').')' : '' }}</span>
-                            <span class="nx-tag">{{ strtoupper($envOption->type) }}</span>
+                            <span>{{ in_array($envOption->slug, ['development', 'staging', 'production'], true) ? __('projects.env_'.$envOption->type) : $envOption->name }}{{ $envOption->status !== 'active' ? ' ('.__('nav.inactive').')' : '' }}</span>
+                            <span class="nx-tag"><bdi dir="ltr">{{ strtoupper($envOption->type) }}</bdi></span>
                         </a>
                     @endforeach
                     <a role="menuitem" href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('environments', ['record' => $project]) }}">

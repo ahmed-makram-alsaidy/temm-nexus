@@ -827,6 +827,9 @@ return [
 
     // ── Data surfaces (Phase H) ───────────────────────────────────────
     'dat_tables_views' => 'Tables & views',
+    'dat_filter_tables' => 'Filter tables…',
+    'dat_no_tables_match' => 'No tables match.',
+    'dat_tables_views_count' => ':count tables & views',
     'fn_function' => 'Function',
     'fn_versions' => 'Versions',
     'keys_title' => 'API keys',
@@ -965,4 +968,3 @@ return [
     // ── Sessions (Phase H) ────────────────────────────────────────────
     'ss_never_used' => 'Never used',
 ];
-
