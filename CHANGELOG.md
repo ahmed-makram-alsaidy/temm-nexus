@@ -1,3 +1,14 @@
+## [0.6.3] — 2026-10-09
+
+**PATCH.** TEMM-managed destinations now provision and bind their database to the
+explicit active environment. Connections offers provisioning, configuration, and
+retry recovery actions. Data, Health, and real migration targets share canonical
+credentials encrypted in the existing vault. Provisioning is authorized,
+auditable, idempotent, and refuses unknown existing databases or roles without
+destructive overwrite. English and Arabic clarify project classification versus
+the active environment and update the transfer description with its selected mode.
+No schema migration is required; migration safety guards remain enforced.
+
 ## [0.6.2] — 2026-10-08
 
 **PATCH.** The Migration page subtitle now uses the active product tab's
