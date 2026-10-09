@@ -209,6 +209,10 @@ services:
   # If you bind-mount client repos into `app` for agent tasks, mount them
   # here too at identical paths — never wider than that.
   opencode:
+    # Opt-in only for operators explicitly choosing Nexus Developer Agent.
+    # The company's coding agents run on the local workstation instead.
+    # Default production 'docker compose up -d' does not start this service.
+    profiles: ["managed-developer-agent"]
     build:
       # Context is the opencode folder itself: COPY paths inside the
       # Dockerfile (entrypoint.sh) are context-relative.
