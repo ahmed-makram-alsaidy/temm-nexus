@@ -10,6 +10,7 @@ use Filament\Resources\Pages\Page;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Html;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Illuminate\Contracts\Support\Htmlable;
 
 /**
@@ -33,14 +34,14 @@ class ProjectErd extends Page
      * 0.6.0 Phase A (§A3): an intentional wide surface — the shell stays
      * ~1440px everywhere else, but this visualization needs the room.
      */
-    public function getMaxContentWidth(): string|\Filament\Support\Enums\Width|null
+    public function getMaxContentWidth(): string|Width|null
     {
-        return \Filament\Support\Enums\Width::Full;
+        return Width::Full;
     }
 
     protected static bool $shouldRegisterNavigation = false;
 
-    public const ASSET_VERSION = '21.0.0';
+    public const ASSET_VERSION = '21.0.1';
 
     public function mount(int|string $record): void
     {
