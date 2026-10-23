@@ -21,6 +21,10 @@ class ProjectStorageManager
 
     public static function for(Project $project, ?string $repoRoot = null): self
     {
+        if ($project->storage_disk === 'supabase') {
+            return CompatibleStorageManager::forProject($project);
+        }
+
         $repoRoot ??= ControlPlanePaths::repoRoot();
         $root = $repoRoot.'/projects/'.$project->slug.'/storage/control-plane';
         if (! is_dir($root)) {
@@ -67,6 +71,17 @@ class ProjectStorageManager
         mkdir($path, 0755, true);
         if ($visibility === 'public') {
             touch($path.'/.public');
+        }
+    }
+
+    public function setVisibility(string $bucket, string $visibility): void
+    {
+        $path = $this->resolve($bucket);
+        abort_unless(is_dir($path), 404);
+        if ($visibility === 'public') {
+            touch($path.'/.public');
+        } elseif (is_file($path.'/.public')) {
+            unlink($path.'/.public');
         }
     }
 

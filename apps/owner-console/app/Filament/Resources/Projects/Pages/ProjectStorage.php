@@ -5,10 +5,10 @@ namespace App\Filament\Resources\Projects\Pages;
 use App\Filament\Resources\Projects\Pages\Concerns\HasProjectContext;
 use App\Filament\Resources\Projects\ProjectResource;
 use App\Http\Controllers\SignedDownloadController;
+use App\Models\Project;
 use App\Models\StorageBucketSetting;
 use App\Services\ControlPlane\CpAccess;
 use App\Services\ControlPlane\ProjectStorageManager;
-use Illuminate\Contracts\Support\Htmlable;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -20,8 +20,10 @@ use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Html;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Url;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /**
  * Phase 20L Storage Studio: bucket cards with usage, breadcrumb folder
@@ -106,7 +108,7 @@ class ProjectStorage extends Page
         return self::settingsFor($this->project(), $bucket);
     }
 
-    public static function settingsFor(\App\Models\Project $project, string $bucket): ?StorageBucketSetting
+    public static function settingsFor(Project $project, string $bucket): ?StorageBucketSetting
     {
         return StorageBucketSetting::query()
             ->where('project_id', $project->id)->where('bucket', $bucket)->first();
@@ -223,6 +225,7 @@ class ProjectStorage extends Page
                 $url = static::getUrl(['record' => $this->project(), 'bucket' => $this->bucket, 'prefix' => $f['path']]);
                 $rows .= '<tr><td>📁 <a href="'.e($url).'">'.e($f['name']).'</a></td><td>folder</td>'
                     .'<td>—</td><td>—</td><td>'.e($f['modified'] ?? '—').'</td><td><a href="'.e($url).'">Open →</a></td></tr>';
+
                 continue;
             }
             $dl = route('control-plane.download', ['project' => $this->project()->slug, 'bucket' => $this->bucket, 'key' => $f['path']]);
@@ -342,10 +345,13 @@ class ProjectStorage extends Page
                 CpAccess::require(auth()->user(), 'storage.manage');
                 $uploaded = $data['file'];
                 $path = is_array($uploaded) ? reset($uploaded) : $uploaded;
-                $tmp = Storage::disk('local')->path($path);
+                $tmp = $path instanceof TemporaryUploadedFile
+                    ? $path->getRealPath()
+                    : Storage::disk('local')->path($path);
                 $contents = file_get_contents($tmp);
                 $this->enforcePolicy($this->bucket, $tmp, strlen($contents));
-                $name = preg_replace('/[^A-Za-z0-9._\-]/', '_', basename($path));
+                $name = preg_replace('/[^A-Za-z0-9._\-]/', '_', $path instanceof TemporaryUploadedFile
+                    ? $path->getClientOriginalName() : basename($path));
                 $dest = $this->storage()->store($this->bucket, $this->prefix, $name, $contents);
                 @unlink($tmp);
                 $this->audit('STORAGE_FILE_UPLOADED', 'file', $dest);
@@ -408,6 +414,7 @@ class ProjectStorage extends Page
             ->action(function (array $data) {
                 CpAccess::require(auth()->user(), 'storage.manage');
                 $mimes = array_values(array_filter(array_map('trim', explode(',', (string) ($data['allowed_mimes'] ?? '')))));
+                $this->storage()->setVisibility($this->bucket, $data['visibility']);
                 StorageBucketSetting::updateOrCreate(
                     ['project_id' => $this->project()->id, 'bucket' => $this->bucket],
                     ['visibility' => $data['visibility'], 'max_size_mb' => (int) $data['max_size_mb'], 'allowed_mimes' => $mimes ?: null]
@@ -434,7 +441,7 @@ class ProjectStorage extends Page
         $this->enforcePolicyFor($this->project(), $bucket, $tmpPath, $bytes);
     }
 
-    public static function enforcePolicyFor(\App\Models\Project $project, string $bucket, string $tmpPath, int $bytes): void
+    public static function enforcePolicyFor(Project $project, string $bucket, string $tmpPath, int $bytes): void
     {
         $settings = self::settingsFor($project, $bucket);
         if (! $settings) {
