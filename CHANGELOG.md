@@ -1,3 +1,32 @@
+## [0.6.4] — 2026-11-25
+
+**PATCH.** Fixes found on a production installation. No schema migration is
+required.
+
+- The SQL Editor runs queries again. Its CodeMirror files were never shipped:
+  they lived in `public/vendor/`, and the generic `vendor` exclusions of git,
+  Docker and the release package (meant for Composer) dropped them, so the files
+  answered 404, the page script stopped at `CodeMirror is not defined` and Run
+  never sent a request, in read-only and write mode alike. CodeMirror 5.65.21
+  (MIT) now ships in `public/js/codemirror`, the editor falls back to a plain
+  text box if the library ever fails to load, and unit tests fail when a page
+  references a static file that is missing from `public/` or sits in a folder
+  that shipping leaves out.
+- Storage Studio no longer answers HTTP 500. Without `CONTROL_PLANE_REPO_ROOT`
+  the per-project root fell back to `/`, which the web server cannot write to;
+  it now lives in the app's persistent `storage/app/control-plane`, and an
+  unusable root is a clear 503. Projects whose storage is a managed
+  Supabase-compatible runtime use its storage API with the active environment's
+  vaulted credentials.
+- The ERD no longer stops at `t is not a function` after drawing the tables (a
+  local variable shadowed the translation helper); the asset version is bumped
+  so browsers fetch the corrected script.
+- Successful sign-ins are logged for interactive requests only. Console scripts
+  that act as a user wrote one `AUTH_LOGIN_OK` warning every minute and buried
+  real warnings.
+- Laravel logs survive upgrades: `storage/logs` is a named volume (`app_logs`)
+  shared by the app, Horizon, scheduler and Reverb. Before, every container
+  recreation started an empty log, so the evidence of a failed upgrade was gone.
 ## [0.6.3] — 2026-10-09
 
 **PATCH.** TEMM-managed destinations now provision and bind their database to the
