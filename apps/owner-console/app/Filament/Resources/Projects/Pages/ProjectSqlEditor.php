@@ -68,7 +68,7 @@ class ProjectSqlEditor extends Page
     protected function editorHtml(Project $p, bool $canWrite): string
     {
         $html = <<<'HTML'
-<link rel="stylesheet" href="/vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="/js/codemirror/codemirror.min.css">
 <div class="cp-reference__sql" data-cp-sql="1"
   data-run="__RUN__" data-history="__HISTORY__" data-saved="__SAVED__"
   data-save="__SAVE__" data-unsave="__UNSAVE__" data-writemode="__WRITEMODE__"
@@ -89,7 +89,7 @@ class ProjectSqlEditor extends Page
     <button class="cp-btn cp-btn--sm" data-act="format">Format</button>
     <button class="cp-btn cp-btn--sm" data-act="save">Save</button>
   </div>
-  <div class="cp-sql__editor cp-sqlwork__editor"><textarea data-editor aria-label="SQL query">-- __SLUG__ · read-only mode
+  <div class="cp-sql__editor cp-sqlwork__editor"><textarea data-editor aria-label="SQL query" spellcheck="false" style="display:block;width:100%;min-height:12rem;box-sizing:border-box;border:0;padding:.75rem;resize:vertical;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--cp-code-bg);color:#e2e8f0">-- __SLUG__ · read-only mode
 select * from users limit 100;</textarea></div>
   <section class="cp-sqlwork__results" aria-label="Query results">
     <h3 class="cp-sqlwork__results-h">Results</h3>
@@ -106,8 +106,8 @@ select * from users limit 100;</textarea></div>
   </div>
   <div data-modal></div>
 </div>
-<script src="/vendor/codemirror/codemirror.min.js"></script>
-<script src="/vendor/codemirror/sql.min.js"></script>
+<script src="/js/codemirror/codemirror.min.js"></script>
+<script src="/js/codemirror/sql.min.js"></script>
 <script>
 (function(){
   var root = document.querySelector('[data-cp-sql]');
@@ -119,9 +119,34 @@ select * from users limit 100;</textarea></div>
     opts.headers = Object.assign({'X-CSRF-TOKEN': csrf, 'Accept': 'application/json'}, opts.headers || {});
     return fetch(url, opts).then(function(r){ return r.json().then(function(j){ return {status: r.status, body: j}; }); });
   }
-  var cm = CodeMirror.fromTextArea(root.querySelector('[data-editor]'), {
-    mode: 'text/x-pgsql', lineNumbers: true, indentWithTabs: false, tabSize: 2
-  });
+  // CodeMirror is vendored in public/js/codemirror. When it cannot load
+  // (file missing on the server, script blocked) the page must still run
+  // queries: the plain textarea gets the same small editor interface.
+  function plainEditor(area){
+    var listeners = [];
+    function changed(){ listeners.forEach(function(fn){ fn(); }); }
+    area.addEventListener('input', changed);
+    return {
+      getValue: function(){ return area.value; },
+      setValue: function(value){ area.value = value; changed(); },
+      on: function(event, fn){ if (event === 'change') listeners.push(fn); },
+      addKeyMap: function(map){
+        area.addEventListener('keydown', function(e){
+          if (e.ctrlKey && e.key === 'Enter' && map['Ctrl-Enter']) { e.preventDefault(); map['Ctrl-Enter'](); }
+        });
+      }
+    };
+  }
+  var area = root.querySelector('[data-editor]');
+  var cm;
+  if (window.CodeMirror) {
+    cm = CodeMirror.fromTextArea(area, {
+      mode: 'text/x-pgsql', lineNumbers: true, indentWithTabs: false, tabSize: 2
+    });
+  } else {
+    if (window.console) console.warn('SQL editor: CodeMirror did not load, using the plain text box.');
+    cm = plainEditor(area);
+  }
   cm.addKeyMap({'Ctrl-Enter': function(){ run(false); }});
   // Tabs (localStorage per project).
   var store = 'cpsql.' + slug, tabs = [{name: 'Query 1', sql: cm.getValue()}], active = 0;
