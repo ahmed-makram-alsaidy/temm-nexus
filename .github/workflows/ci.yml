@@ -221,7 +221,7 @@ jobs:
           # old routing while the upgrade reported success. The upgrader must
           # recreate caddy when its configuration fingerprint changes.
           sed -i 's|X-Content-Type-Options "nosniff"|X-Content-Type-Options "nosniff"\n\t\tX-Phase37 "regression"|' infrastructure/caddy/Caddyfile.selfhost
-          grep -q 'X-Phase37' infrastructure/caddy/Caddyfile.selfhost
+          grep -q 'X-Phase37' infrastructure/caddy/Caddyfile.selfhost || { echo "test setup: the X-Phase37 header was not inserted"; exit 1; }
           ./scripts/upgrade.sh > /tmp/upgrade.log 2>&1 || { cat /tmp/upgrade.log; exit 1; }
           grep -q "caddy configuration CHANGED" /tmp/upgrade.log || { echo "upgrader did not detect the configuration change"; exit 1; }
           # The stack is UNINITIALIZED at this point (no setup wizard run):
@@ -233,8 +233,8 @@ jobs:
           [ "$HDR" -ge 1 ] || { echo "new Caddyfile is NOT active after upgrade — caddy not recreated"; exit 1; }
           # A second upgrade with an UNCHANGED config must NOT recreate caddy.
           BEFORE=$(docker inspect --format '{{.Created}}' "$(docker compose -f docker-compose.prod.yml ps -q caddy)")
-          ./scripts/upgrade.sh > /tmp/upgrade2.log 2>&1
-          grep -q "caddy configuration unchanged" /tmp/upgrade2.log
+          ./scripts/upgrade.sh > /tmp/upgrade2.log 2>&1 || { cat /tmp/upgrade2.log; echo "second upgrade failed"; exit 1; }
+          grep -q "caddy configuration unchanged" /tmp/upgrade2.log || { cat /tmp/upgrade2.log; echo "second upgrade with an unchanged configuration did not leave caddy as-is"; exit 1; }
           AFTER=$(docker inspect --format '{{.Created}}' "$(docker compose -f docker-compose.prod.yml ps -q caddy)")
           [ "$BEFORE" = "$AFTER" ] || { echo "unchanged configuration triggered an unnecessary caddy recreation"; exit 1; }
           # rc.3 regression: an APP container recreation (every real code
