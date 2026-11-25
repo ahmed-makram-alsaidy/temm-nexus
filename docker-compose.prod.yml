@@ -31,6 +31,7 @@ volumes:
   pgdata:
   redisdata:
   app_storage:
+  app_logs:
   caddy_data:
   caddy_config:
 
@@ -50,6 +51,8 @@ x-app: &app
   working_dir: /var/www/html
   volumes:
     - app_storage:/var/www/html/storage/app
+    # Laravel logs survive container recreation (every upgrade recreates it).
+    - app_logs:/var/www/html/storage/logs
     - ./backups/data:/backups
   networks:
     - application
