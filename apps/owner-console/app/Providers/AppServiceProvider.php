@@ -40,9 +40,17 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Support\Facades\Log::warning('AUTH_FAILED', ['user' => $e->user?->id, 'email' => is_string($e->credentials['email'] ?? null) ? $e->credentials['email'] : 'MISSING']);
         });
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Validated::class, function ($e) {
+            if (app()->runningInConsole()) {
+                return;
+            }
             \Illuminate\Support\Facades\Log::warning('AUTH_VALIDATED', ['user' => $e->user?->id]);
         });
+        // Interactive sign-ins only: scripts and scheduled jobs that act as a
+        // user (Auth::login in the console) wrote this line every minute.
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Login::class, function ($e) {
+            if (app()->runningInConsole()) {
+                return;
+            }
             \Illuminate\Support\Facades\Log::warning('AUTH_LOGIN_OK', ['user' => $e->user?->id]);
         });
         // General API throttle: 60 req/min per IP (routes reference 'throttle:api').

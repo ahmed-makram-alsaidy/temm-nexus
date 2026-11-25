@@ -27,8 +27,8 @@ class ProjectStorageManager
 
         $repoRoot ??= ControlPlanePaths::repoRoot();
         $root = $repoRoot.'/projects/'.$project->slug.'/storage/control-plane';
-        if (! is_dir($root)) {
-            mkdir($root, 0755, true);
+        if (! is_dir($root) && ! @mkdir($root, 0755, true) && ! is_dir($root)) {
+            abort(503, 'Storage is not available on this installation.');
         }
 
         return new self($project, realpath($root) ?: $root);
