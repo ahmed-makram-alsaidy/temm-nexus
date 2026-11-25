@@ -89,7 +89,19 @@ fi
 # ── build new image, run migrations (normal migrations only) ─────
 echo "==> building the upgraded application image"
 APP_BEFORE="$($COMPOSE ps -q app 2>/dev/null)"
+# An unchanged tree must rebuild to the SAME image, or every upgrade recreates
+# the app (and then caddy) for nothing. Newer Docker engines attach build
+# attestations with timestamps by default, which gives each build a new image
+# id; the operator can still opt in by exporting BUILDX_NO_DEFAULT_ATTESTATIONS=0.
+export BUILDX_NO_DEFAULT_ATTESTATIONS="${BUILDX_NO_DEFAULT_ATTESTATIONS:-1}"
+IMAGE_BEFORE="$(docker image inspect -f '{{.Id}}' backend-plane/app-php:8.4 2>/dev/null || true)"
 $COMPOSE build app
+IMAGE_AFTER="$(docker image inspect -f '{{.Id}}' backend-plane/app-php:8.4 2>/dev/null || true)"
+if [ -n "$IMAGE_BEFORE" ] && [ "$IMAGE_BEFORE" = "$IMAGE_AFTER" ]; then
+  echo "  application image unchanged"
+else
+  echo "  application image rebuilt: ${IMAGE_BEFORE:-none} -> ${IMAGE_AFTER:-none}"
+fi
 
 echo "==> applying database migrations (Laravel migrate --force; never fresh)"
 $COMPOSE run --rm migrate
